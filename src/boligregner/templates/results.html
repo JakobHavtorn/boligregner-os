@@ -13,12 +13,61 @@
   --lime: #C1D72F;
   --bg: #f8f9fa;
   --surface: #ffffff;
+  --surface-hover: #f8fafc;
   --border: #e2e8f0;
   --text: #1a202c;
   --muted: #64748b;
   --shadow: 0 1px 3px rgba(0,0,0,0.08);
   --shadow-lg: 0 4px 12px rgba(0,0,0,0.10);
   --radius: 8px;
+  --th-bg: #f8fafc;
+  --error-bg: #fef2f2;
+  --error-border: #fecaca;
+  --error-accent: #dc2626;
+  --error-text: #b91c1c;
+  --cheapest-hover: #e3f0ff;
+  --row-hover: #f0f7ff;
+  --input-bg: #ffffff;
+  --remove-hover-bg: #fee2e2;
+  --remove-hover-fg: #dc2626;
+  --flash-down: #e6ffe6;
+  --flash-up: #ffe6e6;
+  --zero-line: #999;
+  --legend-grey: #94a3b8;
+  --toggle-bg: var(--surface);
+  --toggle-border: var(--border);
+}
+
+[data-theme="dark"] {
+  --navy: #4A9FE5;
+  --navy-dark: #2D7FBE;
+  --navy-tint: #1a2f48;
+  --cyan: #1BB6EA;
+  --lime: #C1D72F;
+  --bg: #0f172a;
+  --surface: #1e293b;
+  --surface-hover: #24344d;
+  --border: #334155;
+  --text: #e2e8f0;
+  --muted: #94a3b8;
+  --shadow: 0 2px 8px rgba(0,0,0,0.3);
+  --shadow-lg: 0 4px 16px rgba(0,0,0,0.4);
+  --th-bg: #1a2436;
+  --error-bg: #2a1517;
+  --error-border: #5c2020;
+  --error-accent: #f87171;
+  --error-text: #f87171;
+  --cheapest-hover: #243a5e;
+  --row-hover: #24344d;
+  --input-bg: #0f172a;
+  --remove-hover-bg: #3a2020;
+  --remove-hover-fg: #f87171;
+  --flash-down: #1a3a1a;
+  --flash-up: #3a2020;
+  --zero-line: #475569;
+  --legend-grey: #64748b;
+  --toggle-bg: #1e293b;
+  --toggle-border: #334155;
 }
 
 html { scroll-behavior: smooth; }
@@ -32,18 +81,51 @@ body {
   font-size: 14px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 .container { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+
+.header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+  gap: 16px;
+}
 
 h1 {
   font-size: 28px;
   font-weight: 700;
   color: var(--navy);
-  margin-bottom: 4px;
   letter-spacing: -0.02em;
 }
 .subtitle { color: var(--muted); margin-bottom: 32px; font-size: 15px; }
+
+/* Theme toggle */
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--toggle-bg);
+  border: 1px solid var(--toggle-border);
+  border-radius: var(--radius);
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: var(--shadow);
+  font-family: inherit;
+}
+.theme-toggle:hover { border-color: var(--navy); }
+.theme-toggle:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(0,69,123,0.25); }
+.theme-toggle svg { width: 16px; height: 16px; fill: currentColor; }
+.theme-toggle .icon-sun { display: none; }
+.theme-toggle .icon-moon { display: inline; }
+[data-theme="dark"] .theme-toggle .icon-sun { display: inline; }
+[data-theme="dark"] .theme-toggle .icon-moon { display: none; }
 
 /* Meta header */
 .meta-row {
@@ -55,6 +137,7 @@ h1 {
   padding: 24px 28px;
   border-radius: var(--radius);
   box-shadow: var(--shadow);
+  transition: background 0.2s ease;
 }
 .meta-item { display: flex; flex-direction: column; gap: 4px; }
 .meta-label { font-size: 12px; color: var(--muted); font-weight: 500; }
@@ -87,16 +170,17 @@ h2::before {
   box-shadow: var(--shadow);
   margin-bottom: 24px;
   overflow: hidden;
+  transition: background 0.2s ease;
 }
 
-/* Tables — stay sharp, no border-radius */
+/* Tables */
 table { width: 100%; border-collapse: collapse; }
 th, td { padding: 10px 16px; text-align: right; border-bottom: 1px solid var(--border); }
 th {
   font-size: 12px;
   color: var(--muted);
   font-weight: 600;
-  background: #f8fafc;
+  background: var(--th-bg);
   border-bottom: 2px solid var(--border);
   position: sticky;
   top: 0;
@@ -104,17 +188,17 @@ th {
 }
 td:first-child, th:first-child { text-align: left; }
 tbody tr { transition: background 0.15s ease; }
-tbody tr:hover { background: #f8fafc; }
+tbody tr:hover { background: var(--surface-hover); }
 td.num { font-variant-numeric: tabular-nums; }
 
 /* Cheapest row highlight */
 tr.cheapest { background: var(--navy-tint); }
-tr.cheapest:hover { background: #e3f0ff; }
+tr.cheapest:hover { background: var(--cheapest-hover); }
 
 /* Clickable alternative rows */
 tr.alt-row { cursor: pointer; }
-tr.alt-row:hover { background: #f0f7ff; }
-tr.alt-row.cheapest:hover { background: #e3f0ff; }
+tr.alt-row:hover { background: var(--row-hover); }
+tr.alt-row.cheapest:hover { background: var(--cheapest-hover); }
 
 /* Billigst badge */
 .badge {
@@ -130,7 +214,7 @@ tr.alt-row.cheapest:hover { background: #e3f0ff; }
   letter-spacing: 0.02em;
 }
 
-/* Forskel (difference) row */
+/* Forskel row */
 tr.forskel {
   font-style: italic;
   color: var(--muted);
@@ -153,6 +237,7 @@ tr.forskel td { border-bottom: none; font-weight: 500; }
   font-weight: 600;
   margin: 0 0 12px;
   padding-left: 4px;
+  color: var(--text);
 }
 
 /* Form */
@@ -171,6 +256,7 @@ tr.forskel td { border-bottom: none; font-weight: 500; }
   cursor: pointer;
   transition: all 0.2s ease;
   box-shadow: var(--shadow);
+  font-family: inherit;
 }
 .form-toggle:hover { border-color: var(--navy); background: var(--navy-tint); }
 .form-toggle:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(0,69,123,0.25); }
@@ -182,7 +268,7 @@ tr.forskel td { border-bottom: none; font-weight: 500; }
   overflow: hidden;
   transition: max-height 0.4s ease;
 }
-.form-collapsible.open { max-height: 2000px; }
+.form-collapsible.open { max-height: 3000px; }
 
 form {
   background: var(--surface);
@@ -191,6 +277,7 @@ form {
   padding: 28px;
   margin-top: 12px;
   box-shadow: var(--shadow);
+  transition: background 0.2s ease;
 }
 form h3 {
   font-size: 16px;
@@ -208,10 +295,10 @@ form h3::before {
   border-radius: 2px;
   background: var(--navy);
 }
-.form-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; }
+.form-row { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 16px; align-items: flex-start; }
 .form-field { display: flex; flex-direction: column; gap: 6px; }
 .form-field label { font-size: 12px; color: var(--muted); font-weight: 500; }
-.form-field input {
+.form-field input, .form-field select {
   padding: 8px 12px;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -220,19 +307,54 @@ form h3::before {
   font-family: inherit;
   transition: all 0.2s ease;
   font-variant-numeric: tabular-nums;
+  background: var(--input-bg);
+  color: var(--text);
 }
-.form-field input:focus {
+.form-field input:focus, .form-field select:focus {
   outline: none;
   border-color: var(--navy);
   box-shadow: 0 0 0 3px rgba(0,69,123,0.18);
 }
+.form-field input[type="date"] { color-scheme: light dark; }
+.form-field select { cursor: pointer; appearance: auto; }
+
+/* Issue cost toggle */
+.issue-cost-field { display: flex; flex-direction: column; gap: 6px; }
+.issue-cost-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  width: fit-content;
+}
+.issue-cost-toggle button {
+  background: var(--input-bg);
+  border: none;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+.issue-cost-toggle button.active {
+  background: var(--navy);
+  color: #fff;
+}
+.issue-cost-toggle button:first-child { border-right: 1px solid var(--border); }
+.issue-cost-input { width: 160px; }
+
+/* Alt block */
 .alt-block {
   border: 1px solid var(--border);
   border-radius: 6px;
   padding: 16px;
   margin-bottom: 16px;
+  background: var(--surface-hover);
+  transition: background 0.2s ease;
 }
-.alt-block-title { font-weight: 600; font-size: 14px; margin-bottom: 12px; display: flex; align-items: center; }
+.alt-block-title { font-weight: 600; font-size: 14px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; color: var(--text); }
 .alt-remove {
   margin-left: auto;
   background: none;
@@ -243,8 +365,9 @@ form h3::before {
   padding: 2px 8px;
   border-radius: 4px;
   line-height: 1;
+  font-family: inherit;
 }
-.alt-remove:hover { background: #fee2e2; color: #dc2626; }
+.alt-remove:hover { background: var(--remove-hover-bg); color: var(--remove-hover-fg); }
 .alt-add-btn {
   display: block;
   width: 100%;
@@ -258,6 +381,7 @@ form h3::before {
   color: var(--navy);
   cursor: pointer;
   transition: all 0.2s ease;
+  font-family: inherit;
 }
 .alt-add-btn:hover { border-color: var(--navy); background: var(--navy-tint); }
 .alt-label-input {
@@ -266,10 +390,39 @@ form h3::before {
   border: 1px solid var(--border);
   border-radius: 4px;
   padding: 2px 8px;
-  margin-left: 8px;
   flex: 1;
   max-width: 300px;
+  background: var(--input-bg);
+  color: var(--text);
+  font-family: inherit;
 }
+
+/* LTV warning */
+.ltv-warning {
+  display: none;
+  margin-top: 8px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #92400e;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+}
+[data-theme="dark"] .ltv-warning {
+  color: #fbbf24;
+  background: #422006;
+  border-color: #78350f;
+}
+
+/* Provenu derived display */
+.provenu-derived {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 500;
+  margin-top: 2px;
+}
+.provenu-derived strong { color: var(--navy); font-weight: 600; }
 
 button.primary {
   background: var(--navy);
@@ -288,11 +441,11 @@ button.primary:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(0,69,12
 
 /* Error */
 .error {
-  color: #b91c1c;
+  color: var(--error-text);
   padding: 16px 20px;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  border-left: 4px solid #dc2626;
+  background: var(--error-bg);
+  border: 1px solid var(--error-border);
+  border-left: 4px solid var(--error-accent);
   border-radius: var(--radius);
   margin-bottom: 16px;
   font-size: 14px;
@@ -335,6 +488,7 @@ button.primary:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(0,69,12
   box-shadow: var(--shadow);
   padding: 28px;
   margin-bottom: 24px;
+  transition: background 0.2s ease;
 }
 .chart-card h3 {
   font-size: 16px;
@@ -367,7 +521,6 @@ svg.chart { display: block; width: 100%; height: auto; }
   font-weight: 500;
 }
 
-
 /* Chart bar/line colors */
 .bar-navy { fill: var(--navy); }
 .bar-cyan { fill: var(--cyan); }
@@ -384,19 +537,15 @@ svg.chart { display: block; width: 100%; height: auto; }
 .axis-line { stroke: var(--border); stroke-width: 1; }
 .axis-text { font-size: 10px; fill: var(--muted); }
 .axis-text-bold { font-size: 10px; fill: var(--text); font-weight: 600; }
-.chart-billigst-label {
-  font-size: 9px;
-  font-weight: 700;
-  fill: var(--navy);
-}
+.chart-billigst-label { font-size: 9px; font-weight: 700; fill: var(--navy); }
 
 /* Changed-value flash */
 @keyframes flash-down {
-  from { background: #e6ffe6; }
+  from { background: var(--flash-down); }
   to { background: transparent; }
 }
 @keyframes flash-up {
-  from { background: #ffe6e6; }
+  from { background: var(--flash-up); }
   to { background: transparent; }
 }
 td.flash-down { animation: flash-down 1s ease; }
@@ -415,7 +564,7 @@ td.flash-down.cheapest, td.flash-up.cheapest { animation-duration: 1s; }
     color: var(--navy);
     margin-bottom: 16px;
   }
-  .form-wrap, .form-toggle, .chart-legend { display: none !important; }
+  .form-wrap, .form-toggle, .chart-legend, .theme-toggle { display: none !important; }
   .card, .chart-card, .meta-row, form, .error {
     box-shadow: none !important;
     border: 1px solid #ccc !important;
@@ -429,8 +578,17 @@ td.flash-down.cheapest, td.flash-up.cheapest { animation-duration: 1s; }
 </head>
 <body>
 <div class="container">
+<div class="header-row">
+<div>
 <h1>Boligregner</h1>
 <p class="subtitle">Realkredit beregner — sammenlign lånemuligheder med 5-års horisont</p>
+</div>
+<button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" aria-label="Skift lys/mørkt tema">
+<svg class="icon-moon" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9c0-.46-.04-.92-.1-1.36a5.389 5.389 0 0 1-4.4 2.26 5.403 5.403 0 0 1-3.14-9.8c-.44-.06-.9-.1-1.36-.1z"/></svg>
+<svg class="icon-sun" viewBox="0 0 24 24"><path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zM2 13h3c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm15 0h3c.55 0 1-.45 1-1s-.45-1-1-1h-3c-.55 0-1 .45-1 1s.45 1 1 1zM12 2c.55 0 1 .45 1 1v3c0 .55-.45 1-1 1s-1-.45-1-1V3c0-.55.45-1 1-1zm0 15c.55 0 1 .45 1 1v3c0 .55-.45 1-1 1s-1-.45-1-1v-3c0-.55.45-1 1-1zM5.64 5.64c.39-.39.39-1.02 0-1.41L4.22 2.81c-.39-.39-1.02-.39-1.41 0s-.39 1.02 0 1.41l1.42 1.42c.39.39 1.02.39 1.41 0zm12.73 12.73c.39-.39.39-1.02 0-1.41l-1.42-1.42c-.39-.39-1.02-.39-1.41 0s-.39 1.02 0 1.41l1.42 1.42c.39.39 1.02.39 1.41 0zm-12.73 0c.39.39 1.02.39 1.41 0l1.42-1.42c.39-.39.39-1.02 0-1.41s-1.02-.39-1.41 0l-1.42 1.42c-.39.39-.39 1.02 0 1.41zM18.36 5.64c.39.39 1.02.39 1.41 0l1.42-1.42c.39-.39.39-1.02 0-1.41s-1.02-.39-1.41 0l-1.42 1.42c-.39.39-.39 1.02 0 1.41z"/></svg>
+<span id="theme-label">Mørkt tema</span>
+</button>
+</div>
 
 <div id="error" class="error" style="display:none"></div>
 
@@ -443,6 +601,8 @@ td.flash-down.cheapest, td.flash-up.cheapest { animation-duration: 1s; }
 <form id="input-form">
 <h3>Indstillinger</h3>
 <div class="form-row">
+<div class="form-field"><label>Boligens værdi (kr.) — valgfrit</label><input id="f-property-value" type="number" step="1000" min="0" placeholder="F.eks. 3000000"></div>
+<div class="form-field"><label>Egen udbetaling (kr.)</label><input id="f-savings" type="number" step="1000" min="0" placeholder="F.eks. 500000"></div>
 <div class="form-field"><label>Ønsket provenu (kr.)</label><input id="f-provenu" type="number" step="1000" min="0"></div>
 <div class="form-field"><label>Skatteprocent</label><input id="f-tax" type="number" step="0.001" min="0" max="1"></div>
 <div class="form-field"><label>Horisont (år)</label><input id="f-horizon" type="number" step="1" min="1" max="30"></div>
@@ -453,9 +613,11 @@ td.flash-down.cheapest, td.flash-up.cheapest { animation-duration: 1s; }
 <div class="form-field"><label>Rentescenarie 2 (%)</label><input id="f-shock2" type="number" step="0.5" value="0"></div>
 <div class="form-field"><label>Rentescenarie 3 (%)</label><input id="f-shock3" type="number" step="0.5" value="2"></div>
 </div>
+<div id="ltv-warning" class="ltv-warning"></div>
 <div id="alt-fields"></div>
 <button type="button" class="alt-add-btn" onclick="addAlt()">+ Tilføj alternativ</button>
 <button type="submit" class="primary">Genberegn</button>
+</form>
 </div>
 </div>
 
@@ -474,6 +636,24 @@ const ALT_COLORS = ['navy', 'cyan', 'lime', 'amber', 'purple'];
 const CHART_COLORS_HEX = ['#00457B', '#1BB6EA', '#C1D72F', '#F59E0B', '#8B5CF6'];
 const SHOCK_LABELS = ['−2%', '0%', '+2%'];
 const SHOCK_OPACITIES = [0.5, 0.8, 1.0];
+
+const LOAN_TYPES = [
+  { value: 'destr', label: 'DESTR (variabel)' },
+  { value: 'f1',    label: 'F1 (1-årlig)' },
+  { value: 'f3',    label: 'F3 (3-årlig)' },
+  { value: 'f5',    label: 'F5 (5-årlig)' },
+  { value: 'fixed', label: 'Fast rente (obligation)' },
+  { value: 't',     label: 'T-lån (fast ydelse)' },
+  { value: 'cita',  label: 'CITA (variabel)' },
+  { value: 'cibor', label: 'CIBOR (variabel)' },
+];
+
+// Loan types that have a kurs/price (only fixed obligations trade at a discount)
+const TYPES_WITH_KURS = ['fixed'];
+
+// Reference-rate loan types (need reference_rate + margin instead of direct rate)
+const REF_TYPES = ['cita', 'cibor', 'destr'];
+
 let currentInput = null;
 let previousValues = null;
 
@@ -481,6 +661,29 @@ function escapeHtml(s) {
   const div = document.createElement('div');
   div.textContent = String(s);
   return div.innerHTML;
+}
+
+// ── Theme ──
+function initTheme() {
+  const saved = localStorage.getItem('boligregner-theme');
+  if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+  updateThemeLabel();
+}
+function toggleTheme() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  if (isDark) {
+    document.documentElement.removeAttribute('data-theme');
+    localStorage.setItem('boligregner-theme', 'light');
+  } else {
+    document.documentElement.setAttribute('data-theme', 'dark');
+    localStorage.setItem('boligregner-theme', 'dark');
+  }
+  updateThemeLabel();
+}
+function updateThemeLabel() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const el = document.getElementById('theme-label');
+  if (el) el.textContent = isDark ? 'Lyst tema' : 'Mørkt tema';
 }
 
 // ── Form collapse ──
@@ -508,8 +711,6 @@ async function loadPresetAndCalculate() {
     currentInput = await resp.json();
     populateForm(currentInput);
     await recalculate();
-    // Form is collapsed by default (max-height:0). Keep it collapsed so results are the hero.
-    // User can expand via "Tilpas indstillinger" button to fine-tune.
   } catch (e) {
     showError(e.message);
   }
@@ -523,107 +724,355 @@ function showError(msg) {
 }
 function clearError() { document.getElementById('error').style.display = 'none'; }
 
+// ── Property value / provenu derivation ──
+function updateProvenuFromProperty() {
+  const pv = parseFloat(document.getElementById('f-property-value').value);
+  const savings = parseFloat(document.getElementById('f-savings').value) || 0;
+  const provEl = document.getElementById('f-provenu');
+  const bankShareInputs = document.querySelectorAll('.comp-bank-share');
+  if (pv && pv > 0) {
+    const derived = Math.max(0, pv - savings);
+    provEl.value = derived;
+    provEl.readOnly = true;
+    provEl.style.opacity = '0.6';
+    // Disable bank-share inputs and show derived value
+    const derivedBankShare = deriveBankShare(pv, savings, derived);
+    bankShareInputs.forEach(el => {
+      el.disabled = true;
+      el.style.opacity = '0.6';
+      if (derivedBankShare !== null) {
+        el.value = (derivedBankShare * 100).toFixed(1);
+      }
+    });
+    checkLTV(pv, savings, derived);
+  } else {
+    provEl.readOnly = false;
+    provEl.style.opacity = '1';
+    // Re-enable bank-share inputs
+    bankShareInputs.forEach(el => {
+      el.disabled = false;
+      el.style.opacity = '1';
+    });
+    document.getElementById('ltv-warning').style.display = 'none';
+  }
+}
+
+function checkLTV(propertyValue, savings, provenu) {
+  const warning = document.getElementById('ltv-warning');
+  const totalLoan = provenu;
+  const ltvPct = (totalLoan / propertyValue) * 100;
+  if (ltvPct > 95) {
+    warning.style.display = 'block';
+    warning.textContent = 'Lånet udgør ' + ltvPct.toFixed(0).replace('.', ',') + '% af boligens værdi. Bankdelen dækker over 95% — banken kræver typisk maks 95% finansiering.';
+  } else {
+    warning.style.display = 'none';
+  }
+}
+
+// ── Derive bank share from property value ──
+function deriveBankShare(propertyValue, savings, provenu) {
+  // Realkredit covers max 80% of property value; bank covers the rest up to 95%.
+  if (!propertyValue || propertyValue <= 0) return null;
+  const realkreditMax = propertyValue * 0.80;
+  const bankAmount = provenu - realkreditMax;
+  if (bankAmount <= 0) return 0;
+  return bankAmount / provenu;
+}
+
+// ── Populate form from preset/input ──
 function populateForm(input) {
+  document.getElementById('f-property-value').value = input._property_value || '';
+  document.getElementById('f-savings').value = input._savings || '';
   document.getElementById('f-provenu').value = input.desired_provenu;
   document.getElementById('f-tax').value = input.tax_rate;
   document.getElementById('f-horizon').value = input.horizon_years;
   document.getElementById('f-startdate').value = input.start_date;
-  // Rate shock fields
   const shocks = input.rate_shocks || ['-0.02', '0', '0.02'];
   document.getElementById('f-shock1').value = Number(shocks[0]) * 100;
   document.getElementById('f-shock2').value = Number(shocks[1]) * 100;
   document.getElementById('f-shock3').value = Number(shocks[2]) * 100;
+  updateProvenuFromProperty();
+
   const altDiv = document.getElementById('alt-fields');
   altDiv.innerHTML = '';
   input.alternatives.forEach((alt, i) => {
-    const color = ALT_COLORS[i % ALT_COLORS.length];
-    const block = document.createElement('div');
-    block.className = 'alt-block';
-    block.dataset.altData = JSON.stringify(alt);
-    let html = '<div class="alt-block-title"><span class="dot dot-' + color + '"></span>' + escapeHtml(alt.label) + '<button type="button" class="alt-remove" onclick="removeAlt(this)" aria-label="Fjern alternativ">✕</button></div>';
-    alt.components.forEach((comp, j) => {
-      const compType = comp.component === 'realkredit' ? 'Realkredit' : 'Bank';
-      html += '<div class="form-row" data-comp="' + j + '">';
-      const loanLabel = comp.component === 'realkredit' ? compType + ' ' + escapeHtml(comp.loan_type.toUpperCase()) : compType;
-      html += '<div class="form-field"><label>' + loanLabel + ' — Rente (%)</label><input class="comp-rate" type="number" step="0.001" min="0" value="' + (Number(comp.rate)*100) + '"></div>';
-      html += '<div class="form-field"><label>Kurs</label><input class="comp-price" type="number" step="0.01" min="0.01" max="200" value="' + escapeHtml(comp.price) + '"></div>';
-      html += '<div class="form-field"><label>Andel (%)</label><input class="comp-share" type="number" step="0.01" min="0" max="100" value="' + (Number(comp.provenu_share)*100) + '"></div>';
-      html += '<div class="form-field"><label>Udst.omk. (%)</label><input class="comp-issue" type="number" step="0.001" min="0" value="' + (Number(comp.issue_costs_pct)*100) + '"></div>';
-      html += '</div>';
-    });
-    block.innerHTML = html;
-    altDiv.appendChild(block);
+    altDiv.appendChild(buildAltBlock(alt, i, false));
   });
+}
+
+// ── Build an alt block DOM element ──
+function buildAltBlock(alt, idx, isNew) {
+  const color = ALT_COLORS[idx % ALT_COLORS.length];
+  const block = document.createElement('div');
+  block.className = 'alt-block';
+  block.dataset.altData = JSON.stringify(alt);
+
+  // Find the realkredit and bank components
+  const realkredit = alt.components.find(c => c.component === 'realkredit');
+  const bank = alt.components.find(c => c.component === 'bank');
+  const bankShare = bank ? Number(bank.provenu_share) : 0;
+
+  // Title row
+  let html = '<div class="alt-block-title">';
+  html += '<span class="dot dot-' + color + '"></span>';
+  html += '<input type="text" class="alt-label-input" value="' + escapeHtml(alt.label) + '" placeholder="Alternativ navn">';
+  html += '<button type="button" class="alt-remove" onclick="removeAlt(this)" aria-label="Fjern alternativ">✕</button>';
+  html += '</div>';
+
+  // Loan type selector (realkredit)
+  const rt = realkredit ? realkredit.loan_type : 'f3';
+  html += '<div class="form-row">';
+  html += '<div class="form-field"><label>Realkredit — lånetype</label><select class="comp-loan-type" onchange="onLoanTypeChange(this)">';
+  for (const lt of LOAN_TYPES) {
+    html += '<option value="' + lt.value + '"' + (lt.value === rt ? ' selected' : '') + '>' + escapeHtml(lt.label) + '</option>';
+  }
+  html += '</select></div>';
+  html += '</div>';
+
+  // Realkredit fields
+  html += '<div class="form-row realkredit-fields">';
+  // Rate field (shown for non-ref types; ref types show reference_rate + margin)
+  if (realkredit) {
+    if (REF_TYPES.includes(rt)) {
+      html += '<div class="form-field"><label>Referencerente (%)</label><input class="comp-ref-rate" type="number" step="0.001" min="0" value="' + (realkredit.reference_rate ? Number(realkredit.reference_rate)*100 : '') + '"></div>';
+      html += '<div class="form-field"><label>Margin (%)</label><input class="comp-margin" type="number" step="0.001" min="0" value="' + (realkredit.margin ? Number(realkredit.margin)*100 : '') + '"></div>';
+    } else {
+      html += '<div class="form-field"><label>Realkredit — Rente (%)</label><input class="comp-rate" type="number" step="0.001" min="0" value="' + (Number(realkredit.rate)*100) + '"></div>';
+    }
+    // Kurs field — only for FIXED
+    if (TYPES_WITH_KURS.includes(rt)) {
+      html += '<div class="form-field"><label>Kurs</label><input class="comp-price" type="number" step="0.01" min="0.01" max="200" value="' + escapeHtml(realkredit.price) + '"></div>';
+    }
+    // T-lån: fixed ydelse
+    if (rt === 't') {
+      html += '<div class="form-field"><label>Faste ydelse (kr./md)</label><input class="comp-fixed-ydelse" type="number" step="100" min="0" value="' + (realkredit.fixed_ydelse ? escapeHtml(realkredit.fixed_ydelse) : '') + '"></div>';
+    }
+    // Afdragsfrihed
+    html += '<div class="form-field"><label>Afdragsfrihed (år)</label><input class="comp-io" type="number" step="1" min="0" max="10" value="' + realkredit.interest_only_years + '"></div>';
+  }
+  html += '</div>';
+
+  // Issue costs with toggle
+  const issuePct = realkredit ? realkredit.issue_costs_pct : '0';
+  const issueNominal = realkredit ? realkredit.issue_costs_nominal : null;
+  const isNominalMode = issueNominal != null && Number(issueNominal) > 0;
+  html += '<div class="form-row">';
+  html += '<div class="form-field issue-cost-field">';
+  html += '<label>Udstedelsesomkostninger</label>';
+  html += '<div class="issue-cost-toggle">';
+  html += '<button type="button" class="' + (isNominalMode ? '' : 'active') + '" onclick="toggleIssueCost(this, \'pct\')">Procent</button>';
+  html += '<button type="button" class="' + (isNominalMode ? 'active' : '') + '" onclick="toggleIssueCost(this, \'nominal\')">Beløb (kr.)</button>';
+  html += '</div>';
+  if (isNominalMode) {
+    html += '<input class="comp-issue issue-cost-input" type="number" step="100" min="0" data-mode="nominal" value="' + escapeHtml(issueNominal) + '">';
+  } else {
+    html += '<input class="comp-issue issue-cost-input" type="number" step="0.001" min="0" data-mode="pct" value="' + (Number(issuePct)*100) + '">';
+  }
+  html += '</div>';
+  html += '</div>';
+
+  // Bank share — single fraction field
+  html += '<div class="form-row">';
+  html += '<div class="form-field"><label>Bankandel (%)</label><input class="comp-bank-share" type="number" step="0.5" min="0" max="100" value="' + (bankShare*100) + '"></div>';
+  html += '<div class="form-field"><label>Bank — Rente (%)</label><input class="comp-bank-rate" type="number" step="0.001" min="0" value="' + (bank ? Number(bank.rate)*100 : 4.5) + '"></div>';
+  html += '</div>';
+
+  block.innerHTML = html;
+  return block;
+}
+
+// ── Loan type change handler ──
+function onLoanTypeChange(select) {
+  const block = select.closest('.alt-block');
+  const altData = JSON.parse(block.dataset.altData);
+  const newType = select.value;
+  const realkredit = altData.components.find(c => c.component === 'realkredit');
+
+  // Preserve rate-related data
+  if (realkredit) {
+    realkredit.loan_type = newType;
+    // For ref types, ensure reference_rate/margin exist
+    if (REF_TYPES.includes(newType)) {
+      if (!realkredit.reference_rate) realkredit.reference_rate = '0.0315';
+      if (!realkredit.margin) realkredit.margin = '0.0025';
+      realkredit.rate = String(Number(realkredit.reference_rate) + Number(realkredit.margin));
+      realkredit.price = '100';
+    } else {
+      realkredit.reference_rate = null;
+      realkredit.margin = null;
+      if (realkredit.rate === '0' || !realkredit.rate) realkredit.rate = '0.035';
+      if (!TYPES_WITH_KURS.includes(newType)) realkredit.price = '100';
+      else if (realkredit.price === '100') realkredit.price = '94.52';
+    }
+    if (newType === 't' && !realkredit.fixed_ydelse) realkredit.fixed_ydelse = '9900';
+    if (newType !== 't') realkredit.fixed_ydelse = null;
+  }
+
+  // Rebuild the block
+  const idx = Array.from(block.parentNode.children).indexOf(block);
+  const newBlock = buildAltBlock(altData, idx, false);
+  block.parentNode.replaceChild(newBlock, block);
+}
+
+// ── Issue cost toggle ──
+function toggleIssueCost(btn, mode) {
+  const field = btn.closest('.issue-cost-field');
+  const input = field.querySelector('.comp-issue');
+  const buttons = field.querySelectorAll('.issue-cost-toggle button');
+  buttons.forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+
+  const block = btn.closest('.alt-block');
+  const altData = JSON.parse(block.dataset.altData);
+  const realkredit = altData.components.find(c => c.component === 'realkredit');
+
+  const oldMode = input.dataset.mode;
+  const oldVal = Number(input.value) || 0;
+
+  if (mode === 'pct') {
+    input.dataset.mode = 'pct';
+    input.step = '0.001';
+    input.value = oldMode === 'nominal' ? (realkredit && realkredit.issue_costs_pct ? Number(realkredit.issue_costs_pct)*100 : 0) : oldVal;
+  } else {
+    input.dataset.mode = 'nominal';
+    input.step = '100';
+    input.value = oldMode === 'pct' ? (realkredit && realkredit.issue_costs_nominal ? realkredit.issue_costs_nominal : (oldVal > 0 ? Math.round(oldVal * 2500000 / 100) : 0)) : oldVal;
+  }
 }
 
 // ── Add/remove alternatives ──
 function removeAlt(btn) {
   const blocks = document.querySelectorAll('.alt-block');
-  if (blocks.length <= 1) return; // keep at least one
+  if (blocks.length <= 1) return;
   const block = btn.closest('.alt-block');
   block.remove();
+  // Recolor dots
+  document.querySelectorAll('.alt-block').forEach((b, i) => {
+    const color = ALT_COLORS[i % ALT_COLORS.length];
+    const dot = b.querySelector('.dot');
+    if (dot) dot.className = 'dot dot-' + color;
+  });
 }
 
-const DEFAULT_ALT = {
-  label: 'Nyt alternativ',
-  components: [
-    { component: 'realkredit', loan_type: 'f3', rate: '0.035', price: '100', maturity_years: 30, issue_costs_pct: '0.0177', redemption_price: '100', provenu_share: '0.80', bidragssats: '0.006', interest_only_years: 0, fixed_ydelse: null, reference_rate: null, margin: null },
-    { component: 'bank', loan_type: 'f1', rate: '0.045', price: '100', maturity_years: 30, issue_costs_pct: '0', redemption_price: '100', provenu_share: '0.20', bidragssats: '0', interest_only_years: 0, fixed_ydelse: null, reference_rate: null, margin: null },
-  ],
-};
-
 function addAlt() {
-  const newIdx = document.querySelectorAll('.alt-block').length;
-  const color = ALT_COLORS[newIdx % ALT_COLORS.length];
-  const block = document.createElement('div');
-  block.className = 'alt-block';
-  block.dataset.altData = JSON.stringify(DEFAULT_ALT);
-  let html = '<div class="alt-block-title"><span class="dot dot-' + color + '"></span><input type="text" class="alt-label-input" value="Nyt alternativ" placeholder="Alternativ navn"><button type="button" class="alt-remove" onclick="removeAlt(this)" aria-label="Fjern alternativ">✕</button></div>';
-  DEFAULT_ALT.components.forEach((comp, j) => {
-    const compType = comp.component === 'realkredit' ? 'Realkredit' : 'Bank';
-    html += '<div class="form-row" data-comp="' + j + '">';
-    const loanLabel = comp.component === 'realkredit' ? compType + ' ' + comp.loan_type.toUpperCase() : compType;
-    html += '<div class="form-field"><label>' + loanLabel + ' — Rente (%)</label><input class="comp-rate" type="number" step="0.001" min="0" value="' + (Number(comp.rate)*100) + '"></div>';
-    html += '<div class="form-field"><label>Kurs</label><input class="comp-price" type="number" step="0.01" min="0.01" max="200" value="' + comp.price + '"></div>';
-    html += '<div class="form-field"><label>Andel (%)</label><input class="comp-share" type="number" step="0.01" min="0" max="100" value="' + (Number(comp.provenu_share)*100) + '"></div>';
-    html += '<div class="form-field"><label>Udst.omk. (%)</label><input class="comp-issue" type="number" step="0.001" min="0" value="' + (Number(comp.issue_costs_pct)*100) + '"></div>';
-    html += '</div>';
-  });
-  block.innerHTML = html;
+  const idx = document.querySelectorAll('.alt-block').length;
+  const newAlt = {
+    label: 'Nyt alternativ',
+    components: [
+      { component: 'realkredit', loan_type: 'f3', rate: '0.035', price: '100', maturity_years: 30, issue_costs_pct: '0.0177', issue_costs_nominal: null, redemption_price: '100', provenu_share: '0.80', bidragssats: '0.006', interest_only_years: 0, fixed_ydelse: null, reference_rate: null, margin: null },
+      { component: 'bank', loan_type: 'f1', rate: '0.045', price: '100', maturity_years: 30, issue_costs_pct: '0', issue_costs_nominal: null, redemption_price: '100', provenu_share: '0.20', bidragssats: '0', interest_only_years: 0, fixed_ydelse: null, reference_rate: null, margin: null },
+    ],
+  };
+  const block = buildAltBlock(newAlt, idx, true);
   document.getElementById('alt-fields').appendChild(block);
 }
 
+// ── Gather form input ──
 function gatherFormInput() {
   const input = JSON.parse(JSON.stringify(currentInput));
+
+  // Property value / savings / provenu
+  const pv = parseFloat(document.getElementById('f-property-value').value);
+  const savings = parseFloat(document.getElementById('f-savings').value) || 0;
+  input._property_value = pv || '';
+  input._savings = savings || '';
   input.desired_provenu = document.getElementById('f-provenu').value;
   input.tax_rate = document.getElementById('f-tax').value;
   input.horizon_years = parseInt(document.getElementById('f-horizon').value, 10);
   input.start_date = document.getElementById('f-startdate').value;
-  // Rate shocks from form
   input.rate_shocks = [
     String(Number(document.getElementById('f-shock1').value) / 100),
     String(Number(document.getElementById('f-shock2').value) / 100),
     String(Number(document.getElementById('f-shock3').value) / 100),
   ];
+
   // Rebuild alternatives from form blocks
   input.alternatives = [];
   document.querySelectorAll('.alt-block').forEach((block) => {
     const altData = JSON.parse(block.dataset.altData);
-    // Override label if editable
     const labelInput = block.querySelector('.alt-label-input');
     if (labelInput) altData.label = labelInput.value;
-    // Override component values from form
-    block.querySelectorAll('.form-row').forEach((row, j) => {
-      if (!altData.components[j]) return;
-      altData.components[j].rate = String(Number(row.querySelector('.comp-rate').value) / 100);
-      altData.components[j].price = row.querySelector('.comp-price').value;
-      altData.components[j].provenu_share = String(Number(row.querySelector('.comp-share').value) / 100);
-      altData.components[j].issue_costs_pct = String(Number(row.querySelector('.comp-issue').value) / 100);
-    });
+
+    const realkredit = altData.components.find(c => c.component === 'realkredit');
+    const bank = altData.components.find(c => c.component === 'bank');
+
+    // Loan type
+    const loanType = block.querySelector('.comp-loan-type').value;
+
+    if (realkredit) {
+      realkredit.loan_type = loanType;
+      // Rate or reference rate
+      if (REF_TYPES.includes(loanType)) {
+        const refRate = block.querySelector('.comp-ref-rate');
+        const margin = block.querySelector('.comp-margin');
+        realkredit.reference_rate = refRate ? String(Number(refRate.value) / 100) : '0';
+        realkredit.margin = margin ? String(Number(margin.value) / 100) : '0';
+        realkredit.rate = String(Number(realkredit.reference_rate) + Number(realkredit.margin));
+      } else {
+        const rateEl = block.querySelector('.comp-rate');
+        if (rateEl) realkredit.rate = String(Number(rateEl.value) / 100);
+        realkredit.reference_rate = null;
+        realkredit.margin = null;
+      }
+      // Price
+      const priceEl = block.querySelector('.comp-price');
+      if (priceEl) {
+        realkredit.price = priceEl.value;
+      } else {
+        realkredit.price = '100';
+      }
+      // Fixed ydelse (T-lån)
+      const fyEl = block.querySelector('.comp-fixed-ydelse');
+      if (loanType === 't') {
+        realkredit.fixed_ydelse = fyEl ? fyEl.value : '9900';
+      } else {
+        realkredit.fixed_ydelse = null;
+      }
+      // Afdragsfrihed
+      const ioEl = block.querySelector('.comp-io');
+      if (ioEl) realkredit.interest_only_years = parseInt(ioEl.value, 10) || 0;
+      // Issue costs
+      const issueEl = block.querySelector('.comp-issue');
+      if (issueEl) {
+        if (issueEl.dataset.mode === 'nominal') {
+          realkredit.issue_costs_nominal = issueEl.value;
+          realkredit.issue_costs_pct = '0';
+        } else {
+          realkredit.issue_costs_pct = String(Number(issueEl.value) / 100);
+          realkredit.issue_costs_nominal = null;
+        }
+      }
+    }
+
+    // Bank share — single fraction
+    const bankShareEl = block.querySelector('.comp-bank-share');
+    const bankRateEl = block.querySelector('.comp-bank-rate');
+    let bankShare = bankShareEl ? Number(bankShareEl.value) / 100 : 0.20;
+    bankShare = Math.max(0, Math.min(1, bankShare));
+
+    // If property value is set, derive bank share from 80% realkredit rule
+    if (pv && pv > 0) {
+      const derived = deriveBankShare(pv, savings, Number(input.desired_provenu));
+      if (derived !== null) bankShare = derived;
+    }
+
+    if (realkredit) realkredit.provenu_share = String(1 - bankShare);
+    if (bank) {
+      bank.provenu_share = String(bankShare);
+      if (bankRateEl) bank.rate = String(Number(bankRateEl.value) / 100);
+    }
+
     input.alternatives.push(altData);
   });
   return input;
 }
+
+// ── Wire up property value changes ──
+document.addEventListener('DOMContentLoaded', () => {
+  initTheme();
+  document.getElementById('f-property-value').addEventListener('input', updateProvenuFromProperty);
+  document.getElementById('f-savings').addEventListener('input', updateProvenuFromProperty);
+});
 
 // ── Capture old values before recalculation ──
 function captureOldValues() {

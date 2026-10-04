@@ -104,71 +104,7 @@ PRESETS: dict[str, CalculatorInput] = {
         horizon_years=5,
         tax_rate=Decimal("0.336"),
         alternatives=[
-            # Alt 1: 30-yr F3 flexlån + 30-yr banklån
-            _make_alt(
-                label="30 år F3 januar, 30 år Banklån",
-                realkredit_type=LoanType.F3,
-                realkredit_rate=Decimal("0.035"),     # F3: shorter reset → lower rate
-                realkredit_price=Decimal("100"),       # par for flexlån
-                bank_rate=Decimal("0.045"),
-                bank_share=Decimal("0.20"),
-                issue_pct=Decimal("0.0177"),
-            ),
-            # Alt 2: 30-yr F5 flexlån + 30-yr banklån
-            _make_alt(
-                label="30 år F5 januar, 30 år Banklån",
-                realkredit_type=LoanType.F5,
-                realkredit_rate=Decimal("0.042"),
-                realkredit_price=Decimal("100"),
-                bank_rate=Decimal("0.045"),
-                bank_share=Decimal("0.20"),
-                issue_pct=Decimal("0.0182"),
-            ),
-            # Alt 3: 30-yr 4% obligation + 30-yr banklån
-            _make_alt(
-                label="30 år 4% obligation, 30 år Banklån",
-                realkredit_type=LoanType.FIXED,
-                realkredit_rate=Decimal("0.04"),       # 4% coupon
-                realkredit_price=Decimal("94.52"),    # trading at discount
-                bank_rate=Decimal("0.045"),
-                bank_share=Decimal("0.20"),
-                issue_pct=Decimal("0.0171"),
-            ),
-            # Alt 4: 30-yr T-lån (fast ydelse) + 30-yr banklån
-            _make_alt(
-                label="30 år T-lån, 30 år Banklån",
-                realkredit_type=LoanType.T,
-                realkredit_rate=Decimal("0.038"),
-                realkredit_price=Decimal("100"),
-                bank_rate=Decimal("0.045"),
-                bank_share=Decimal("0.20"),
-                issue_pct=Decimal("0.0182"),
-                fixed_ydelse=Decimal("9900"),
-            ),
-            # Alt 5: 30-yr F3 med 5 års afdragsfrihed + 30-yr banklån
-            _make_alt(
-                label="30 år F3 m/5 års afdragsfrihed, 30 år Banklån",
-                realkredit_type=LoanType.F3,
-                realkredit_rate=Decimal("0.035"),
-                realkredit_price=Decimal("100"),
-                bank_rate=Decimal("0.045"),
-                bank_share=Decimal("0.20"),
-                issue_pct=Decimal("0.0177"),
-                interest_only_years=5,
-            ),
-            # Alt 6: 30-yr CIBOR 3M + 30-yr banklån
-            _make_alt(
-                label="30 år CIBOR 3M, 30 år Banklån",
-                realkredit_type=LoanType.CIBOR,
-                realkredit_rate=Decimal("0.0345"),       # total = reference + margin
-                realkredit_price=Decimal("100"),
-                bank_rate=Decimal("0.045"),
-                bank_share=Decimal("0.20"),
-                issue_pct=Decimal("0.0177"),
-                reference_rate=Decimal("0.0320"),
-                margin=Decimal("0.0025"),
-            ),
-            # Alt 7: 30-yr DESTR + 30-yr banklån
+            # Alt 1: 30-yr DESTR + 30-yr banklån
             _make_alt(
                 label="30 år DESTR, 30 år Banklån",
                 realkredit_type=LoanType.DESTR,
@@ -179,6 +115,26 @@ PRESETS: dict[str, CalculatorInput] = {
                 issue_pct=Decimal("0.0177"),
                 reference_rate=Decimal("0.0315"),
                 margin=Decimal("0.0025"),
+            ),
+            # Alt 2: 30-yr F1 flexlån + 30-yr banklån
+            _make_alt(
+                label="30 år F1, 30 år Banklån",
+                realkredit_type=LoanType.F1,
+                realkredit_rate=Decimal("0.036"),
+                realkredit_price=Decimal("100"),       # par for flexlån
+                bank_rate=Decimal("0.045"),
+                bank_share=Decimal("0.20"),
+                issue_pct=Decimal("0.0177"),
+            ),
+            # Alt 3: 30-yr 4% obligation + 30-yr banklån
+            _make_alt(
+                label="30 år 4% obligation, 30 år Banklån",
+                realkredit_type=LoanType.FIXED,
+                realkredit_rate=Decimal("0.04"),       # 4% coupon
+                realkredit_price=Decimal("94.52"),    # trading at discount
+                bank_rate=Decimal("0.045"),
+                bank_share=Decimal("0.20"),
+                issue_pct=Decimal("0.0171"),
             ),
         ],
     ),
@@ -380,23 +336,36 @@ def _hovedstol_for_provenu(
     desired_provenu: Decimal,
     price: Decimal,
     issue_costs_pct: Decimal,
+    issue_costs_nominal: Decimal | None = None,
 ) -> Decimal:
     """Given a desired net cash (provenu), derive the gross hovedstol.
 
-    For a realkredit loan issued at price P with issue costs c:
+    Percentage mode (issue_costs_pct set, nominal None):
         provenu = hovedstol * P/100 − hovedstol * c
                 = hovedstol * (P/100 − c)
-    → hovedstol = provenu / (P/100 − c)
+        → hovedstol = provenu / (P/100 − c)
+
+    Nominal mode (issue_costs_nominal set):
+        provenu = hovedstol * P/100 − nominal
+        → hovedstol = (provenu + nominal) / (P/100)
 
     Round up to nearest thousand (boligregner rounds to whole thousands).
     """
-    net_factor = price / _HUNDRED - issue_costs_pct
-    if net_factor <= _ZERO:
-        raise ValueError(
-            f"Price {price} minus issue costs {issue_costs_pct} yields non-positive provenu; "
-            "cannot derive hovedstol"
-        )
-    raw = desired_provenu / net_factor
+    if issue_costs_nominal is not None and issue_costs_nominal > _ZERO:
+        price_factor = price / _HUNDRED
+        if price_factor <= _ZERO:
+            raise ValueError(
+                f"Price {price} must be positive to derive hovedstol with nominal issue costs"
+            )
+        raw = (desired_provenu + issue_costs_nominal) / price_factor
+    else:
+        net_factor = price / _HUNDRED - issue_costs_pct
+        if net_factor <= _ZERO:
+            raise ValueError(
+                f"Price {price} minus issue costs {issue_costs_pct} yields non-positive provenu; "
+                "cannot derive hovedstol"
+            )
+        raw = desired_provenu / net_factor
     # Round up to nearest 1000 (boligregner convention: afrunding til hele tusinder)
     return (_qceil(raw / Decimal(1000)) * Decimal(1000))
 
@@ -486,10 +455,15 @@ def _compute_component(
     tax_rate: Decimal,
 ) -> LoanComponentResult:
     """Compute all per-component numbers from a LoanSpec + the provenu slice."""
-    hovedstol = _hovedstol_for_provenu(component_provenu, spec.price, spec.issue_costs_pct)
+    hovedstol = _hovedstol_for_provenu(
+        component_provenu, spec.price, spec.issue_costs_pct, spec.issue_costs_nominal,
+    )
 
     kursvaerdi = hovedstol * spec.price / _HUNDRED
-    udstedelse = hovedstol * spec.issue_costs_pct
+    if spec.issue_costs_nominal is not None and spec.issue_costs_nominal > _ZERO:
+        udstedelse = spec.issue_costs_nominal
+    else:
+        udstedelse = hovedstol * spec.issue_costs_pct
     kontant = kursvaerdi - udstedelse
 
     eff_rate = _effective_rate(spec)
