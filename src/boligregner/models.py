@@ -54,7 +54,8 @@ class LoanSpec(BaseModel):
     rate: Decimal = Field(
         ...,
         description="Nominal annual rate as a fraction: 0.04 = 4%. "
-        "For obligationslån this is the coupon rate.",
+        "For obligationslån this is the coupon rate. "
+        "For CITA/CIBOR/DESTR this is auto-computed as reference_rate + margin.",
     )
     price: Decimal = Field(
         default=Decimal("100"),
@@ -105,7 +106,7 @@ class LoanSpec(BaseModel):
 
     @field_validator("rate")
     @classmethod
-    def rate_positive(cls, v: Decimal) -> Decimal:
+    def rate_non_negative(cls, v: Decimal) -> Decimal:
         if v < 0:
             raise ValueError("rate must be >= 0")
         return v
@@ -134,6 +135,8 @@ class LoanSpec(BaseModel):
                 raise ValueError(f"{self.loan_type.value.upper()} requires reference_rate")
             if self.margin is None:
                 raise ValueError(f"{self.loan_type.value.upper()} requires margin")
+            # Auto-compute rate from reference + margin to prevent divergence
+            self.rate = self.reference_rate + self.margin
         else:
             if self.reference_rate is not None:
                 raise ValueError("reference_rate is only for CITA/CIBOR/DESTR")

@@ -197,7 +197,8 @@ def _monthly_rate(annual_rate: Decimal) -> Decimal:
 def _effective_rate(spec: LoanSpec) -> Decimal:
     """Effective annual rate for amortization/ÅOP: rate + bidragssats.
 
-    For CITA/CIBOR/DESTR the rate field is reference_rate + margin (initial).
+    For CITA/CIBOR/DESTR the rate field is auto-computed as reference_rate + margin
+    by the model validator, so this is always consistent with _rate_path().
     """
     return spec.rate + spec.bidragssats
 
