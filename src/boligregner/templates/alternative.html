@@ -157,8 +157,6 @@ td.num { font-variant-numeric: tabular-nums; }
 .sched-table table { font-size: 12px; }
 .sched-table th, .sched-table td { padding: 6px 12px; }
 .sched-wrap {
-  max-height: 600px;
-  overflow-y: auto;
   border-radius: var(--radius);
   box-shadow: var(--shadow);
   background: var(--surface);
@@ -198,7 +196,7 @@ button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
   body { background: #fff; font-size: 11px; }
   .container { max-width: 100%; padding: 0; }
   .back-link, .csv-wrap { display: none !important; }
-  .sched-wrap { max-height: none; overflow: visible; box-shadow: none; border: 1px solid #ccc; }
+  .sched-wrap { box-shadow: none; border: 1px solid #ccc; }
   .card, .sched-wrap { box-shadow: none !important; border: 1px solid #ccc !important; }
   h2 { page-break-after: avoid; }
 }
