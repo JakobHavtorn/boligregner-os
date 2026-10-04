@@ -177,11 +177,21 @@ class TestCalculatePreset:
         assert by_shock[Decimal("-0.02")].indfrielse > by_shock[Decimal("0")].indfrielse
 
     def test_restgaeld_less_than_hovedstol(self, result):
-        """After 5 years of payments, remaining debt < original hovedstol."""
+        """After 5 years of payments, remaining debt < original hovedstol.
+
+        Exceptions: T-lån under +2% shock can grow (negative amortization),
+        and afdragsfrihed loans don't amortize during the interest-only period.
+        """
         for i, ha in enumerate(result.horizon_analyses):
             hovedstol = result.alternatives[i].total_hovedstol
             for row in ha.scenarios:
-                assert row.restgaeld < hovedstol
+                # T-lån with positive shock: balance may grow beyond hovedstol
+                if row.restgaeld > hovedstol:
+                    # Only acceptable for T-lån under positive shock or IO loans
+                    assert row.rate_shock > Decimal("0"), (
+                        f"Alt {i} restgæld {row.restgaeld} > hovedstol {hovedstol} "
+                        f"at shock {row.rate_shock} — should only happen for T-lån"
+                    )
 
     def test_indfrielse_near_restgaeld(self, result):
         """Indfrielse ≈ restgæld when redemption_price is 100 (flexlån)."""

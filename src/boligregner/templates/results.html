@@ -323,41 +323,27 @@ svg.chart { display: block; width: 100%; height: auto; }
   font-weight: 500;
 }
 
-/* Expandable afdragstabel */
+/* Detaljer link cards */
 .afdrag-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   background: var(--surface);
   border: 1px solid var(--border);
   border-left: 3px solid var(--navy);
   border-radius: 6px;
   padding: 14px 20px;
-  margin-bottom: 0;
-  cursor: pointer;
+  margin-bottom: 12px;
   font-size: 15px;
   font-weight: 600;
   color: var(--navy);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
+  text-decoration: none;
   transition: all 0.2s ease;
   box-shadow: var(--shadow);
 }
-.afdrag-toggle:hover { background: #f8fafc; }
+.afdrag-toggle:hover { background: #f8fafc; border-color: var(--navy); }
 .afdrag-toggle:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(0,69,123,0.25); }
-.afdrag-toggle .arrow { font-size: 12px; color: var(--muted); transition: transform 0.2s; }
-.afdrag-toggle.open .arrow { transform: rotate(90deg); }
-.afdrag-content {
-  display: none;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-top: none;
-  border-radius: 0 0 6px 6px;
-  padding: 16px;
-  margin-bottom: 16px;
-  box-shadow: var(--shadow);
-}
-.afdrag-content.open { display: block; }
-.afdrag-content table { font-size: 12px; }
-.afdrag-content th, .afdrag-content td { padding: 6px 10px; }
+.afdrag-toggle .arrow { font-size: 12px; color: var(--muted); }
 
 /* Chart bar/line colors */
 .bar-navy { fill: var(--navy); }
@@ -407,8 +393,6 @@ td.flash-down.cheapest, td.flash-up.cheapest { animation-duration: 1s; }
     margin-bottom: 16px;
   }
   .form-wrap, .form-toggle, .chart-legend, .afdrag-toggle .arrow { display: none !important; }
-  .afdrag-content { display: block !important; }
-  .afdrag-content { border: none !important; padding: 0 !important; margin-bottom: 16px !important; box-shadow: none !important; }
   .afdrag-toggle { box-shadow: none !important; border: none !important; padding: 4px 0 !important; }
   .card, .chart-card, .meta-row, form, .error {
     box-shadow: none !important;
@@ -528,7 +512,8 @@ function populateForm(input) {
     alt.components.forEach((comp, j) => {
       const compType = comp.component === 'realkredit' ? 'Realkredit' : 'Bank';
       html += '<div class="form-row" data-comp="' + j + '">';
-      html += '<div class="form-field"><label>' + compType + ' ' + escapeHtml(comp.loan_type.toUpperCase()) + ' — Rente (%)</label><input class="comp-rate" type="number" step="0.001" min="0" value="' + (Number(comp.rate)*100) + '"></div>';
+      const loanLabel = comp.component === 'realkredit' ? compType + ' ' + escapeHtml(comp.loan_type.toUpperCase()) : compType;
+      html += '<div class="form-field"><label>' + loanLabel + ' — Rente (%)</label><input class="comp-rate" type="number" step="0.001" min="0" value="' + (Number(comp.rate)*100) + '"></div>';
       html += '<div class="form-field"><label>Kurs</label><input class="comp-price" type="number" step="0.01" min="0.01" max="200" value="' + escapeHtml(comp.price) + '"></div>';
       html += '<div class="form-field"><label>Andel (%)</label><input class="comp-share" type="number" step="0.01" min="0" max="100" value="' + (Number(comp.provenu_share)*100) + '"></div>';
       html += '<div class="form-field"><label>Udst.omk. (%)</label><input class="comp-issue" type="number" step="0.001" min="0" value="' + (Number(comp.issue_costs_pct)*100) + '"></div>';
@@ -719,16 +704,15 @@ async function renderResults(result) {
 
   // Balance-over-time line chart
   html += await renderBalanceChart(result);
-
-  // Afdragstabel toggles (lazy-loaded)
-  html += '<h2>Afdragstabeller</h2>';
+  // Detaljer — links to per-alternative subpages
+  html += '<h2>Detaljer</h2>';
+  html += '<p style="color:var(--muted);font-size:14px;margin-bottom:16px">Klik på et alternativ for at se ydelsesprofil, afdragstabel og fuld amortisering.</p>';
   result.alternatives.forEach((alt, i) => {
     const color = ALT_COLORS[i % ALT_COLORS.length];
-    html += '<div class="afdrag-toggle" id="afdrag-toggle-' + i + '" tabindex="0" role="button" aria-expanded="false" onclick="toggleAfdragstabel(' + i + ', this)" onkeydown="afdragKeydown(event,' + i + ',this)">';
+    html += '<a class="afdrag-toggle" href="/resultater/alternativ/' + i + '">';
     html += '<span><span class="dot dot-' + color + '"></span>' + escapeHtml(alt.label) + '</span>';
     html += '<span class="arrow">▶</span>';
-    html += '</div>';
-    html += '<div class="afdrag-content" id="afdrag-content-' + i + '"></div>';
+    html += '</a>';
   });
 
   document.getElementById('results').innerHTML = html;
@@ -943,61 +927,6 @@ async function renderBalanceChart(result) {
   return '<div class="chart-card"><h3>Restgæld over tid</h3>' + svg + legend + '</div>';
 }
 
-// ── Afdragstabel (expandable amortization schedule) ──
-function afdragKeydown(event, altIndex, buttonEl) {
-  if (event.key === 'Enter' || event.key === ' ') {
-    event.preventDefault();
-    toggleAfdragstabel(altIndex, buttonEl);
-  }
-}
-
-async function toggleAfdragstabel(altIndex, buttonEl) {
-  const content = document.getElementById('afdrag-content-' + altIndex);
-  const isOpen = content.classList.contains('open');
-  if (isOpen) {
-    content.classList.remove('open');
-    buttonEl.classList.remove('open');
-    buttonEl.setAttribute('aria-expanded', 'false');
-    return;
-  }
-  content.classList.add('open');
-  buttonEl.classList.add('open');
-  buttonEl.setAttribute('aria-expanded', 'true');
-  if (content.dataset.loaded === 'true') return;
-
-  content.innerHTML = '<div class="loading"><div class="spinner"></div>Henter afdragstabel…</div>';
-  try {
-    const resp = await fetch('/api/amortization/' + altIndex, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(currentInput),
-    });
-    if (!resp.ok) throw new Error('HTTP ' + resp.status);
-    const sched = await resp.json();
-    content.innerHTML = renderAfdragstabel(sched);
-    content.dataset.loaded = 'true';
-  } catch (e) {
-    content.innerHTML = '<div class="error" style="display:block">Kunne ikke hente afdragstabel: ' + escapeHtml(e.message) + '</div>';
-  }
-}
-
-function renderAfdragstabel(sched) {
-  let html = '<table><thead><tr>';
-  html += '<th>År</th><th>Ydelse</th><th>Rente (f.s.)</th><th>Rente (e.s.)</th><th>Afdrag</th><th>Restgæld</th>';
-  html += '</tr></thead><tbody>';
-  sched.years.forEach(y => {
-    html += '<tr>';
-    html += '<td>' + y.year + '</td>';
-    html += '<td class="num">' + fmtDKK(y.ydelse) + '</td>';
-    html += '<td class="num">' + fmtDKK(y.rente) + '</td>';
-    html += '<td class="num">' + fmtDKK(y.rente_after_tax) + '</td>';
-    html += '<td class="num">' + fmtDKK(y.afdrag) + '</td>';
-    html += '<td class="num">' + fmtDKK(y.restgaeld) + '</td>';
-    html += '</tr>';
-  });
-  html += '</tbody></table>';
-  return html;
-}
 
 loadPresetAndCalculate();
 </script>

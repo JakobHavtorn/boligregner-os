@@ -17,8 +17,7 @@ All monetary values are Decimal for reproducibility.
 from __future__ import annotations
 
 from datetime import date, timedelta
-from decimal import Decimal, getcontext
-import math
+from decimal import Decimal, ROUND_CEILING, getcontext
 from typing import Iterator
 
 from .models import (
@@ -187,23 +186,38 @@ def _solve_for_n(hovedstol: Decimal, monthly_rate: Decimal, payment: Decimal) ->
     """Solve for the number of months to amortize hovedstol at monthly_rate with fixed payment.
 
     From the annuity formula: payment = hovedstol * r * (1+r)^n / ((1+r)^n - 1)
-    Solve for n: n = -log(1 - hovedstol*r/payment) / log(1+r)
+    Solve for n: n = -ln(1 - hovedstol*r/payment) / ln(1+r)
 
     If payment <= hovedstol * r (payment doesn't cover interest), return -1 (never pays off).
+    Uses Decimal.ln() for precision — no float contamination.
     """
     if payment <= _ZERO:
         return -1
     if monthly_rate == _ZERO:
         n = hovedstol / payment
-        return math.ceil(float(n))
+        return int(n.to_integral_value(rounding=ROUND_CEILING))
     interest = hovedstol * monthly_rate
     if payment <= interest:
         return -1
-    ratio = float(_ONE - interest / payment)
-    if ratio <= 0:
+    ratio = _ONE - interest / payment
+    if ratio <= _ZERO:
         return -1
-    n_float = -math.log(ratio) / math.log(float(_ONE + monthly_rate))
-    return math.ceil(n_float)
+    # Decimal.ln() preserves precision (getcontext().prec = 28)
+    n_dec = -ratio.ln() / (_ONE + monthly_rate).ln()
+    n_ceil = int(n_dec.to_integral_value(rounding=ROUND_CEILING))
+    # Verify: if balance after n_ceil-1 months is already ~0, use n_ceil-1
+    if n_ceil > 1:
+        balance = hovedstol
+        r = monthly_rate
+        for _ in range(n_ceil - 1):
+            interest = balance * r
+            principal = payment - interest
+            if principal <= _ZERO:
+                break
+            balance -= principal
+            if balance <= _ZERO:
+                return n_ceil - 1
+    return n_ceil
 
 
 def _amortize(
@@ -244,8 +258,10 @@ def _amortize(
             continue
         if principal < _ZERO:
             # Payment doesn't cover interest — balance grows (T-lån under shock)
-            principal = _ZERO
-        balance -= principal
+            # Unpaid interest is capitalized (negative amortization)
+            balance += (interest - payment)
+            yield interest, _ZERO, balance
+            continue
         if balance < _ZERO:
             # Final payment overpays slightly — clamp to zero
             principal = principal + balance
@@ -475,8 +491,9 @@ def _horizon_scenarios(
                     if payment >= interest:
                         principal = payment - interest
                     else:
-                        # Payment doesn't cover interest — balance grows
+                        # Payment doesn't cover interest — balance grows (negative amortization)
                         principal = _ZERO
+                        balance += (interest - payment)
                 elif month_idx < io_months:
                     # Interest-only period
                     principal = _ZERO

@@ -67,3 +67,8 @@ def index(request: Request) -> HTMLResponse:
 def resultater_beregning(request: Request) -> HTMLResponse:
     """Serve the same HTML page (boligregner.dk URL structure)."""
     return templates.TemplateResponse(request, "results.html")
+
+@app.get('/resultater/alternativ/{alt_index}', response_class=HTMLResponse)
+def resultater_alternativ(request: Request, alt_index: int) -> HTMLResponse:
+    """Serve the per-alternative subpage (boligregner.dk URL structure)."""
+    return templates.TemplateResponse(request, 'alternative.html', {'alt_index': alt_index})

@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Boligregner — alternativ</title>
+<style>
+:root {
+  --navy: #00457B;
+  --navy-dark: #00335c;
+  --navy-tint: #f0f7ff;
+  --cyan: #1BB6EA;
+  --lime: #C1D72F;
+  --bg: #f8f9fa;
+  --surface: #ffffff;
+  --border: #e2e8f0;
+  --text: #1a202c;
+  --muted: #64748b;
+  --shadow: 0 1px 3px rgba(0,0,0,0.08);
+  --shadow-lg: 0 4px 12px rgba(0,0,0,0.10);
+  --radius: 8px;
+}
+
+html { scroll-behavior: smooth; }
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: "Inter", system-ui, -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.container { max-width: 1200px; margin: 0 auto; padding: 40px 24px; }
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--navy);
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  margin-bottom: 24px;
+  transition: color 0.2s ease;
+}
+.back-link:hover { color: var(--cyan); }
+
+h1 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--navy);
+  margin-bottom: 4px;
+  letter-spacing: -0.02em;
+}
+.subtitle { color: var(--muted); margin-bottom: 32px; font-size: 14px; }
+
+/* Section headings with accent bar */
+h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--navy);
+  margin: 40px 0 16px;
+  padding-left: 12px;
+  position: relative;
+}
+h2::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 2px;
+  bottom: 2px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--navy);
+}
+
+/* Cards */
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 10px 16px; text-align: right; border-bottom: 1px solid var(--border); }
+th {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+  background: #f8fafc;
+  border-bottom: 2px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+td:first-child, th:first-child { text-align: left; }
+tbody tr { transition: background 0.15s ease; }
+tbody tr:hover { background: #f8fafc; }
+td.num { font-variant-numeric: tabular-nums; }
+
+/* Color dots */
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; vertical-align: middle; }
+.dot-navy { background: var(--navy); }
+.dot-cyan { background: var(--cyan); }
+.dot-lime { background: var(--lime); }
+
+/* Horizon table title */
+.horizon-alt-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0 0 12px;
+  padding-left: 4px;
+}
+
+/* Error */
+.error {
+  color: #b91c1c;
+  padding: 16px 20px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-left: 4px solid #dc2626;
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+  font-size: 14px;
+}
+
+/* Loading spinner */
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 48px;
+  color: var(--muted);
+  font-size: 14px;
+}
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--border);
+  border-top-color: var(--navy);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Amortization schedule table — compact */
+.sched-table table { font-size: 12px; }
+.sched-table th, .sched-table td { padding: 6px 12px; }
+.sched-wrap {
+  max-height: 600px;
+  overflow-y: auto;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  background: var(--surface);
+}
+
+/* CSV button */
+button.primary {
+  background: var(--navy);
+  color: #fff;
+  border: none;
+  padding: 12px 32px;
+  font-size: 15px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+button.primary:hover { background: var(--navy-dark); box-shadow: var(--shadow-lg); }
+button.primary:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(0,69,123,0.3); }
+button.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.csv-wrap { margin: 8px 0 24px; }
+
+.disclaimer {
+  margin-top: 48px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+.disclaimer strong { color: var(--text); font-weight: 600; }
+
+/* Print styles */
+@media print {
+  body { background: #fff; font-size: 11px; }
+  .container { max-width: 100%; padding: 0; }
+  .back-link, .csv-wrap { display: none !important; }
+  .sched-wrap { max-height: none; overflow: visible; box-shadow: none; border: 1px solid #ccc; }
+  .card, .sched-wrap { box-shadow: none !important; border: 1px solid #ccc !important; }
+  h2 { page-break-after: avoid; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+<a href="/resultater/beregning" class="back-link">← Tilbage til oversigt</a>
+
+<div id="error" class="error" style="display:none"></div>
+
+<div id="content">
+<div class="loading"><div class="spinner"></div>Henter beregning…</div>
+</div>
+
+<div class="disclaimer">
+<strong>Ansvarsfraskrivelse:</strong> Beregningerne er vejledende. Denne open-source beregner påtager sig intet ansvar for rigtigheden.
+Udregningerne er baseret på en uafhængig reimplementering af danske realkreditberegninger og er ikke tilknyttet nogen kommerciel udbyder.
+</div>
+</div>
+
+<script>
+const ALT_INDEX = {{ alt_index }};
+const ALT_COLORS = ['navy', 'cyan', 'lime'];
+
+let currentInput = null;
+
+function escapeHtml(s) {
+  const div = document.createElement('div');
+  div.textContent = String(s);
+  return div.innerHTML;
+}
+
+function showError(msg) {
+  const el = document.getElementById('error');
+  el.textContent = 'Fejl: ' + msg;
+  el.style.display = 'block';
+  document.getElementById('content').innerHTML = '';
+}
+
+// ── Number formatting ──
+function fmtDKK(v) { return Number(v).toLocaleString('da-DK', {maximumFractionDigits: 0}); }
+function fmtPct(v) { return (Number(v)*100).toFixed(2).replace('.', ',') + '%'; }
+
+async function loadData() {
+  try {
+    const presetResp = await fetch('/api/presets/default');
+    if (!presetResp.ok) throw new Error('Kunne ikke hente preset: ' + presetResp.status);
+    currentInput = await presetResp.json();
+
+    const calcResp = await fetch('/api/calculate', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(currentInput),
+    });
+    if (!calcResp.ok) {
+      const err = await calcResp.json().catch(() => ({}));
+      throw new Error(err.detail || ('HTTP ' + calcResp.status));
+    }
+    const calcResult = await calcResp.json();
+
+    const amortResp = await fetch('/api/amortization/' + ALT_INDEX, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(currentInput),
+    });
+    if (!amortResp.ok) {
+      const err = await amortResp.json().catch(() => ({}));
+      throw new Error(err.detail || ('HTTP ' + amortResp.status));
+    }
+    const amortSchedule = await amortResp.json();
+
+    renderPage(calcResult, amortSchedule);
+  } catch (e) {
+    showError(e.message);
+  }
+}
+
+function renderPage(result, sched) {
+  const alt = result.alternatives[ALT_INDEX];
+  if (!alt) {
+    showError('Alternativ ' + ALT_INDEX + ' findes ikke.');
+    return;
+  }
+  const color = ALT_COLORS[ALT_INDEX % ALT_COLORS.length];
+
+  let html = '';
+
+  // ── Section 1: Oversigt ──
+  html += '<h1><span class="dot dot-' + color + '"></span>' + escapeHtml(alt.label) + '</h1>';
+  html += '<p class="subtitle">Lånedetaljer for dette alternativ</p>';
+  html += '<h2>Oversigt</h2>';
+  html += '<div class="card"><table><tbody>';
+  html += row('Hovedstol', fmtDKK(alt.total_hovedstol) + ' kr.');
+  html += row('Gns. kurs', Number(alt.gns_kurs).toFixed(2).replace('.', ','));
+  html += row('Kursværdi', fmtDKK(alt.total_kursvaerdi) + ' kr.');
+  html += row('Udst.omk.', fmtDKK(alt.total_udstedelsesomkostning) + ' kr.');
+  html += row('Kontant', fmtDKK(alt.total_kontant) + ' kr.');
+  html += row('Ydelse f.s.', fmtDKK(alt.ydelse_before_tax) + ' kr./md');
+  html += row('Ydelse e.s.', fmtDKK(alt.ydelse_after_tax) + ' kr./md');
+  html += row('ÅOP f.s.', fmtPct(alt.aap_before_tax));
+  html += '</tbody></table></div>';
+
+  // ── Section 2: Horisontberegning ──
+  const horizonYears = currentInput ? currentInput.horizon_years : 5;
+  html += '<h2>Horisontberegning efter ' + horizonYears + ' år</h2>';
+  const ha = result.horizon_analyses[ALT_INDEX];
+  if (ha) {
+    html += '<div class="card"><table><thead><tr>';
+    html += '<th>Renteændring</th><th>Ydelse start</th><th>Ydelse slut</th><th>Rente i alt</th><th>Afdrag i alt</th><th>Ydelse i alt</th><th>Restgæld</th><th>Gns. kurs</th><th>Indfrielse</th><th>Periodeomk.</th>';
+    html += '</tr></thead><tbody>';
+    ha.scenarios.forEach((sc) => {
+      const shockLabel = (Number(sc.rate_shock) >= 0 ? '+' : '') + (Number(sc.rate_shock)*100).toFixed(0).replace('.', ',') + '%';
+      html += '<tr>';
+      html += '<td>' + shockLabel + '</td>';
+      html += '<td class="num">' + fmtDKK(sc.ydelse_start) + '</td>';
+      html += '<td class="num">' + fmtDKK(sc.ydelse_slut) + '</td>';
+      html += '<td class="num">' + fmtDKK(sc.rente_total) + '</td>';
+      html += '<td class="num">' + fmtDKK(sc.afdrag_total) + '</td>';
+      html += '<td class="num">' + fmtDKK(sc.ydelse_total) + '</td>';
+      html += '<td class="num">' + fmtDKK(sc.restgaeld) + '</td>';
+      html += '<td class="num">' + Number(sc.gns_kurs).toFixed(2).replace('.', ',') + '</td>';
+      html += '<td class="num">' + fmtDKK(sc.indfrielse) + '</td>';
+      html += '<td class="num">' + fmtDKK(sc.periodeomkostning) + '</td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table></div>';
+  }
+
+  // ── Section 3: Ydelsesprofil ──
+  html += '<h2>Ydelsesprofil</h2>';
+  html += '<div class="csv-wrap"><button class="primary" id="csv-btn" onclick="exportCSV()">Eksporter ydelsestabel (CSV)</button></div>';
+  html += '<div class="sched-wrap sched-table"><table><thead><tr>';
+  html += '<th>År</th><th>Restgæld</th><th>Afdrag</th><th>Rente</th><th>Ydelse</th><th>Ydelse e.s.</th>';
+  html += '</tr></thead><tbody>';
+  sched.years.forEach(y => {
+    html += '<tr>';
+    html += '<td>' + y.year + '</td>';
+    html += '<td class="num">' + fmtDKK(y.restgaeld) + '</td>';
+    html += '<td class="num">' + fmtDKK(y.afdrag) + '</td>';
+    html += '<td class="num">' + fmtDKK(y.rente) + '</td>';
+    html += '<td class="num">' + fmtDKK(y.ydelse) + '</td>';
+    html += '<td class="num">' + fmtDKK(y.rente_after_tax) + '</td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table></div>';
+
+  document.getElementById('content').innerHTML = html;
+  // Store schedule for CSV export
+  window._amortSchedule = sched;
+}
+
+function row(label, value) {
+  return '<tr><td>' + escapeHtml(label) + '</td><td class="num">' + escapeHtml(value) + '</td></tr>';
+}
+
+function exportCSV() {
+  const sched = window._amortSchedule;
+  if (!sched) return;
+  const headers = ['År', 'Restgæld', 'Afdrag', 'Rente', 'Ydelse', 'Ydelse efter skat'];
+  const rows = sched.years.map(y => [
+    y.year,
+    Number(y.restgaeld).toLocaleString('da-DK'),
+    Number(y.afdrag).toLocaleString('da-DK'),
+    Number(y.rente).toLocaleString('da-DK'),
+    Number(y.ydelse).toLocaleString('da-DK'),
+    Number(y.rente_after_tax).toLocaleString('da-DK'),
+  ].join(';'));
+  const csv = headers.join(';') + '\n' + rows.join('\n');
+  const blob = new Blob(['\uFEFF' + csv], {type: 'text/csv;charset=utf-8'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'ydelsestabel.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+loadData();
+</script>
+</body>
+</html>
