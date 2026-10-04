@@ -111,6 +111,11 @@ td.num { font-variant-numeric: tabular-nums; }
 tr.cheapest { background: var(--navy-tint); }
 tr.cheapest:hover { background: #e3f0ff; }
 
+/* Clickable alternative rows */
+tr.alt-row { cursor: pointer; }
+tr.alt-row:hover { background: #f0f7ff; }
+tr.alt-row.cheapest:hover { background: #e3f0ff; }
+
 /* Billigst badge */
 .badge {
   display: inline-block;
@@ -325,27 +330,6 @@ svg.chart { display: block; width: 100%; height: auto; }
   font-weight: 500;
 }
 
-/* Detaljer link cards */
-.afdrag-toggle {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-left: 3px solid var(--navy);
-  border-radius: 6px;
-  padding: 14px 20px;
-  margin-bottom: 12px;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--navy);
-  text-decoration: none;
-  transition: all 0.2s ease;
-  box-shadow: var(--shadow);
-}
-.afdrag-toggle:hover { background: #f8fafc; border-color: var(--navy); }
-.afdrag-toggle:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(0,69,123,0.25); }
-.afdrag-toggle .arrow { font-size: 12px; color: var(--muted); }
 
 /* Chart bar/line colors */
 .bar-navy { fill: var(--navy); }
@@ -394,8 +378,7 @@ td.flash-down.cheapest, td.flash-up.cheapest { animation-duration: 1s; }
     color: var(--navy);
     margin-bottom: 16px;
   }
-  .form-wrap, .form-toggle, .chart-legend, .afdrag-toggle .arrow { display: none !important; }
-  .afdrag-toggle { box-shadow: none !important; border: none !important; padding: 4px 0 !important; }
+  .form-wrap, .form-toggle, .chart-legend { display: none !important; }
   .card, .chart-card, .meta-row, form, .error {
     box-shadow: none !important;
     border: 1px solid #ccc !important;
@@ -639,7 +622,7 @@ async function renderResults(result) {
     const isCheapestAap = i === cheapestAapIdx;
     let label = '<span class="dot dot-' + color + '"></span>' + escapeHtml(alt.label);
     if (isCheapestYdelse) label += '<span class="badge">Billigst</span>';
-    html += '<tr class="' + (isCheapestYdelse ? 'cheapest' : '') + '">';
+    html += '<tr class="' + (isCheapestYdelse ? 'cheapest' : '') + ' alt-row" onclick="window.location.href=\'/resultater/alternativ/' + i + '\'">';
     html += '<td>' + label + '</td>';
     html += '<td class="num" data-key="hovedstol_' + i + '" data-value="' + Number(alt.total_hovedstol) + '">' + fmtDKK(alt.total_hovedstol) + '</td>';
     html += '<td class="num" data-key="gns_kurs_' + i + '" data-value="' + Number(alt.gns_kurs) + '">' + Number(alt.gns_kurs).toFixed(2).replace('.', ',') + '</td>';
@@ -706,16 +689,7 @@ async function renderResults(result) {
 
   // Balance-over-time line chart
   html += await renderBalanceChart(result);
-  // Detaljer — links to per-alternative subpages
-  html += '<h2>Detaljer</h2>';
-  html += '<p style="color:var(--muted);font-size:14px;margin-bottom:16px">Klik på et alternativ for at se ydelsesprofil, afdragstabel og fuld amortisering.</p>';
-  result.alternatives.forEach((alt, i) => {
-    const color = ALT_COLORS[i % ALT_COLORS.length];
-    html += '<a class="afdrag-toggle" href="/resultater/alternativ/' + i + '">';
-    html += '<span><span class="dot dot-' + color + '"></span>' + escapeHtml(alt.label) + '</span>';
-    html += '<span class="arrow">▶</span>';
-    html += '</a>';
-  });
+
 
   document.getElementById('results').innerHTML = html;
   applyFlash();
