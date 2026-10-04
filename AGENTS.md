@@ -16,7 +16,7 @@ boligregner-os is an open-source Danish realkredit (mortgage) calculator. It com
 - `templates/results.html` — Single-page frontend (inline CSS/JS, no build step)
 - `templates/alternative.html` — Per-alternative subpage with ydelsestabel and CSV export
 - `mcp_server.py` / `mcp_cli.py` — MCP tool adapter for AI agents
-- `tests/test_engine.py` — Engine tests (42 tests)
+- `tests/test_engine.py` — Engine tests
 
 ## Key constraints
 
@@ -80,6 +80,5 @@ This project uses `uv` with the `uv_build` backend (not hatchling/pip). The `pyp
 - Do not use `float` for monetary calculations in the engine
 - Do not change the `calculate()` interface signature
 - Do not modify server.py templates path logic (uses `Path(__file__).parent`)
-- Do not add mentions of Vitec Scanrate A/S (removed by request)
 - Do not use `text-transform: uppercase` on labels (sentence case only)
 - Do not hardcode alternative count or color count — both are dynamic
