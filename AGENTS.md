@@ -61,7 +61,7 @@ Tests verify annuity math, IRR, hovedstol derivation, ÅOP ordering, horizon sce
 ## Running the server
 
 ```bash
-uv sync --extra dev --reinstall  # non-editable install (fixes Python 3.14 .pth issue)
+uv sync --extra dev --reinstall
 uv run boligregner --port 8000
 ```
 
