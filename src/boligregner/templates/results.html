@@ -232,7 +232,44 @@ form h3::before {
   padding: 16px;
   margin-bottom: 16px;
 }
-.alt-block-title { font-weight: 600; font-size: 14px; margin-bottom: 12px; }
+.alt-block-title { font-weight: 600; font-size: 14px; margin-bottom: 12px; display: flex; align-items: center; }
+.alt-remove {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 2px 8px;
+  border-radius: 4px;
+  line-height: 1;
+}
+.alt-remove:hover { background: #fee2e2; color: #dc2626; }
+.alt-add-btn {
+  display: block;
+  width: 100%;
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--navy);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.alt-add-btn:hover { border-color: var(--navy); background: var(--navy-tint); }
+.alt-label-input {
+  font-size: 14px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 2px 8px;
+  margin-left: 8px;
+  flex: 1;
+  max-width: 300px;
+}
 
 button.primary {
   background: var(--navy);
@@ -411,9 +448,14 @@ td.flash-down.cheapest, td.flash-up.cheapest { animation-duration: 1s; }
 <div class="form-field"><label>Horisont (år)</label><input id="f-horizon" type="number" step="1" min="1" max="30"></div>
 <div class="form-field"><label>Startdato</label><input id="f-startdate" type="date"></div>
 </div>
+<div class="form-row">
+<div class="form-field"><label>Rentescenarie 1 (%)</label><input id="f-shock1" type="number" step="0.5" value="-2"></div>
+<div class="form-field"><label>Rentescenarie 2 (%)</label><input id="f-shock2" type="number" step="0.5" value="0"></div>
+<div class="form-field"><label>Rentescenarie 3 (%)</label><input id="f-shock3" type="number" step="0.5" value="2"></div>
+</div>
 <div id="alt-fields"></div>
+<button type="button" class="alt-add-btn" onclick="addAlt()">+ Tilføj alternativ</button>
 <button type="submit" class="primary">Genberegn</button>
-</form>
 </div>
 </div>
 
@@ -486,14 +528,19 @@ function populateForm(input) {
   document.getElementById('f-tax').value = input.tax_rate;
   document.getElementById('f-horizon').value = input.horizon_years;
   document.getElementById('f-startdate').value = input.start_date;
+  // Rate shock fields
+  const shocks = input.rate_shocks || ['-0.02', '0', '0.02'];
+  document.getElementById('f-shock1').value = Number(shocks[0]) * 100;
+  document.getElementById('f-shock2').value = Number(shocks[1]) * 100;
+  document.getElementById('f-shock3').value = Number(shocks[2]) * 100;
   const altDiv = document.getElementById('alt-fields');
   altDiv.innerHTML = '';
   input.alternatives.forEach((alt, i) => {
     const color = ALT_COLORS[i % ALT_COLORS.length];
     const block = document.createElement('div');
     block.className = 'alt-block';
-    block.dataset.altIndex = i;
-    let html = '<div class="alt-block-title"><span class="dot dot-' + color + '"></span>' + escapeHtml(alt.label) + '</div>';
+    block.dataset.altData = JSON.stringify(alt);
+    let html = '<div class="alt-block-title"><span class="dot dot-' + color + '"></span>' + escapeHtml(alt.label) + '<button type="button" class="alt-remove" onclick="removeAlt(this)" aria-label="Fjern alternativ">✕</button></div>';
     alt.components.forEach((comp, j) => {
       const compType = comp.component === 'realkredit' ? 'Realkredit' : 'Bank';
       html += '<div class="form-row" data-comp="' + j + '">';
@@ -509,21 +556,71 @@ function populateForm(input) {
   });
 }
 
+// ── Add/remove alternatives ──
+function removeAlt(btn) {
+  const blocks = document.querySelectorAll('.alt-block');
+  if (blocks.length <= 1) return; // keep at least one
+  const block = btn.closest('.alt-block');
+  block.remove();
+}
+
+const DEFAULT_ALT = {
+  label: 'Nyt alternativ',
+  components: [
+    { component: 'realkredit', loan_type: 'f3', rate: '0.035', price: '100', maturity_years: 30, issue_costs_pct: '0.0177', redemption_price: '100', provenu_share: '0.80', bidragssats: '0.006', interest_only_years: 0, fixed_ydelse: null },
+    { component: 'bank', loan_type: 'f1', rate: '0.045', price: '100', maturity_years: 30, issue_costs_pct: '0', redemption_price: '100', provenu_share: '0.20', bidragssats: '0', interest_only_years: 0, fixed_ydelse: null },
+  ],
+};
+
+function addAlt() {
+  const newIdx = document.querySelectorAll('.alt-block').length;
+  const color = ALT_COLORS[newIdx % ALT_COLORS.length];
+  const block = document.createElement('div');
+  block.className = 'alt-block';
+  block.dataset.altData = JSON.stringify(DEFAULT_ALT);
+  let html = '<div class="alt-block-title"><span class="dot dot-' + color + '"></span><input type="text" class="alt-label-input" value="Nyt alternativ" placeholder="Alternativ navn"><button type="button" class="alt-remove" onclick="removeAlt(this)" aria-label="Fjern alternativ">✕</button></div>';
+  DEFAULT_ALT.components.forEach((comp, j) => {
+    const compType = comp.component === 'realkredit' ? 'Realkredit' : 'Bank';
+    html += '<div class="form-row" data-comp="' + j + '">';
+    const loanLabel = comp.component === 'realkredit' ? compType + ' ' + comp.loan_type.toUpperCase() : compType;
+    html += '<div class="form-field"><label>' + loanLabel + ' — Rente (%)</label><input class="comp-rate" type="number" step="0.001" min="0" value="' + (Number(comp.rate)*100) + '"></div>';
+    html += '<div class="form-field"><label>Kurs</label><input class="comp-price" type="number" step="0.01" min="0.01" max="200" value="' + comp.price + '"></div>';
+    html += '<div class="form-field"><label>Andel (%)</label><input class="comp-share" type="number" step="0.01" min="0" max="100" value="' + (Number(comp.provenu_share)*100) + '"></div>';
+    html += '<div class="form-field"><label>Udst.omk. (%)</label><input class="comp-issue" type="number" step="0.001" min="0" value="' + (Number(comp.issue_costs_pct)*100) + '"></div>';
+    html += '</div>';
+  });
+  block.innerHTML = html;
+  document.getElementById('alt-fields').appendChild(block);
+}
+
 function gatherFormInput() {
   const input = JSON.parse(JSON.stringify(currentInput));
   input.desired_provenu = document.getElementById('f-provenu').value;
   input.tax_rate = document.getElementById('f-tax').value;
   input.horizon_years = parseInt(document.getElementById('f-horizon').value, 10);
   input.start_date = document.getElementById('f-startdate').value;
-  document.querySelectorAll('.alt-block').forEach((block, i) => {
-    const alt = input.alternatives[i];
+  // Rate shocks from form
+  input.rate_shocks = [
+    String(Number(document.getElementById('f-shock1').value) / 100),
+    String(Number(document.getElementById('f-shock2').value) / 100),
+    String(Number(document.getElementById('f-shock3').value) / 100),
+  ];
+  // Rebuild alternatives from form blocks
+  input.alternatives = [];
+  document.querySelectorAll('.alt-block').forEach((block) => {
+    const altData = JSON.parse(block.dataset.altData);
+    // Override label if editable
+    const labelInput = block.querySelector('.alt-label-input');
+    if (labelInput) altData.label = labelInput.value;
+    // Override component values from form
     block.querySelectorAll('.form-row').forEach((row, j) => {
-      const comp = alt.components[j];
-      comp.rate = String(Number(row.querySelector('.comp-rate').value) / 100);
-      comp.price = row.querySelector('.comp-price').value;
-      comp.provenu_share = String(Number(row.querySelector('.comp-share').value) / 100);
-      comp.issue_costs_pct = String(Number(row.querySelector('.comp-issue').value) / 100);
+      if (!altData.components[j]) return;
+      altData.components[j].rate = String(Number(row.querySelector('.comp-rate').value) / 100);
+      altData.components[j].price = row.querySelector('.comp-price').value;
+      altData.components[j].provenu_share = String(Number(row.querySelector('.comp-share').value) / 100);
+      altData.components[j].issue_costs_pct = String(Number(row.querySelector('.comp-issue').value) / 100);
     });
+    input.alternatives.push(altData);
   });
   return input;
 }
@@ -703,7 +800,7 @@ function metaItem(label, value) {
 function renderPeriodeomkostningChart(result) {
   const ha = result.horizon_analyses;
   const nAlts = ha.length;
-  const nShocks = 3;
+  const nShocks = ha[0].scenarios.length;
   const W = 760, H = 340, M = {top: 30, right: 20, bottom: 50, left: 70};
   const chartW = W - M.left - M.right;
   const chartH = H - M.top - M.bottom;
@@ -725,10 +822,12 @@ function renderPeriodeomkostningChart(result) {
 
   function yScale(v) { return chartH - ((v - yMin) / yRange) * chartH; }
 
-  // Find cheapest periodeomkostning at 0% shock for Billigst annotation
+  // Find cheapest periodeomkostning at the shock closest to 0% for Billigst annotation
+  let zeroShockIdx = 0;
+  ha[0].scenarios.forEach((sc, j) => { if (Math.abs(Number(sc.rate_shock)) < Math.abs(Number(ha[0].scenarios[zeroShockIdx].rate_shock))) zeroShockIdx = j; });
   let cheapestBarIdx = 0, cheapestBarVal = Infinity;
   ha.forEach((alt, i) => {
-    const v = Number(alt.scenarios[1].periodeomkostning); // 0% shock = index 1
+    const v = Number(alt.scenarios[zeroShockIdx].periodeomkostning);
     if (v < cheapestBarVal) { cheapestBarVal = v; cheapestBarIdx = i; }
   });
 
@@ -752,13 +851,13 @@ function renderPeriodeomkostningChart(result) {
       const x = groupX + groupW / 2 - (nShocks * barW + (nShocks - 1) * barGap) / 2 + j * (barW + barGap);
       const yTop = yScale(Math.max(v, 0));
       const barH = Math.abs(yScale(v) - yScale(0));
-      svg += '<rect x="' + x + '" y="' + yTop + '" width="' + barW + '" height="' + barH + '" fill="' + CHART_COLORS_HEX[i] + '" opacity="' + SHOCK_OPACITIES[j] + '" rx="1">';
-      svg += '<title>' + escapeHtml(alt.alternative_label) + ' — ' + SHOCK_LABELS[j] + ': ' + fmtDKK(v) + ' kr.</title>';
+      const shockLabel = (Number(sc.rate_shock) >= 0 ? '+' : '') + (Number(sc.rate_shock)*100).toFixed(0).replace('.', ',') + '%';
+      svg += '<title>' + escapeHtml(alt.alternative_label) + ' — ' + shockLabel + ': ' + fmtDKK(v) + ' kr.</title>';
       svg += '</rect>';
     });
     // Billigst annotation for cheapest 0% bar
     if (i === cheapestBarIdx) {
-      const v = Number(alt.scenarios[1].periodeomkostning);
+      const v = Number(alt.scenarios[zeroShockIdx].periodeomkostning);
       const x = groupX + groupW / 2;
       const y = yScale(v) - 6;
       svg += '<text class="chart-billigst-label" x="' + x + '" y="' + y + '" text-anchor="middle">Billigst</text>';
@@ -775,21 +874,25 @@ function renderPeriodeomkostningChart(result) {
   });
   legend += '</div>';
   legend += '<div class="chart-legend" style="margin-top:4px">';
-  SHOCK_LABELS.forEach((label, j) => {
+  const shockLabels = ha[0].scenarios.map(sc => (Number(sc.rate_shock) >= 0 ? '+' : '') + (Number(sc.rate_shock)*100).toFixed(0).replace('.', ',') + '%');
+  shockLabels.forEach((label, j) => {
     legend += '<div class="chart-legend-item"><span class="chart-legend-swatch" style="background:#94a3b8;opacity:' + SHOCK_OPACITIES[j] + '"></span>Renteændring ' + label + '</div>';
   });
   legend += '</div>';
 
-  // Break-even annotation: detect fixed-rate alternative by label, check if cheaper at +2% shock
+  // Break-even annotation: detect fixed-rate alternative by label, check if cheaper at max positive shock
+  let maxShockIdx = 0;
+  ha[0].scenarios.forEach((sc, j) => { if (Number(sc.rate_shock) > Number(ha[0].scenarios[maxShockIdx].rate_shock)) maxShockIdx = j; });
+  const maxShockLabel = shockLabels[maxShockIdx] || '+2%';
   let annotation = '';
   const fixedIdx = ha.findIndex(a => /fast|fixed|obligation/i.test(a.alternative_label));
   if (fixedIdx !== -1 && nAlts > 1) {
-    const fixedPlus2 = Number(ha[fixedIdx].scenarios[2].periodeomkostning);
+    const fixedMax = Number(ha[fixedIdx].scenarios[maxShockIdx].periodeomkostning);
     for (let fi = 0; fi < nAlts; fi++) {
       if (fi === fixedIdx) continue;
-      const flexPlus2 = Number(ha[fi].scenarios[2].periodeomkostning);
-      if (fixedPlus2 < flexPlus2) {
-        annotation = '<div class="chart-annotation">Ved +2% rentestigning bliver det fastforrentede lån billigst — lavere periodeomkostning end ' + escapeHtml(ha[fi].alternative_label) + '.</div>';
+      const flexMax = Number(ha[fi].scenarios[maxShockIdx].periodeomkostning);
+      if (fixedMax < flexMax) {
+        annotation = '<div class="chart-annotation">Ved ' + maxShockLabel + ' rentestigning bliver det fastforrentede lån billigst — lavere periodeomkostning end ' + escapeHtml(ha[fi].alternative_label) + '.</div>';
         break;
       }
     }
