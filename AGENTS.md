@@ -40,11 +40,15 @@ All dynamic content inserted into HTML must go through `escapeHtml()`. This incl
 - `FIXED` — Fixed-rate obligation (fast rente). Rate shocks affect bond redemption price, not amortization.
 - `F3` / `F5` / `F1` — Rentetilpasningslån (flexlån) with 3/5/1-year rate adjustment. Rate shocks affect amortization rate, redemption at par.
 - `T` — T-lån: fixed monthly ydelse, variable duration. Rate shocks change duration, not payment. Negative amortization when payment < interest (balance grows).
+- `CITA` — CITA-referencerente: short-period variable rate loan. Rate = reference_rate + margin, resets every `reset_months` months.
+- `CIBOR` — CIBOR-referencerente: same structure as CITA, being phased out in favor of DESTR.
+- `DESTR` — Compounded overnight rate replacing CIBOR. Uses daily compounding converted to monthly equivalent.
 
 ## Special features
 
 - **Afdragsfrihed** (`interest_only_years`): Interest-only period at loan start. Principal=0 during IO, then annuity over remaining term. `ydelse_before_tax` reports the post-IO annuity payment.
 - **T-lån** (`fixed_ydelse`): `_solve_for_n()` computes duration from fixed payment. If payment doesn't cover interest, balance grows (negative amortization).
+- **CITA/CIBOR/DESTR** (`reference_rate`, `margin`, `reset_months`): Rate = reference_rate + margin + bidragssats. Rate shocks apply to the reference rate, not the margin. Payment is re-annuitized at each reset boundary over the remaining term. DESTR uses daily compounding via `_daily_to_monthly()`.
 
 ## Testing
 
@@ -52,7 +56,7 @@ All dynamic content inserted into HTML must go through `escapeHtml()`. This incl
 uv run pytest tests/ -q
 ```
 
-Tests verify annuity math, IRR, hovedstol derivation, ÅOP ordering, horizon scenarios, rate shock effects, fixed-obligation price sensitivity, afdragsfrihed, T-lån, and preset smoke tests.
+Tests verify annuity math, IRR, hovedstol derivation, ÅOP ordering, horizon scenarios, rate shock effects, fixed-obligation price sensitivity, afdragsfrihed, T-lån, CITA/CIBOR/DESTR rate paths, and preset smoke tests.
 
 ## Running the server
 

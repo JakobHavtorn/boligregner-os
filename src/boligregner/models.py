@@ -25,6 +25,9 @@ class LoanType(str, Enum):
     F5 = "f5"                # rentetilpasningslån, 5-årlig justering (F5)
     F1 = "f1"                # rentetilpasningslån, 1-årlig justering (F1)
     T = "t"                  # T-lån: fast ydelse, variabel løbetid (fixed payment, variable duration)
+    CITA = "cita"            # CITA-referencerente (short-period variable rate)
+    CIBOR = "cibor"          # CIBOR-referencerente (being phased out, replaced by DESTR)
+    DESTR = "destr"          # DESTR (compounded overnight rate, replacing CIBOR)
 
 class LoanComponent(str, Enum):
     """A financing alternative is composed of a realkredit part + a bank part."""
@@ -89,6 +92,23 @@ class LoanSpec(BaseModel):
         description="Fixed monthly ydelse for T-lån (overrides annuity calculation). "
         "The loan term adjusts to fit this payment.",
     )
+    reference_rate: Decimal | None = Field(
+        default=None,
+        description="Reference rate (CITA/CIBOR/DESTR) as annual fraction. "
+        "Required for CITA/CIBOR/DESTR; forbidden otherwise.",
+    )
+    margin: Decimal | None = Field(
+        default=None,
+        description="Margin above reference rate. Required for CITA/CIBOR/DESTR; "
+        "forbidden otherwise.",
+    )
+    reset_months: int = Field(
+        default=1,
+        ge=1,
+        le=12,
+        description="Rate reset frequency in months (1=monthly, 3=quarterly). "
+        "Used for CITA/CIBOR/DESTR. Default 1.",
+    )
 
     @field_validator("rate")
     @classmethod
@@ -105,7 +125,7 @@ class LoanSpec(BaseModel):
         return v
 
     @model_validator(mode="after")
-    def validate_interest_only_and_t_laan(self) -> "LoanSpec":
+    def validate_loan_constraints(self) -> "LoanSpec":
         # Afdragsfrihed: interest_only_years must be < maturity_years
         if self.interest_only_years >= self.maturity_years:
             raise ValueError("interest_only_years must be less than maturity_years")
@@ -114,7 +134,20 @@ class LoanSpec(BaseModel):
             raise ValueError("T-lån requires fixed_ydelse")
         if self.loan_type != LoanType.T and self.fixed_ydelse is not None:
             raise ValueError("fixed_ydelse is only for T-lån")
+        # CITA/CIBOR/DESTR: reference_rate and margin required; rate is derived
+        ref_types = (LoanType.CITA, LoanType.CIBOR, LoanType.DESTR)
+        if self.loan_type in ref_types:
+            if self.reference_rate is None:
+                raise ValueError(f"{self.loan_type.value.upper()} requires reference_rate")
+            if self.margin is None:
+                raise ValueError(f"{self.loan_type.value.upper()} requires margin")
+        else:
+            if self.reference_rate is not None:
+                raise ValueError("reference_rate is only for CITA/CIBOR/DESTR")
+            if self.margin is not None:
+                raise ValueError("margin is only for CITA/CIBOR/DESTR")
         return self
+
 
 
 class FinancingAlternative(BaseModel):
