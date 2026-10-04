@@ -16,7 +16,7 @@ boligregner-os is an open-source Danish realkredit (mortgage) calculator. It com
 - `templates/results.html` — Single-page frontend (inline CSS/JS, no build step)
 - `templates/alternative.html` — Per-alternative subpage with ydelsestabel and CSV export
 - `mcp_server.py` / `mcp_cli.py` — MCP tool adapter for AI agents
-- `tests/test_engine.py` — Engine tests (32 tests)
+- `tests/test_engine.py` — Engine tests (42 tests)
 
 ## Key constraints
 
@@ -40,7 +40,7 @@ All dynamic content inserted into HTML must go through `escapeHtml()`. This incl
 - `FIXED` — Fixed-rate obligation (fast rente). Rate shocks affect bond redemption price, not amortization.
 - `F3` / `F5` / `F1` — Rentetilpasningslån (flexlån) with 3/5/1-year rate adjustment. Rate shocks affect amortization rate, redemption at par.
 - `T` — T-lån: fixed monthly ydelse, variable duration. Rate shocks change duration, not payment. Negative amortization when payment < interest (balance grows).
-- `CITA` — CITA-referencerente: short-period variable rate loan. Rate = reference_rate + margin, resets every `reset_months` months.
+- `CITA` — CITA-referencerente: short-period variable rate loan. Rate = reference_rate + margin.
 - `CIBOR` — CIBOR-referencerente: same structure as CITA, being phased out in favor of DESTR.
 - `DESTR` — Compounded overnight rate replacing CIBOR. Uses daily compounding converted to monthly equivalent.
 
@@ -48,7 +48,7 @@ All dynamic content inserted into HTML must go through `escapeHtml()`. This incl
 
 - **Afdragsfrihed** (`interest_only_years`): Interest-only period at loan start. Principal=0 during IO, then annuity over remaining term. `ydelse_before_tax` reports the post-IO annuity payment.
 - **T-lån** (`fixed_ydelse`): `_solve_for_n()` computes duration from fixed payment. If payment doesn't cover interest, balance grows (negative amortization).
-- **CITA/CIBOR/DESTR** (`reference_rate`, `margin`, `reset_months`): Rate = reference_rate + margin + bidragssats. Rate shocks apply to the reference rate, not the margin. Payment is re-annuitized at each reset boundary over the remaining term. DESTR uses daily compounding via `_daily_to_monthly()`.
+- **CITA/CIBOR/DESTR** (`reference_rate`, `margin`): Rate = reference_rate + margin + bidragssats. Rate shocks apply to the reference rate, not the margin. Uses a constant-rate-per-scenario model (same as flexlån). DESTR uses daily compounding via `_daily_to_monthly()`.
 
 ## Testing
 

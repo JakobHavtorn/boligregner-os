@@ -428,7 +428,6 @@ def _make_ref_alt(
     loan_type: LoanType = LoanType.CIBOR,
     reference_rate: Decimal = Decimal("0.0320"),
     margin: Decimal = Decimal("0.0025"),
-    reset_months: int = 3,
     rate: Decimal | None = None,
     price: Decimal = Decimal("100"),
     maturity: int = 30,
@@ -459,7 +458,6 @@ def _make_ref_alt(
                         bidragssats=bidrag,
                         reference_rate=reference_rate,
                         margin=margin,
-                        reset_months=reset_months,
                         fixed_ydelse=fixed_ydelse,
                         interest_only_years=interest_only_years,
                     ),
@@ -472,9 +470,9 @@ def _make_ref_alt(
 class TestCitaCiborDestr:
     """Tests for CITA/CIBOR/DESTR short-period variable rate loans."""
 
-    def test_cibor_rate_path_resets(self):
-        """_rate_path for CIBOR with reset_months=3 returns array where
-        the rate changes every 3 months when shock is applied."""
+    def test_cibor_rate_path_structure(self):
+        """_rate_path for CIBOR returns a constant array of length n_months
+        at the expected rate: reference + margin + bidrag."""
         spec = LoanSpec(
             component=LoanComponent.REALKREDIT,
             loan_type=LoanType.CIBOR,
@@ -485,24 +483,17 @@ class TestCitaCiborDestr:
             bidragssats=Decimal("0.006"),
             reference_rate=Decimal("0.0320"),
             margin=Decimal("0.0025"),
-            reset_months=3,
         )
-        # With zero shock, the rate is constant
+        # With zero shock, the rate is constant at reference + margin + bidrag
         path = _rate_path(spec, Decimal("0"), 12)
         assert len(path) == 12
-        # All rates should be the same with zero shock
-        assert all(r == path[0] for r in path)
-        # With +2% shock, the rate still resets every 3 months
-        # (the rate changes at month 0, 3, 6, 9 — but the value is the same
-        # because the shock is constant, so the rate is constant too)
+        expected = Decimal("0.0320") + Decimal("0.0025") + Decimal("0.006")
+        assert all(r == expected for r in path)
+        # With +2% shock, the rate is constant at (reference + shock) + margin + bidrag
         path_shocked = _rate_path(spec, Decimal("0.02"), 12)
         assert len(path_shocked) == 12
-        # The shocked rate = (reference + shock) + margin + bidrag
-        expected = Decimal("0.0320") + Decimal("0.02") + Decimal("0.0025") + Decimal("0.006")
-        assert path_shocked[0] == expected
-        # With a shock, the rate is still constant (shock doesn't vary by period)
-        # but it's applied at each reset boundary
-        assert all(r == path_shocked[0] for r in path_shocked)
+        expected_shocked = (Decimal("0.0320") + Decimal("0.02")) + Decimal("0.0025") + Decimal("0.006")
+        assert all(r == expected_shocked for r in path_shocked)
 
     def test_cibor_shock_applies_to_reference_not_margin(self):
         """Rate at shock=+2% = (reference+0.02) + margin + bidrag,
@@ -517,27 +508,20 @@ class TestCitaCiborDestr:
             bidragssats=Decimal("0.006"),
             reference_rate=Decimal("0.0320"),
             margin=Decimal("0.0025"),
-            reset_months=3,
         )
         path = _rate_path(spec, Decimal("0.02"), 6)
         # Shock applies to reference: (0.0320 + 0.02) + 0.0025 + 0.006
         expected = (Decimal("0.0320") + Decimal("0.02")) + Decimal("0.0025") + Decimal("0.006")
         assert path[0] == expected
-        # Verify it's NOT (reference + margin + shock + bidrag) — same value but
-        # the semantic distinction matters: shock is on the reference only.
-        # Both give the same number here, but the key is that margin is fixed.
-        wrong = (Decimal("0.0320") + Decimal("0.0025") + Decimal("0.02") + Decimal("0.006"))
-        assert path[0] == wrong  # same number, different semantics
-        # The real test: at -2% shock, reference goes to 0.012, margin stays 0.0025
+        # At -2% shock, reference can go negative (Danish rates were negative in 2010s)
         path_neg = _rate_path(spec, Decimal("-0.02"), 6)
-        # reference can't go below 0, but the formula still computes
         expected_neg = (Decimal("0.0320") - Decimal("0.02")) + Decimal("0.0025") + Decimal("0.006")
         assert path_neg[0] == expected_neg
 
     def test_cibor_payment_changes_at_reset(self):
-        """Monthly payment changes when rate resets within the horizon
-        (i.e., when a shock is applied, the payment differs from the zero-shock payment)."""
-        inp = _make_ref_alt(loan_type=LoanType.CIBOR, reset_months=3)
+        """Monthly payment changes when a shock is applied: the payment at
+        +2% shock differs from the zero-shock payment."""
+        inp = _make_ref_alt(loan_type=LoanType.CIBOR)
         result = calculate(inp)
         ha = result.horizon_analyses[0]
         by_shock = {row.rate_shock: row for row in ha.scenarios}
@@ -550,30 +534,6 @@ class TestCitaCiborDestr:
         assert by_shock[Decimal("-0.02")].ydelse_slut < by_shock[Decimal("0")].ydelse_slut, (
             f"-2% ydelse_slut {by_shock[Decimal('-0.02')].ydelse_slut} should be < "
             f"0% {by_shock[Decimal('0')].ydelse_slut}"
-        )
-
-    def test_cibor_horizon_re_annuitization(self):
-        """At each reset, the payment is recomputed over the remaining term
-        at the new rate. The amortization schedule should show payment changes
-        at reset boundaries (every reset_months months)."""
-        inp = _make_ref_alt(loan_type=LoanType.CIBOR, reset_months=3)
-        sched = amortization_schedule(inp, 0)
-        # Year 1 should have a ydelse (it's the initial annuity payment × 12)
-        # Year 2 and beyond should also have ydelse — at 0% shock the rate
-        # is constant, so all years should have similar ydelse.
-        assert len(sched.years) >= 30
-        # With zero shock, the rate path is constant, so payments don't change
-        # across years (the re-annuitization at each reset gives the same payment
-        # since the rate is the same)
-        y1 = sched.years[0].ydelse
-        y2 = sched.years[1].ydelse
-        # At zero shock, ydelse should be very close year-over-year
-        # (slight difference due to amortization reducing balance, which
-        # means re-annuitization gives slightly different payment)
-        # Actually with constant rate and re-annuitization, the payment
-        # stays constant (same rate, same remaining balance proportion)
-        assert abs(y1 - y2) < Decimal("1"), (
-            f"Year 1 ydelse {y1} should ≈ Year 2 {y2} at 0% shock"
         )
 
     def test_destr_daily_compounding(self):
@@ -609,7 +569,6 @@ class TestCitaCiborDestr:
             bidragssats=bidrag,
             reference_rate=ref,
             margin=margin,
-            reset_months=3,
         )
         destr_spec = LoanSpec(
             component=LoanComponent.REALKREDIT,
@@ -621,7 +580,6 @@ class TestCitaCiborDestr:
             bidragssats=bidrag,
             reference_rate=ref,
             margin=margin,
-            reset_months=3,
         )
         cibor_path = _rate_path(cibor_spec, Decimal("0"), 12)
         destr_path = _rate_path(destr_spec, Decimal("0"), 12)
@@ -658,7 +616,6 @@ class TestCitaCiborDestr:
             bidragssats=Decimal("0.006"),
             reference_rate=Decimal("0.0320"),
             margin=Decimal("0.0025"),
-            reset_months=3,
         )
         path = _rate_path(spec, Decimal("0"), 12)
         expected = Decimal("0.0320") + Decimal("0.0025") + Decimal("0.006")
@@ -693,10 +650,9 @@ class TestCitaCiborDestr:
             )
 
     def test_cibor_aap_computed_with_variable_payments(self):
-        """CIBOR loan ÅOP is computed correctly with variable payments
-        (re-annuitization at each reset). The ÅOP should be close to the
+        """CIBOR loan ÅOP is computed correctly. The ÅOP should be close to the
         effective rate (reference + margin + bidrag) since there's no shock."""
-        inp = _make_ref_alt(loan_type=LoanType.CIBOR, reset_months=3)
+        inp = _make_ref_alt(loan_type=LoanType.CIBOR)
         result = calculate(inp)
         aap = result.alternatives[0].aap_before_tax
         eff_rate = Decimal("0.0320") + Decimal("0.0025") + Decimal("0.006")
@@ -710,11 +666,10 @@ class TestCitaCiborDestr:
         )
 
     def test_cibor_amortization_schedule_shows_payment_changes(self):
-        """amortization_schedule for CIBOR shows different ydelse in different
-        years as rate resets. With 0% shock, the rate is constant, so the
-        payment stays the same across years. But the schedule should still
-        be computed correctly with re-annuitization."""
-        inp = _make_ref_alt(loan_type=LoanType.CIBOR, reset_months=3)
+        """amortization_schedule for CIBOR is computed correctly. With 0%
+        shock, the rate is constant, so the payment stays the same across
+        years. The schedule should still amortize to near-zero."""
+        inp = _make_ref_alt(loan_type=LoanType.CIBOR)
         sched = amortization_schedule(inp, 0)
         # Should have 30 years
         assert len(sched.years) == 30

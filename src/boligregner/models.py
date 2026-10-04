@@ -102,13 +102,6 @@ class LoanSpec(BaseModel):
         description="Margin above reference rate. Required for CITA/CIBOR/DESTR; "
         "forbidden otherwise.",
     )
-    reset_months: int = Field(
-        default=1,
-        ge=1,
-        le=12,
-        description="Rate reset frequency in months (1=monthly, 3=quarterly). "
-        "Used for CITA/CIBOR/DESTR. Default 1.",
-    )
 
     @field_validator("rate")
     @classmethod

@@ -58,7 +58,6 @@ def _make_alt(
     fixed_ydelse: Decimal | None = None,
     reference_rate: Decimal | None = None,
     margin: Decimal | None = None,
-    reset_months: int = 1,
 ) -> "FinancingAlternative":  # type: ignore[name-defined]
     """Build a two-component alternative (realkredit + bank)."""
     from .models import FinancingAlternative
@@ -81,8 +80,6 @@ def _make_alt(
         realkredit_kwargs["reference_rate"] = reference_rate
     if margin is not None:
         realkredit_kwargs["margin"] = margin
-    if reset_months != 1:
-        realkredit_kwargs["reset_months"] = reset_months
 
     return FinancingAlternative(
         label=label,
@@ -170,7 +167,6 @@ PRESETS: dict[str, CalculatorInput] = {
                 issue_pct=Decimal("0.0177"),
                 reference_rate=Decimal("0.0320"),
                 margin=Decimal("0.0025"),
-                reset_months=3,
             ),
             # Alt 7: 30-yr DESTR + 30-yr banklån
             _make_alt(
@@ -183,7 +179,6 @@ PRESETS: dict[str, CalculatorInput] = {
                 issue_pct=Decimal("0.0177"),
                 reference_rate=Decimal("0.0315"),
                 margin=Decimal("0.0025"),
-                reset_months=3,
             ),
         ],
     ),
@@ -219,23 +214,18 @@ def _daily_to_monthly(annual_rate: Decimal) -> Decimal:
     return (_ONE + annual_rate / Decimal(360)) ** 30 - _ONE
 
 
-def _re_annuitize(balance: Decimal, monthly_rate: Decimal, remaining_months: int) -> Decimal:
-    """Recompute the annuity payment after a rate reset (alias for clarity)."""
-    return _annuity_payment(balance, monthly_rate, remaining_months)
-
-
 def _rate_path(spec: LoanSpec, shock: Decimal, n_months: int) -> list[Decimal]:
     """Return a per-month effective annual rate array for n_months.
 
     - FIXED: constant (shock doesn't affect amortization rate, only bond price)
-    - F1/F3/F5: constant with shock applied to the effective rate
-    - T: constant with shock applied (same as flexlån for rate)
-    - CITA/CIBOR: resets every spec.reset_months; shock applied to reference_rate
-      only (not margin).  Between resets the rate stays constant.
-    - DESTR: same as CIBOR but the reference rate is daily-compounded, converted
-      to a monthly equivalent via _daily_to_monthly().
+    - F1/F3/F5/T: constant with shock applied to the effective rate
+    - CITA/CIBOR/DESTR: constant with shock applied to reference_rate only
+      (not margin). Uses a constant-rate-per-scenario model (same as flexlån).
+    - DESTR: the reference rate is daily-compounded, converted to a monthly
+      equivalent via _daily_to_monthly().
 
     The returned rates are *annual* effective rates including bidragssats.
+    Negative rates are valid (Danish reference rates were negative in the 2010s).
     """
     bidrag = spec.bidragssats
     ref_types = (LoanType.CITA, LoanType.CIBOR, LoanType.DESTR)
@@ -246,30 +236,24 @@ def _rate_path(spec: LoanSpec, shock: Decimal, n_months: int) -> list[Decimal]:
         if spec.loan_type == LoanType.FIXED:
             rate = _effective_rate(spec)
         else:
-            rate = max(_ZERO, _effective_rate(spec) + shock)
+            rate = _effective_rate(spec) + shock
         return [rate] * n_months
 
     # CITA/CIBOR/DESTR: rate = (reference + shock) + margin + bidrag
     ref = spec.reference_rate  # type: ignore[union-attr]
     margin = spec.margin        # type: ignore[union-attr]
-    reset = spec.reset_months
-    path: list[Decimal] = []
-    for month_idx in range(n_months):
-        if month_idx % reset == 0:
-            # Reset boundary: compute the new effective rate
-            shocked_ref = ref + shock
-            if spec.loan_type == LoanType.DESTR:
-                # DESTR: convert daily-compounded reference to monthly, then annualize
-                monthly_equiv = _daily_to_monthly(shocked_ref)
-                # Convert monthly equivalent back to annual nominal for consistency
-                # with the rest of the engine (which divides by 12 for monthly rate)
-                period_rate = monthly_equiv * _TWELVE + margin + bidrag
-            else:
-                # CITA/CIBOR: simple annual rate
-                period_rate = shocked_ref + margin + bidrag
-            current_rate = period_rate
-        path.append(current_rate)
-    return path
+    shocked_ref = ref + shock
+    if spec.loan_type == LoanType.DESTR:
+        # DESTR: convert daily-compounded reference to a monthly equivalent,
+        # then annualize so the engine can divide by 12 to recover the monthly
+        # rate.  monthly_equiv = (1 + ref/360)^30 - 1; annual = monthly_equiv * 12.
+        # Dividing by 12 recovers monthly_equiv, preserving the compounding.
+        monthly_equiv = _daily_to_monthly(shocked_ref)
+        rate = monthly_equiv * _TWELVE + margin + bidrag
+    else:
+        # CITA/CIBOR: simple annual rate
+        rate = shocked_ref + margin + bidrag
+    return [rate] * n_months
 
 def _annuity_payment(hovedstol: Decimal, monthly_rate: Decimal, n_months: int) -> Decimal:
     """Level monthly payment (ydelse) for an annuity mortgage.
@@ -340,9 +324,8 @@ def _amortize(
         instead of computing it from n_months.  Amortize until balance
         reaches ~0 or n_months is exhausted.
 
-    For resetting loans (CITA/CIBOR/DESTR) without a fixed payment, the
-    payment is re-annuitized at each reset boundary (when the rate changes
-    between consecutive months in the path) over the remaining term.
+    Since rate paths are constant per scenario, the payment is computed once
+    at the start and never changes.
 
     interest  = balance * monthly_rate
     principal = payment − interest
@@ -358,19 +341,10 @@ def _amortize(
     else:
         current_payment = payment
 
-    prev_rate: Decimal | None = None
 
     for month_idx in range(n_months):
         annual_r = rate_path[month_idx] if month_idx < len(rate_path) else rate_path[-1]
         r = _monthly_rate(annual_r)
-
-        # Re-annuitize at rate change boundaries (resetting loans, non-T-lån)
-        if payment is None and prev_rate is not None and annual_r != prev_rate:
-            remaining = n_months - month_idx
-            if balance > _ZERO and remaining > 0:
-                current_payment = _re_annuitize(balance, r, remaining)
-        prev_rate = annual_r
-
         interest = balance * r
 
         if month_idx < interest_only_months:
@@ -490,7 +464,7 @@ def _aap(
         cfs += [-payment] * n_months
     else:
         # Derive the actual payment schedule from the rate path
-        # (handles interest-only, re-annuitization at resets, etc.)
+        # (handles interest-only, constant-rate-per-scenario, etc.)
         monthly_flows = list(_amortize(
             hovedstol, rate_path, n_months,
             interest_only_months=interest_only_months,
@@ -546,7 +520,7 @@ def _compute_component(
         ydelse_es = ydelse_bs - first_interest * tax_rate
         aap = _aap(hovedstol, rate_path, n, kontant, interest_only_months=io_months)
     else:
-        # Standard annuity (incl. CITA/CIBOR/DESTR with re-annuitization)
+        # Standard annuity (incl. CITA/CIBOR/DESTR)
         ydelse_bs = _annuity_payment(hovedstol, r, n)
         first_interest = hovedstol * r
         ydelse_es = ydelse_bs - first_interest * tax_rate
@@ -596,67 +570,28 @@ def _horizon_scenarios(
             # _rate_path handles all loan types:
             #   FIXED: shock doesn't affect amortization rate (only bond price)
             #   F1/F3/F5/T: shock applies to effective rate
-            #   CITA/CIBOR/DESTR: shock on reference_rate, resets every reset_months
+            #   CITA/CIBOR/DESTR: shock on reference_rate (constant per scenario)
             n = spec.maturity_years * 12
             io_months = spec.interest_only_years * 12
             path = _rate_path(spec, shock, n)
 
-            # Amortize month-by-month using the rate path
+            # Fixed payment for T-lån, None for annuity loans
             if spec.loan_type == LoanType.T and spec.fixed_ydelse is not None:
                 fixed_payment = spec.fixed_ydelse
             else:
                 fixed_payment = None
 
-            comp_interest = _ZERO
-            comp_principal = _ZERO
-            balance = comp.hovedstol
+            # Amortize over the full term, then slice to the horizon.
+            # _amortize handles IO periods, fixed payments, and negative amortization.
+            monthly = list(_amortize(
+                comp.hovedstol, path, n,
+                interest_only_months=io_months,
+                payment=fixed_payment,
+            ))[:horizon_n]
+            comp_interest = sum(m[0] for m in monthly)
+            comp_principal = sum(m[1] for m in monthly)
+            balance = monthly[-1][2] if monthly else comp.hovedstol
 
-            # Track the current payment for re-annuitization at resets
-            if fixed_payment is not None:
-                current_payment = fixed_payment
-            else:
-                r0 = _monthly_rate(path[0])
-                amort_months = n - io_months
-                current_payment = _annuity_payment(comp.hovedstol, r0, amort_months) if amort_months > 0 else comp.hovedstol * r0
-
-            prev_rate: Decimal | None = None
-
-            for month_idx in range(horizon_n):
-                annual_r = path[month_idx]
-                r = _monthly_rate(annual_r)
-
-                # Re-annuitize at rate change (reset boundary) for non-T-lån
-                if fixed_payment is None and prev_rate is not None and annual_r != prev_rate:
-                    remaining = n - month_idx
-                    if balance > _ZERO and remaining > 0:
-                        current_payment = _re_annuitize(balance, r, remaining)
-                prev_rate = annual_r
-
-                interest = balance * r
-
-                if month_idx < io_months:
-                    # Interest-only period
-                    principal = _ZERO
-                elif fixed_payment is not None:
-                    # T-lån: fixed payment, variable duration
-                    if current_payment >= interest:
-                        principal = current_payment - interest
-                    else:
-                        # Payment doesn't cover interest — balance grows
-                        principal = _ZERO
-                        balance += (interest - current_payment)
-                else:
-                    principal = current_payment - interest
-                    if principal < _ZERO:
-                        # Payment doesn't cover interest — balance grows
-                        balance += (interest - current_payment)
-                        principal = _ZERO
-
-                balance -= principal
-                if balance < _ZERO:
-                    balance = _ZERO
-                comp_interest += interest
-                comp_principal += principal
 
             # Tax deduction on interest over the horizon period
             rente_total += comp_interest * (_ONE - tax_rate)
@@ -670,8 +605,8 @@ def _horizon_scenarios(
             # For flexlån/T-lån/CITA/CIBOR/DESTR at par, redemption_price stays at 100.
             if spec.loan_type == LoanType.FIXED:
                 # Approximate price sensitivity: price moves inversely to rate shock.
-                shocked_yield = max(_ZERO, spec.rate + shock)
-                shocked_price = _HUNDRED * spec.rate / shocked_yield if shocked_yield > _ZERO else _HUNDRED
+                shocked_yield = spec.rate + shock
+                shocked_price = _HUNDRED * spec.rate / shocked_yield if shocked_yield != _ZERO else _HUNDRED
                 # Clamp to reasonable bounds
                 shocked_price = min(_HUNDRED * Decimal("1.1"), max(Decimal("50"), shocked_price))
                 payoff = balance * shocked_price / _HUNDRED
