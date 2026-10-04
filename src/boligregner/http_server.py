@@ -1,8 +1,9 @@
-"""FastAPI server for boligregner-os.
+"""FastAPI HTTP server for boligregner-os.
 
 Exposes the calculation engine over HTTP and serves a single-page
 HTML results renderer (matching boligregner.dk's URL structure).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -11,7 +12,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
-from .engine import calculate, amortization_schedule, PRESETS
+from .engine import PRESETS, amortization_schedule, calculate
 from .models import AmortizationSchedule, CalculatorInput, CalculatorResult
 
 app = FastAPI(
@@ -37,16 +38,23 @@ def api_calculate(input: CalculatorInput) -> CalculatorResult:
 def api_amortization(alt_index: int, input: CalculatorInput) -> AmortizationSchedule:
     """Return the year-by-year amortization schedule for one alternative."""
     if alt_index < 0 or alt_index >= len(input.alternatives):
-        raise HTTPException(status_code=404, detail=f"Alternative index {alt_index} out of range")
+        raise HTTPException(
+            status_code=404, detail=f"Alternative index {alt_index} out of range"
+        )
     try:
         return amortization_schedule(input, alt_index)
     except ValueError as e:
         raise HTTPException(status_code=422, detail=str(e)) from e
 
+
 @app.get("/api/presets")
 def api_presets() -> dict:
     """Return all presets as a dictionary of CalculatorInput JSON objects."""
-    return {"presets": {name: preset.model_dump(mode="json") for name, preset in PRESETS.items()}}
+    return {
+        "presets": {
+            name: preset.model_dump(mode="json") for name, preset in PRESETS.items()
+        }
+    }
 
 
 @app.get("/api/presets/{name}")
@@ -68,7 +76,10 @@ def resultater_beregning(request: Request) -> HTMLResponse:
     """Serve the same HTML page (boligregner.dk URL structure)."""
     return templates.TemplateResponse(request, "results.html")
 
-@app.get('/resultater/alternativ/{alt_index}', response_class=HTMLResponse)
+
+@app.get("/resultater/alternativ/{alt_index}", response_class=HTMLResponse)
 def resultater_alternativ(request: Request, alt_index: int) -> HTMLResponse:
     """Serve the per-alternative subpage (boligregner.dk URL structure)."""
-    return templates.TemplateResponse(request, 'alternative.html', {'alt_index': alt_index})
+    return templates.TemplateResponse(
+        request, "alternative.html", {"alt_index": alt_index}
+    )
