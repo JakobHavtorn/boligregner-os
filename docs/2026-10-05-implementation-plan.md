@@ -13,11 +13,11 @@ classDiagram
     direction TB
 
     class server_py {
-        +GET /api/market-rates/{loan_type}
-        +GET /api/bidragssatser
-        +GET /api/bond-prices
-        +GET /api/reference-rates/{type}
-        +POST /api/market-rates/refresh
+        +api_market_rates loan_type
+        +api_bidragssatser
+        +api_bond_prices
+        +api_reference_rates rate_type
+        +api_market_rates_refresh
     }
 
     class market_data_py {
@@ -27,8 +27,8 @@ classDiagram
         +get_bidragssatser(str, str) list~BidragssatsEntry~
         +get_bond_prices() dict
         +build_preset_from_market(MarketRates) CalculatorInput
-        -_fetch_* (urllib)
-        -_cache (per-source JSON)
+        -_fetch_urllib
+        -_cache_per_source
         -lookup_bidragssats(BidragssatsKey) Decimal
         -_normalize_column_to_loan_type(str) LoanType
     }
@@ -38,22 +38,22 @@ classDiagram
     }
 
     class engine_py {
-        +calculate(CalculatorInput) CalculatorResult
-        +PRESETS: hardcoded fallback defaults
+        +calculate CalculatorResult
+        +PRESETS dict
     }
 
     class MarketRates {
-        +fetched_at: datetime
-        +nominal_rates: NominalRates
-        +reference_rates: ReferenceRates
-        +bank_rate: Decimal
-        +bidragssatser: list~BidragssatsEntry~
+        +fetched_at datetime
+        +nominal_rates NominalRates
+        +reference_rates ReferenceRates
+        +bank_rate Decimal
+        +bidragssatser list~BidragssatsEntry~
     }
 
     class CalculatorInput {
-        +alternatives: list~LoanSpec~
-        +tax_rate: Decimal
-        +rate_shocks: list~Decimal~
+        +alternatives list~LoanSpec~
+        +tax_rate Decimal
+        +rate_shocks list~Decimal~
     }
 
     server_py --> market_data_py : endpoints call public accessors
