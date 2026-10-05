@@ -8,11 +8,22 @@ Known answers (from the server-rendered HTML):
   Alt 2 (F5):  hovedstol 2.548.000, ÅOP 5,74%, ydelse e.s. 10.985
   Alt 3 (4%):  hovedstol 2.694.000, gns.kurs 94,52, ÅOP 6,38%, ydelse e.s. 11.604
 """
+
 from datetime import date
 from decimal import Decimal
+
 import pytest
 
-from boligregner import PRESETS, calculate, amortization_schedule
+from boligregner import PRESETS, amortization_schedule, calculate
+from boligregner.engine import (
+    _annuity_payment,
+    _daily_to_monthly,
+    _hovedstol_for_provenu,
+    _irr,
+    _monthly_rate,
+    _rate_path,
+    _solve_for_n,
+)
 from boligregner.models import (
     CalculatorInput,
     FinancingAlternative,
@@ -20,16 +31,6 @@ from boligregner.models import (
     LoanSpec,
     LoanType,
 )
-from boligregner.engine import (
-    _annuity_payment,
-    _hovedstol_for_provenu,
-    _monthly_rate,
-    _irr,
-    _solve_for_n,
-    _rate_path,
-    _daily_to_monthly,
-)
-
 
 # ─── Primitive unit tests ────────────────────────────────────────────
 
@@ -66,15 +67,15 @@ class TestHovedstol:
 
     def test_discount_obligation(self):
         # Price 94.52, ~1.71% costs: hovedstol should be ~2.694M for 2.5M provenu
-        h = _hovedstol_for_provenu(Decimal("2500000"), Decimal("94.52"), Decimal("0.0171"))
+        h = _hovedstol_for_provenu(
+            Decimal("2500000"), Decimal("94.52"), Decimal("0.0171")
+        )
         # Should be ~2.694M (matching boligregner Alt 3)
         assert abs(h - Decimal("2694000")) < Decimal("2000")
 
     def test_raises_on_impossible_price(self):
         with pytest.raises(ValueError, match="non-positive provenu"):
-            _hovedstol_for_provenu(
-                Decimal("2500000"), Decimal("100"), Decimal("1.5")
-            )
+            _hovedstol_for_provenu(Decimal("2500000"), Decimal("100"), Decimal("1.5"))
 
 
 class TestIRR:
@@ -88,6 +89,7 @@ class TestIRR:
 
     def test_aap_positive(self):
         from boligregner.engine import _aap
+
         # 1M loan at 4%, net cash received = 1M - 17k costs = 983000
         aap = _aap(Decimal("1000000"), [Decimal("0.04")] * 360, 360, Decimal("983000"))
         # ÅOP should be slightly above 4% due to upfront costs reducing net
@@ -174,7 +176,10 @@ class TestCalculatePreset:
         by_shock = {row.rate_shock: row for row in alt3_ha.scenarios}
         # +2% shock: bond price falls → cheaper indfrielse → lower periodeomk
         assert by_shock[Decimal("0.02")].indfrielse < by_shock[Decimal("0")].indfrielse
-        assert by_shock[Decimal("0.02")].periodeomkostning < by_shock[Decimal("0")].periodeomkostning
+        assert (
+            by_shock[Decimal("0.02")].periodeomkostning
+            < by_shock[Decimal("0")].periodeomkostning
+        )
         # -2% shock: bond price rises → more expensive indfrielse
         assert by_shock[Decimal("-0.02")].indfrielse > by_shock[Decimal("0")].indfrielse
 
@@ -252,11 +257,15 @@ class TestAfdragsfrihed:
         sched = amortization_schedule(inp, 0)
         # First 5 years: afdrag = 0
         for year in sched.years[:5]:
-            assert year.afdrag == Decimal("0"), f"Year {year.year} should have afdrag=0, got {year.afdrag}"
+            assert year.afdrag == Decimal("0"), (
+                f"Year {year.year} should have afdrag=0, got {year.afdrag}"
+            )
         # Restgæld should equal hovedstol during interest-only period
         hovedstol = calculate(inp).alternatives[0].total_hovedstol
         for year in sched.years[:5]:
-            assert year.restgaeld == hovedstol, f"Year {year.year} restgaeld should be {hovedstol}, got {year.restgaeld}"
+            assert year.restgaeld == hovedstol, (
+                f"Year {year.year} restgaeld should be {hovedstol}, got {year.restgaeld}"
+            )
         # After interest-only, afdrag > 0
         assert sched.years[5].afdrag > Decimal("0")
 
@@ -283,9 +292,7 @@ class TestAfdragsfrihed:
         std_input = _make_single_alt(interest_only_years=0)
         io_aap = calculate(io_input).alternatives[0].aap_before_tax
         std_aap = calculate(std_input).alternatives[0].aap_before_tax
-        assert io_aap != std_aap, (
-            f"IO ÅOP {io_aap} should differ from std {std_aap}"
-        )
+        assert io_aap != std_aap, f"IO ÅOP {io_aap} should differ from std {std_aap}"
         # Both should be above the effective rate (issue costs push ÅOP up)
         eff_rate = Decimal("0.035") + Decimal("0.006")  # rate + bidrag
         assert io_aap > eff_rate
@@ -313,8 +320,14 @@ class TestAfdragsfrihed:
         no_io_input = _make_single_alt(interest_only_years=0)
         std_result = calculate(std_input)
         no_io_result = calculate(no_io_input)
-        assert std_result.alternatives[0].ydelse_before_tax == no_io_result.alternatives[0].ydelse_before_tax
-        assert std_result.alternatives[0].aap_before_tax == no_io_result.alternatives[0].aap_before_tax
+        assert (
+            std_result.alternatives[0].ydelse_before_tax
+            == no_io_result.alternatives[0].ydelse_before_tax
+        )
+        assert (
+            std_result.alternatives[0].aap_before_tax
+            == no_io_result.alternatives[0].aap_before_tax
+        )
         std_sched = amortization_schedule(std_input, 0)
         no_io_sched = amortization_schedule(no_io_input, 0)
         assert len(std_sched.years) == len(no_io_sched.years)
@@ -361,7 +374,9 @@ class TestTLån:
         result = calculate(inp)
         ha = result.horizon_analyses[0]
         by_shock = {row.rate_shock: row for row in ha.scenarios}
-        assert by_shock[Decimal("-0.02")].restgaeld < by_shock[Decimal("0")].restgaeld, (
+        assert (
+            by_shock[Decimal("-0.02")].restgaeld < by_shock[Decimal("0")].restgaeld
+        ), (
             f"-2% restgaeld {by_shock[Decimal('-0.02')].restgaeld} should be < "
             f"0% {by_shock[Decimal('0')].restgaeld}"
         )
@@ -492,7 +507,9 @@ class TestCitaCiborDestr:
         # With +2% shock, the rate is constant at (reference + shock) + margin + bidrag
         path_shocked = _rate_path(spec, Decimal("0.02"), 12)
         assert len(path_shocked) == 12
-        expected_shocked = (Decimal("0.0320") + Decimal("0.02")) + Decimal("0.0025") + Decimal("0.006")
+        expected_shocked = (
+            (Decimal("0.0320") + Decimal("0.02")) + Decimal("0.0025") + Decimal("0.006")
+        )
         assert all(r == expected_shocked for r in path_shocked)
 
     def test_cibor_shock_applies_to_reference_not_margin(self):
@@ -511,11 +528,15 @@ class TestCitaCiborDestr:
         )
         path = _rate_path(spec, Decimal("0.02"), 6)
         # Shock applies to reference: (0.0320 + 0.02) + 0.0025 + 0.006
-        expected = (Decimal("0.0320") + Decimal("0.02")) + Decimal("0.0025") + Decimal("0.006")
+        expected = (
+            (Decimal("0.0320") + Decimal("0.02")) + Decimal("0.0025") + Decimal("0.006")
+        )
         assert path[0] == expected
         # At -2% shock, reference can go negative (Danish rates were negative in 2010s)
         path_neg = _rate_path(spec, Decimal("-0.02"), 6)
-        expected_neg = (Decimal("0.0320") - Decimal("0.02")) + Decimal("0.0025") + Decimal("0.006")
+        expected_neg = (
+            (Decimal("0.0320") - Decimal("0.02")) + Decimal("0.0025") + Decimal("0.006")
+        )
         assert path_neg[0] == expected_neg
 
     def test_cibor_payment_changes_at_reset(self):
@@ -526,12 +547,16 @@ class TestCitaCiborDestr:
         ha = result.horizon_analyses[0]
         by_shock = {row.rate_shock: row for row in ha.scenarios}
         # At +2% shock, ydelse_slut should be higher than at 0%
-        assert by_shock[Decimal("0.02")].ydelse_slut > by_shock[Decimal("0")].ydelse_slut, (
+        assert (
+            by_shock[Decimal("0.02")].ydelse_slut > by_shock[Decimal("0")].ydelse_slut
+        ), (
             f"+2% ydelse_slut {by_shock[Decimal('0.02')].ydelse_slut} should be > "
             f"0% {by_shock[Decimal('0')].ydelse_slut}"
         )
         # At -2% shock, ydelse_slut should be lower than at 0%
-        assert by_shock[Decimal("-0.02")].ydelse_slut < by_shock[Decimal("0")].ydelse_slut, (
+        assert (
+            by_shock[Decimal("-0.02")].ydelse_slut < by_shock[Decimal("0")].ydelse_slut
+        ), (
             f"-2% ydelse_slut {by_shock[Decimal('-0.02')].ydelse_slut} should be < "
             f"0% {by_shock[Decimal('0')].ydelse_slut}"
         )
@@ -657,9 +682,7 @@ class TestCitaCiborDestr:
         aap = result.alternatives[0].aap_before_tax
         eff_rate = Decimal("0.0320") + Decimal("0.0025") + Decimal("0.006")
         # ÅOP should be above the effective rate (issue costs push it up)
-        assert aap > eff_rate, (
-            f"ÅOP {aap} should be > effective rate {eff_rate}"
-        )
+        assert aap > eff_rate, f"ÅOP {aap} should be > effective rate {eff_rate}"
         # But not absurdly high
         assert aap < eff_rate + Decimal("0.01"), (
             f"ÅOP {aap} should be < {eff_rate + Decimal('0.01')}"

@@ -14,10 +14,11 @@ Implementation:
 
 All monetary values are Decimal for reproducibility.
 """
+
 from __future__ import annotations
 
 from datetime import date, timedelta
-from decimal import Decimal, ROUND_CEILING, getcontext
+from decimal import ROUND_CEILING, Decimal, getcontext
 from typing import Iterator
 
 from .models import (
@@ -87,7 +88,7 @@ def _make_alt(
             LoanSpec(**realkredit_kwargs),
             LoanSpec(
                 component=LoanComponent.BANK,
-                loan_type=LoanType.F1,            # banklån: 1-årlig variabel
+                loan_type=LoanType.F1,  # banklån: 1-årlig variabel
                 rate=bank_rate,
                 price=Decimal("100"),
                 maturity_years=30,
@@ -149,7 +150,7 @@ PRESETS: dict[str, CalculatorInput] = {
             _make_realkredit_only_alt(
                 label="30 år DESTR",
                 realkredit_type=LoanType.DESTR,
-                realkredit_rate=Decimal("0.0340"),       # total = reference + margin
+                realkredit_rate=Decimal("0.0340"),  # total = reference + margin
                 realkredit_price=Decimal("100"),
                 issue_pct=Decimal("0.0177"),
                 reference_rate=Decimal("0.0315"),
@@ -160,22 +161,20 @@ PRESETS: dict[str, CalculatorInput] = {
                 label="30 år F1",
                 realkredit_type=LoanType.F1,
                 realkredit_rate=Decimal("0.036"),
-                realkredit_price=Decimal("100"),       # par for flexlån
+                realkredit_price=Decimal("100"),  # par for flexlån
                 issue_pct=Decimal("0.0177"),
             ),
             # Alt 3: 30-yr 4% obligation
             _make_realkredit_only_alt(
                 label="30 år 4% obligation",
                 realkredit_type=LoanType.FIXED,
-                realkredit_rate=Decimal("0.04"),       # 4% coupon
-                realkredit_price=Decimal("94.52"),    # trading at discount
+                realkredit_rate=Decimal("0.04"),  # 4% coupon
+                realkredit_price=Decimal("94.52"),  # trading at discount
                 issue_pct=Decimal("0.0171"),
             ),
         ],
     ),
 }
-
-
 
 
 # ─── Core amortization primitives ───────────────────────────────────
@@ -184,6 +183,7 @@ PRESETS: dict[str, CalculatorInput] = {
 def _monthly_rate(annual_rate: Decimal) -> Decimal:
     """Convert nominal annual rate to monthly periodic rate."""
     return annual_rate / _TWELVE
+
 
 def _effective_rate(spec: LoanSpec) -> Decimal:
     """Effective annual rate for amortization/ÅOP: rate + bidragssats.
@@ -233,7 +233,7 @@ def _rate_path(spec: LoanSpec, shock: Decimal, n_months: int) -> list[Decimal]:
 
     # CITA/CIBOR/DESTR: rate = (reference + shock) + margin + bidrag
     ref = spec.reference_rate  # type: ignore[union-attr]
-    margin = spec.margin        # type: ignore[union-attr]
+    margin = spec.margin  # type: ignore[union-attr]
     shocked_ref = ref + shock
     if spec.loan_type == LoanType.DESTR:
         # DESTR: convert daily-compounded reference to a monthly equivalent,
@@ -247,7 +247,10 @@ def _rate_path(spec: LoanSpec, shock: Decimal, n_months: int) -> list[Decimal]:
         rate = shocked_ref + margin + bidrag
     return [rate] * n_months
 
-def _annuity_payment(hovedstol: Decimal, monthly_rate: Decimal, n_months: int) -> Decimal:
+
+def _annuity_payment(
+    hovedstol: Decimal, monthly_rate: Decimal, n_months: int
+) -> Decimal:
     """Level monthly payment (ydelse) for an annuity mortgage.
 
     ydelse = hovedstol * r * (1+r)^n / ((1+r)^n − 1)
@@ -329,10 +332,13 @@ def _amortize(
     if payment is None:
         amort_months = n_months - interest_only_months
         r0 = _monthly_rate(rate_path[0]) if rate_path else _ZERO
-        current_payment = _annuity_payment(hovedstol, r0, amort_months) if amort_months > 0 else hovedstol * r0
+        current_payment = (
+            _annuity_payment(hovedstol, r0, amort_months)
+            if amort_months > 0
+            else hovedstol * r0
+        )
     else:
         current_payment = payment
-
 
     for month_idx in range(n_months):
         annual_r = rate_path[month_idx] if month_idx < len(rate_path) else rate_path[-1]
@@ -352,7 +358,7 @@ def _amortize(
 
         if principal < _ZERO:
             # Payment doesn't cover interest — balance grows (T-lån under shock)
-            balance += (interest - current_payment)
+            balance += interest - current_payment
             yield interest, _ZERO, balance
             continue
 
@@ -402,19 +408,22 @@ def _hovedstol_for_provenu(
             )
         raw = desired_provenu / net_factor
     # Round up to nearest 1000 (boligregner convention: afrunding til hele tusinder)
-    return (_qceil(raw / Decimal(1000)) * Decimal(1000))
+    return _qceil(raw / Decimal(1000)) * Decimal(1000)
 
 
 def _qceil(x: Decimal) -> Decimal:
     """Quantized ceiling: smallest integer >= x, returned as Decimal."""
     from decimal import ROUND_CEILING
+
     return x.to_integral_value(rounding=ROUND_CEILING)
 
 
 # ─── ÅOP (annual percentage rate of charge) via IRR ──────────────────
 
 
-def _irr(cashflows: list[Decimal], guess: Decimal = Decimal("0.05"), tol: int = 30) -> Decimal:
+def _irr(
+    cashflows: list[Decimal], guess: Decimal = Decimal("0.05"), tol: int = 30
+) -> Decimal:
     """Internal rate of return via Newton's method on the NPV polynomial.
 
     cashflows[0] is the inflow (loan disbursement, negative cost to lender
@@ -470,10 +479,14 @@ def _aap(
     else:
         # Derive the actual payment schedule from the rate path
         # (handles interest-only, constant-rate-per-scenario, etc.)
-        monthly_flows = list(_amortize(
-            hovedstol, rate_path, n_months,
-            interest_only_months=interest_only_months,
-        ))
+        monthly_flows = list(
+            _amortize(
+                hovedstol,
+                rate_path,
+                n_months,
+                interest_only_months=interest_only_months,
+            )
+        )
         for interest, principal, _ in monthly_flows:
             cfs.append(-(interest + principal))
 
@@ -491,7 +504,10 @@ def _compute_component(
 ) -> LoanComponentResult:
     """Compute all per-component numbers from a LoanSpec + the provenu slice."""
     hovedstol = _hovedstol_for_provenu(
-        component_provenu, spec.price, spec.issue_costs_pct, spec.issue_costs_nominal,
+        component_provenu,
+        spec.price,
+        spec.issue_costs_pct,
+        spec.issue_costs_nominal,
     )
 
     kursvaerdi = hovedstol * spec.price / _HUNDRED
@@ -593,15 +609,18 @@ def _horizon_scenarios(
 
             # Amortize over the full term, then slice to the horizon.
             # _amortize handles IO periods, fixed payments, and negative amortization.
-            monthly = list(_amortize(
-                comp.hovedstol, path, n,
-                interest_only_months=io_months,
-                payment=fixed_payment,
-            ))[:horizon_n]
+            monthly = list(
+                _amortize(
+                    comp.hovedstol,
+                    path,
+                    n,
+                    interest_only_months=io_months,
+                    payment=fixed_payment,
+                )
+            )[:horizon_n]
             comp_interest = sum(m[0] for m in monthly)
             comp_principal = sum(m[1] for m in monthly)
             balance = monthly[-1][2] if monthly else comp.hovedstol
-
 
             # Tax deduction on interest over the horizon period
             rente_total += comp_interest * (_ONE - tax_rate)
@@ -616,20 +635,32 @@ def _horizon_scenarios(
             if spec.loan_type == LoanType.FIXED:
                 # Approximate price sensitivity: price moves inversely to rate shock.
                 shocked_yield = spec.rate + shock
-                shocked_price = _HUNDRED * spec.rate / shocked_yield if shocked_yield != _ZERO else _HUNDRED
+                shocked_price = (
+                    _HUNDRED * spec.rate / shocked_yield
+                    if shocked_yield != _ZERO
+                    else _HUNDRED
+                )
                 # Clamp to reasonable bounds
-                shocked_price = min(_HUNDRED * Decimal("1.1"), max(Decimal("50"), shocked_price))
+                shocked_price = min(
+                    _HUNDRED * Decimal("1.1"), max(Decimal("50"), shocked_price)
+                )
                 payoff = balance * shocked_price / _HUNDRED
-                weighted_price += shocked_price * (balance / total_hoved if total_hoved else _ZERO)
+                weighted_price += shocked_price * (
+                    balance / total_hoved if total_hoved else _ZERO
+                )
             else:
                 payoff = balance * spec.redemption_price / _HUNDRED
-                weighted_price += spec.redemption_price * (balance / total_hoved if total_hoved else _ZERO)
+                weighted_price += spec.redemption_price * (
+                    balance / total_hoved if total_hoved else _ZERO
+                )
             indfrielse_total += payoff
 
             # After-tax ydelse at horizon
             remaining = n - horizon_n
             if remaining > 0:
-                r_end = _monthly_rate(path[horizon_n - 1] if horizon_n <= len(path) else path[-1])
+                r_end = _monthly_rate(
+                    path[horizon_n - 1] if horizon_n <= len(path) else path[-1]
+                )
                 if fixed_payment is not None:
                     # T-lån: ydelse doesn't change with rate shock
                     ydelse_shocked = fixed_payment
@@ -644,9 +675,13 @@ def _horizon_scenarios(
                     # Past interest-only: annuity on remaining balance over remaining amortization months
                     remaining_amort = n - max(horizon_n, io_months)
                     if remaining_amort > 0:
-                        ydelse_shocked = _annuity_payment(balance, r_end, remaining_amort)
+                        ydelse_shocked = _annuity_payment(
+                            balance, r_end, remaining_amort
+                        )
                         first_interest_shocked = balance * r_end
-                        ydelse_slut_at += ydelse_shocked - first_interest_shocked * tax_rate
+                        ydelse_slut_at += (
+                            ydelse_shocked - first_interest_shocked * tax_rate
+                        )
                 else:
                     ydelse_shocked = _annuity_payment(balance, r_end, remaining)
                     first_interest_shocked = balance * r_end
@@ -655,20 +690,24 @@ def _horizon_scenarios(
         periodeomk = ydelse_total + indfrielse_total - total_provenu
 
         # After-tax ydelse at start (original rate, same for all shocks)
-        ydelse_start_at = _monthly_payment_after_tax(components, tax_rate, shocked=False)
+        ydelse_start_at = _monthly_payment_after_tax(
+            components, tax_rate, shocked=False
+        )
 
-        rows.append(ScenarioRow(
-            rate_shock=shock,
-            ydelse_start=ydelse_start_at,
-            ydelse_slut=ydelse_slut_at,
-            rente_total=rente_total,
-            afdrag_total=afdrag_total,
-            ydelse_total=ydelse_total,
-            restgaeld=restgaeld_total,
-            gns_kurs=weighted_price if weighted_price > _ZERO else Decimal("100"),
-            indfrielse=indfrielse_total,
-            periodeomkostning=periodeomk,
-        ))
+        rows.append(
+            ScenarioRow(
+                rate_shock=shock,
+                ydelse_start=ydelse_start_at,
+                ydelse_slut=ydelse_slut_at,
+                rente_total=rente_total,
+                afdrag_total=afdrag_total,
+                ydelse_total=ydelse_total,
+                restgaeld=restgaeld_total,
+                gns_kurs=weighted_price if weighted_price > _ZERO else Decimal("100"),
+                indfrielse=indfrielse_total,
+                periodeomkostning=periodeomk,
+            )
+        )
 
     return rows
 
@@ -720,7 +759,9 @@ def calculate(input: CalculatorInput) -> CalculatorResult:
         comp_results: list[tuple[LoanSpec, LoanComponentResult]] = []
         for spec in alt.components:
             comp_provenu = input.desired_provenu * spec.provenu_share
-            comp_results.append((spec, _compute_component(spec, comp_provenu, input.tax_rate)))
+            comp_results.append(
+                (spec, _compute_component(spec, comp_provenu, input.tax_rate))
+            )
 
         # Aggregate
         total_hovedstol = sum(r.hovedstol for _, r in comp_results)
@@ -728,41 +769,56 @@ def calculate(input: CalculatorInput) -> CalculatorResult:
         total_udst = sum(r.udstedelsesomkostning for _, r in comp_results)
         total_kontant = sum(r.kontant for _, r in comp_results)
         ydelse_bs = sum(r.ydelse_before_tax for _, r in comp_results)
-        ydelse_es = _monthly_payment_after_tax(comp_results, input.tax_rate, shocked=False)
+        ydelse_es = _monthly_payment_after_tax(
+            comp_results, input.tax_rate, shocked=False
+        )
 
         # Weighted-average ÅOP (by hovedstol)
         if total_hovedstol > _ZERO:
-            aap = sum(r.aap_before_tax * r.hovedstol for _, r in comp_results) / total_hovedstol
+            aap = (
+                sum(r.aap_before_tax * r.hovedstol for _, r in comp_results)
+                / total_hovedstol
+            )
         else:
             aap = _ZERO
 
         # Weighted-average kurs
         if total_hovedstol > _ZERO:
-            gns_kurs = sum(r.gns_kurs * r.hovedstol for _, r in comp_results) / total_hovedstol
+            gns_kurs = (
+                sum(r.gns_kurs * r.hovedstol for _, r in comp_results) / total_hovedstol
+            )
         else:
             gns_kurs = Decimal("100")
 
-        alt_summaries.append(AlternativeSummary(
-            label=alt.label,
-            total_hovedstol=total_hovedstol,
-            gns_kurs=gns_kurs,
-            total_kursvaerdi=total_kursvaerdi,
-            total_udstedelsesomkostning=total_udst,
-            total_kontant=total_kontant,
-            ydelse_before_tax=ydelse_bs,
-            ydelse_after_tax=ydelse_es,
-            aap_before_tax=aap,
-            components=[r for _, r in comp_results],
-        ))
+        alt_summaries.append(
+            AlternativeSummary(
+                label=alt.label,
+                total_hovedstol=total_hovedstol,
+                gns_kurs=gns_kurs,
+                total_kursvaerdi=total_kursvaerdi,
+                total_udstedelsesomkostning=total_udst,
+                total_kontant=total_kontant,
+                ydelse_before_tax=ydelse_bs,
+                ydelse_after_tax=ydelse_es,
+                aap_before_tax=aap,
+                components=[r for _, r in comp_results],
+            )
+        )
 
         # Horizon
         scenarios = _horizon_scenarios(
-            comp_results, horizon_months, input.tax_rate, input.rate_shocks, input.desired_provenu
+            comp_results,
+            horizon_months,
+            input.tax_rate,
+            input.rate_shocks,
+            input.desired_provenu,
         )
-        horizon_analyses.append(HorizonAnalysis(
-            alternative_label=alt.label,
-            scenarios=scenarios,
-        ))
+        horizon_analyses.append(
+            HorizonAnalysis(
+                alternative_label=alt.label,
+                scenarios=scenarios,
+            )
+        )
 
     return CalculatorResult(
         desired_provenu=input.desired_provenu,
@@ -807,12 +863,18 @@ def amortization_schedule(
             actual_n = _solve_for_n(comp.hovedstol, r, spec.fixed_ydelse)
             if actual_n < 0:
                 actual_n = n
-            monthly = list(_amortize(comp.hovedstol, path, actual_n, payment=spec.fixed_ydelse))
+            monthly = list(
+                _amortize(comp.hovedstol, path, actual_n, payment=spec.fixed_ydelse)
+            )
         else:
-            monthly = list(_amortize(
-                comp.hovedstol, path, n,
-                interest_only_months=io_months,
-            ))
+            monthly = list(
+                _amortize(
+                    comp.hovedstol,
+                    path,
+                    n,
+                    interest_only_months=io_months,
+                )
+            )
         comp_monthly.append(monthly)
 
     # n_years: max of nominal maturity and actual T-lån term (ceil to years)
@@ -841,14 +903,16 @@ def amortization_schedule(
             if comp_end >= 0:
                 restgaeld_y += months[comp_end][2]
 
-        years.append(AmortizationYear(
-            year=year,
-            ydelse=ydelse_y,
-            rente=rente_y,
-            afdrag=afdrag_y,
-            restgaeld=restgaeld_y,
-            rente_after_tax=rente_y * (_ONE - input.tax_rate),
-        ))
+        years.append(
+            AmortizationYear(
+                year=year,
+                ydelse=ydelse_y,
+                rente=rente_y,
+                afdrag=afdrag_y,
+                restgaeld=restgaeld_y,
+                rente_after_tax=rente_y * (_ONE - input.tax_rate),
+            )
+        )
 
     return AmortizationSchedule(
         alternative_label=alt.label,

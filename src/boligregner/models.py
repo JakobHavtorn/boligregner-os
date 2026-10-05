@@ -4,6 +4,7 @@ These mirror the table structure on boligregner.dk/resultater/beregning:
   - CalculatorInput: the parameters a user supplies (provenu, loan-type, rates, dates)
   - CalculatorResult: the three-alternative comparison + horizon analysis
 """
+
 from __future__ import annotations
 
 from datetime import date
@@ -13,21 +14,21 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-
 # ─── Loan-type taxonomy ──────────────────────────────────────────────
 
 
 class LoanType(str, Enum):
     """Danish realkredit loan types (obligationslån vs rentetilpasningslån)."""
 
-    FIXED = "fixed"          # fast rente obligationslån (e.g. 4% obligation)
-    F3 = "f3"                # rentetilpasningslån, 3-årlig justering (F3)
-    F5 = "f5"                # rentetilpasningslån, 5-årlig justering (F5)
-    F1 = "f1"                # rentetilpasningslån, 1-årlig justering (F1)
-    T = "t"                  # T-lån: fast ydelse, variabel løbetid (fixed payment, variable duration)
-    CITA = "cita"            # CITA-referencerente (short-period variable rate)
-    CIBOR = "cibor"          # CIBOR-referencerente (being phased out, replaced by DESTR)
-    DESTR = "destr"          # DESTR (compounded overnight rate, replacing CIBOR)
+    FIXED = "fixed"  # fast rente obligationslån (e.g. 4% obligation)
+    F3 = "f3"  # rentetilpasningslån, 3-årlig justering (F3)
+    F5 = "f5"  # rentetilpasningslån, 5-årlig justering (F5)
+    F1 = "f1"  # rentetilpasningslån, 1-årlig justering (F1)
+    T = "t"  # T-lån: fast ydelse, variabel løbetid (fixed payment, variable duration)
+    CITA = "cita"  # CITA-referencerente (short-period variable rate)
+    CIBOR = "cibor"  # CIBOR-referencerente (being phased out, replaced by DESTR)
+    DESTR = "destr"  # DESTR (compounded overnight rate, replacing CIBOR)
+
 
 class LoanComponent(str, Enum):
     """A financing alternative is composed of a realkredit part + a bank part."""
@@ -139,7 +140,9 @@ class LoanSpec(BaseModel):
         ref_types = (LoanType.CITA, LoanType.CIBOR, LoanType.DESTR)
         if self.loan_type in ref_types:
             if self.reference_rate is None:
-                raise ValueError(f"{self.loan_type.value.upper()} requires reference_rate")
+                raise ValueError(
+                    f"{self.loan_type.value.upper()} requires reference_rate"
+                )
             if self.margin is None:
                 raise ValueError(f"{self.loan_type.value.upper()} requires margin")
             # Auto-compute rate from reference + margin to prevent divergence
@@ -152,11 +155,12 @@ class LoanSpec(BaseModel):
         return self
 
 
-
 class FinancingAlternative(BaseModel):
     """One financing proposal: typically a realkredit loan + a bank loan."""
 
-    label: str = Field(..., description="Display name, e.g. '30 år F3 januar, 30 år Banklån'.")
+    label: str = Field(
+        ..., description="Display name, e.g. '30 år F3 januar, 30 år Banklån'."
+    )
     components: list[LoanSpec] = Field(
         ..., min_length=1, description="The loan parts that make up this alternative."
     )
@@ -165,7 +169,9 @@ class FinancingAlternative(BaseModel):
     @classmethod
     def at_least_one_realkredit(cls, comps: list[LoanSpec]) -> list[LoanSpec]:
         if not any(c.component == LoanComponent.REALKREDIT for c in comps):
-            raise ValueError("An alternative must include at least one realkredit component")
+            raise ValueError(
+                "An alternative must include at least one realkredit component"
+            )
         return comps
 
 
@@ -180,8 +186,12 @@ class CalculatorInput(BaseModel):
     alternatives: list[FinancingAlternative] = Field(
         ..., min_length=1, description="Financing alternatives to compare."
     )
-    start_date: date = Field(..., description="Dato for lånets oprettelse / konvertering.")
-    horizon_years: int = Field(default=5, ge=1, le=30, description="Horisontperiode in years.")
+    start_date: date = Field(
+        ..., description="Dato for lånets oprettelse / konvertering."
+    )
+    horizon_years: int = Field(
+        default=5, ge=1, le=30, description="Horisontperiode in years."
+    )
     tax_rate: Decimal = Field(
         default=Decimal("0.336"),
         description="Marginal skat (efter skat): 0.336 = 33,6% tax rate → interest deduction reduces cost by this fraction.",
@@ -201,15 +211,17 @@ class LoanComponentResult(BaseModel):
     component: LoanComponent
     loan_type: LoanType
     hovedstol: Decimal
-    gns_kurs: Decimal            # gennemsnitlig kurs
-    kursvaerdi: Decimal          # kursværdi
+    gns_kurs: Decimal  # gennemsnitlig kurs
+    kursvaerdi: Decimal  # kursværdi
     udstedelsesomkostning: Decimal
-    kontant: Decimal             # actual cash received
-    ydelse_before_tax: Decimal   # monthly payment incl. afdrag+rente+bidrag
+    kontant: Decimal  # actual cash received
+    ydelse_before_tax: Decimal  # monthly payment incl. afdrag+rente+bidrag
     ydelse_after_tax: Decimal
-    aap_before_tax: Decimal       # ÅOP før skat (annual cost in percent)
+    aap_before_tax: Decimal  # ÅOP før skat (annual cost in percent)
     interest_only_years: int = 0  # Years of afdragsfrihed (0 = standard annuity)
-    actual_maturity_years: Decimal | None = None  # Actual term for T-lån (variable duration)
+    actual_maturity_years: Decimal | None = (
+        None  # Actual term for T-lån (variable duration)
+    )
 
 
 class AlternativeSummary(BaseModel):
@@ -217,29 +229,29 @@ class AlternativeSummary(BaseModel):
 
     label: str
     total_hovedstol: Decimal
-    gns_kurs: Decimal            # weighted average kurs
+    gns_kurs: Decimal  # weighted average kurs
     total_kursvaerdi: Decimal
     total_udstedelsesomkostning: Decimal
     total_kontant: Decimal
-    ydelse_before_tax: Decimal   # aggregated monthly payment at start
+    ydelse_before_tax: Decimal  # aggregated monthly payment at start
     ydelse_after_tax: Decimal
-    aap_before_tax: Decimal       # blended ÅOP
+    aap_before_tax: Decimal  # blended ÅOP
     components: list[LoanComponentResult]
 
 
 class ScenarioRow(BaseModel):
     """One row in the horizon (periodeomkostning) table for a given rate shock."""
 
-    rate_shock: Decimal           # the shock applied, e.g. -0.02
-    ydelse_start: Decimal        # monthly payment after tax at period start
-    ydelse_slut: Decimal         # monthly payment after tax at horizon (after shock)
-    rente_total: Decimal        # total interest+bidrag over period, after tax
-    afdrag_total: Decimal       # total principal paid over period
-    ydelse_total: Decimal       # rente_total + afdrag_total
-    restgaeld: Decimal           # remaining debt at horizon
-    gns_kurs: Decimal            # weighted avg redemption price at horizon
-    indfrielse: Decimal          # total payoff amount incl. costs at horizon
-    periodeomkostning: Decimal   # ydelse_total + indfrielse − provenu (after tax)
+    rate_shock: Decimal  # the shock applied, e.g. -0.02
+    ydelse_start: Decimal  # monthly payment after tax at period start
+    ydelse_slut: Decimal  # monthly payment after tax at horizon (after shock)
+    rente_total: Decimal  # total interest+bidrag over period, after tax
+    afdrag_total: Decimal  # total principal paid over period
+    ydelse_total: Decimal  # rente_total + afdrag_total
+    restgaeld: Decimal  # remaining debt at horizon
+    gns_kurs: Decimal  # weighted avg redemption price at horizon
+    indfrielse: Decimal  # total payoff amount incl. costs at horizon
+    periodeomkostning: Decimal  # ydelse_total + indfrielse − provenu (after tax)
 
 
 class HorizonAnalysis(BaseModel):
@@ -263,12 +275,12 @@ class CalculatorResult(BaseModel):
 class AmortizationYear(BaseModel):
     """One year of an amortization schedule (afdragstabel)."""
 
-    year: int                        # 1-based year number
-    ydelse: Decimal                  # total payment this year (12 months)
-    rente: Decimal                   # interest portion (before tax)
-    afdrag: Decimal                  # principal portion
-    restgaeld: Decimal               # remaining debt at end of year
-    rente_after_tax: Decimal         # interest after tax deduction
+    year: int  # 1-based year number
+    ydelse: Decimal  # total payment this year (12 months)
+    rente: Decimal  # interest portion (before tax)
+    afdrag: Decimal  # principal portion
+    restgaeld: Decimal  # remaining debt at end of year
+    rente_after_tax: Decimal  # interest after tax deduction
 
 
 class AmortizationSchedule(BaseModel):

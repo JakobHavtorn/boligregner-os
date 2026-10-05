@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import argparse
 
-
 from .mcp_server import mcp
 
 

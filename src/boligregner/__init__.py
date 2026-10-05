@@ -1,14 +1,14 @@
 """Boligregner OS — open-source Danish realkredit mortgage calculator."""
 
+from .engine import PRESETS, amortization_schedule, calculate
 from .models import (
     CalculatorInput,
     CalculatorResult,
     FinancingAlternative,
+    LoanComponent,
     LoanSpec,
     LoanType,
-    LoanComponent,
 )
-from .engine import calculate, amortization_schedule, PRESETS
 
 __all__ = [
     "calculate",
