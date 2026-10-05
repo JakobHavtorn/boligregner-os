@@ -9,60 +9,59 @@ unchanged — the data layer populates `LoanSpec` fields before calculate is cal
 ## Architecture
 
 ```mermaid
-graph TB
-    subgraph server["server.py (FastAPI)"]
-        MR["GET /api/market-rates/{loan_type}"]
-        BS["GET /api/bidragssatser"]
-        BP["GET /api/bond-prices"]
-        RR["GET /api/reference-rates/{type}"]
-        RF["POST /api/market-rates/refresh"]
-    end
+classDiagram
+    direction TB
 
-    subgraph md["market_data.py (NEW)"]
-        direction TB
-        subgraph pub["Public interface"]
-            GMR["get_market_rates()<br/>full snapshot (MCP/adapter)"]
-            GNR["get_nominal_rate()<br/>per-loan-type"]
-            GRR["get_reference_rate()<br/>per-reference-type"]
-            GBS["get_bidragssatser()<br/>filtered list"]
-            GBP["get_bond_prices()<br/>fixed kurs"]
-            BPM["build_preset_from_market()<br/>adapter to engine"]
-        end
-        subgraph priv["Internal"]
-            F["_fetch_* (urllib)"]
-            C["_cache (per-source JSON)"]
-            L["lookup (bidragssats table)"]
-            N["_normalize (column→LoanType)"]
-        end
-    end
+    class server_py {
+        +GET /api/market-rates/{loan_type}
+        +GET /api/bidragssatser
+        +GET /api/bond-prices
+        +GET /api/reference-rates/{type}
+        +POST /api/market-rates/refresh
+    }
 
-    subgraph mcp["mcp_server.py"]
-        MCP["get_market_rates tool"]
-    end
+    class market_data_py {
+        +get_market_rates() MarketRates
+        +get_nominal_rate(LoanType) Decimal
+        +get_reference_rate(str) Decimal
+        +get_bidragssatser(str, str) list~BidragssatsEntry~
+        +get_bond_prices() dict
+        +build_preset_from_market(MarketRates) CalculatorInput
+        -_fetch_* (urllib)
+        -_cache (per-source JSON)
+        -lookup_bidragssats(BidragssatsKey) Decimal
+        -_normalize_column_to_loan_type(str) LoanType
+    }
 
-    subgraph eng["engine.py (unchanged)"]
-        CALC["calculate(CalculatorInput) → CalculatorResult"]
-        PRE["PRESETS: hardcoded fallback defaults"]
-    end
+    class mcp_server_py {
+        +get_market_rates() dict
+    }
 
-    MR --> GNR
-    BS --> GBS
-    BP --> GBP
-    RR --> GRR
-    RF --> GMR
+    class engine_py {
+        +calculate(CalculatorInput) CalculatorResult
+        +PRESETS: hardcoded fallback defaults
+    }
 
-    MCP --> GMR
+    class MarketRates {
+        +fetched_at: datetime
+        +nominal_rates: NominalRates
+        +reference_rates: ReferenceRates
+        +bank_rate: Decimal
+        +bidragssatser: list~BidragssatsEntry~
+    }
 
-    BPM --> CALC
+    class CalculatorInput {
+        +alternatives: list~LoanSpec~
+        +tax_rate: Decimal
+        +rate_shocks: list~Decimal~
+    }
 
-    GMR --> F
-    GNR --> C
-    GRR --> C
-    GBS --> C
-    GBP --> C
-    F --> C
-    GBS --> L
-    GBS --> N
+    server_py --> market_data_py : endpoints call public accessors
+    mcp_server_py --> market_data_py : get_market_rates tool
+    market_data_py --> engine_py : build_preset_from_market produces CalculatorInput
+    market_data_py ..> MarketRates : reads/writes
+    market_data_py ..> CalculatorInput : produces
+    engine_py ..> CalculatorInput : consumes
 ```
 
 ## New file: `src/boligregner/market_data.py`
