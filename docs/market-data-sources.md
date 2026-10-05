@@ -197,21 +197,25 @@ identical values.
 ### Loan-type normalization
 
 Each institute uses different bidragssats column groupings on Mybanker.dk. The project's
-`LoanType` enum has `F1`, `F3`, `F5`, `FIXED`, `T`. Each `LoanType` is a single discrete
-product (e.g. F3 = 3-year rate reset). Mybanker.dk columns like "Flekslån F3-F4" are
-bidragssats brackets covering multiple F-products, not product ranges. The normalization
-maps each column to the `LoanType` it serves:
+`LoanType` enum currently has `F1`, `F3`, `F5`, `FIXED`, `T`. Each `LoanType` is a single
+discrete product (e.g. F3 = 3-year rate reset). Mybanker.dk columns like "Flekslån F3-F4"
+are bidragssats brackets covering multiple F-products, not product ranges.
+
+**Prerequisite:** Before implementing the data module, extend `LoanType` with `F2`, `F4`,
+`F6`, `F10` so each F-product has its own enum value. This is a code change to `models.py`
++ `engine.py` — out of scope for this docs-only PR, tracked as a follow-up. The table below
+assumes the extended enum.
 
 | Mybanker.dk column | LoanType(s) covered | Note |
 |---|---|---|
 | Fastforrentet lån | FIXED | Fixed-rate obligation |
 | Flekslån F1 | F1 | 1-year reset |
-| Flekslån F1-F2 | F1 | F2 not in enum; F1 is representative |
+| Flekslån F1-F2 | F1, F2 | F2 added in follow-up |
 | Flekslån F3 | F3 | 3-year reset |
-| Flekslån F3-F4 | F3 | Column covers F3; F4 not in enum |
+| Flekslån F3-F4 | F3, F4 | F4 added in follow-up |
 | Flekslån F5 | F5 | 5-year reset |
-| Flekslån F5-F6 | F5 | Column covers F5; F6 not in enum |
-| Flekslån F5-F10 | F5 | Column covers F5+; F5 is representative |
+| Flekslån F5-F6 | F5, F6 | F6 added in follow-up |
+| Flekslån F5-F10 | F5, F6, F10 | F10 added in follow-up |
 | Flekslån F5 & Kort Rente | F5 | Nordea-specific column name |
 
 The "0-60%" and "0-80%" columns on Jyske's own page are blended weighted averages, not
