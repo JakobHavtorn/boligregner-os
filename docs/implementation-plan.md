@@ -17,13 +17,17 @@ unchanged — the data layer populates `LoanSpec` fields before calculate is cal
 ├─────────────────────────────────────────────────────────┤
 │                   market_data.py (NEW)                   │
 │  ┌─────────────────────────────────────────────────────┐ │
-│  │  get_market_rates()   ← single public interface     │ │
-│  │  build_preset_from_market()  ← adapter to engine    │ │
-│  ├─────────┬──────────┬────────┬───────────────┐        │ │
-│  │ _fetch_ │ _cache   │ lookup │ _normalize    │        │ │
-│  │ (intern)│ (JSON)   │ (bidrag│ (institute→  │        │ │
-│  │         │          │ table) │ LoanType)    │        │ │
-│  └─────────┴──────────┴────────┴───────────────┘        │ │
+│  │  get_market_rates()          ← full snapshot (MCP/adapter) │ │
+│  │  get_nominal_rate()         ← per-loan-type (endpoint)   │ │
+│  │  get_reference_rate()       ← per-reference-type (endpoint)│ │
+│  │  get_bidragssatser()        ← filtered list (endpoint)    │ │
+│  │  get_bond_prices()          ← fixed kurs (endpoint)        │ │
+│  │  build_preset_from_market() ← adapter to engine           │ │
+│  ├─────────┬──────────┬────────┬───────────────┐             │ │
+│  │ _fetch_ │ _cache   │ lookup │ _normalize    │             │ │
+│  │ (intern)│ (per-   │ (bidrag│ (column→      │             │ │
+│  │         │ source) │ table) │ LoanType)     │             │ │
+│  └─────────┴──────────┴────────┴───────────────┘             │ │
 ├─────────────────────────────────────────────────────────┤
 │  mcp_server.py  ← new get_market_rates tool              │
 ├─────────────────────────────────────────────────────────┤
@@ -188,8 +192,22 @@ CACHE_TTL = {
 
 ```python
 def get_market_rates(force_refresh: bool = False) -> MarketRates:
-    """Return cached MarketRates, or fetch all sources if expired.
-    On fetch failure, return last-good cached value for that source."""
+    """Return cached MarketRates (full snapshot), or fetch all sources if expired.
+    On fetch failure, return last-good cached value for that source.
+    Used by build_preset_from_market() and MCP tool."""
+
+def get_nominal_rate(loan_type: LoanType) -> Decimal | None:
+    """Return cached nominal rate for a single loan type. Reads only RD.dk cache."""
+
+def get_reference_rate(rate_type: str) -> Decimal | None:
+    """Return cached reference rate (cibor_3m, cibor_6m, cita_3m, destr).
+    Reads only Jyske/DESTR cache."""
+
+def get_bidragssatser(institute: str | None = None, loan_type: str | None = None) -> list[BidragssatsEntry]:
+    """Return cached bidragssatser, optionally filtered. Reads only Mybanker.dk cache."""
+
+def get_bond_prices() -> dict:
+    """Return cached fixed-rate bond prices. Reads only Nordea cache."""
 
 def refresh_market_rates() -> MarketRates:
     """Force refresh all sources. Used by /api/market-rates/refresh."""
@@ -406,7 +424,9 @@ The `build_preset_from_market()` function is opt-in.
 1. **`market_data.py`**: Data models (`LTVBand`, `Institute`, `BidragssatsKey`,
    `BidragssatsEntry`, `NominalRates`, `ReferenceRates`, `MarketRates`).
 2. **`market_data.py`**: Fetchers (one at a time, each with fixture-based test).
-3. **`market_data.py`**: Cache + `get_market_rates()` + `lookup_bidragssats()`.
+3. **`market_data.py`**: Per-source cache + public accessors (`get_market_rates()`,
+   `get_nominal_rate()`, `get_reference_rate()`, `get_bidragssatser()`,
+   `get_bond_prices()`) + `lookup_bidragssats()`.
 4. **`market_data.py`**: `build_preset_from_market()` (adapter, not in engine.py).
 5. **`server.py`**: Add 5 new sync endpoints (per-loan-type rates, bidragssatser, bond-prices, reference-rates, refresh).
 6. **`mcp_server.py`**: Add `get_market_rates` sync tool.

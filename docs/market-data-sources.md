@@ -196,27 +196,23 @@ identical values.
 
 ### Loan-type normalization
 
-Each institute uses different groupings. The project's `LoanType` enum has `F1`, `F3`, `F5`,
-`FIXED`, `T`. A normalization layer is needed:
+Each institute uses different bidragssats column groupings on Mybanker.dk. The project's
+`LoanType` enum has `F1`, `F3`, `F5`, `FIXED`, `T`. Each `LoanType` is a single discrete
+product (e.g. F3 = 3-year rate reset). Mybanker.dk columns like "Flekslån F3-F4" are
+bidragssats brackets covering multiple F-products, not product ranges. The normalization
+maps each column to the `LoanType` it serves:
 
-| Institute | Product name | Maps to LoanType |
+| Mybanker.dk column | LoanType(s) covered | Note |
 |---|---|---|
-| Jyske | Jyske Fast Rente | FIXED |
-| Jyske | Jyske Rentetilpasning F1 | F1 |
-| Jyske | Jyske Rentetilpasning F2-F4 | F3 (closest match) |
-| Jyske | Jyske Rentetilpasning F5-F6 | F5 |
-| Nykredit | Fastforrentet lån | FIXED |
-| Nykredit | Flekslån F1-F2 | F1 |
-| Nykredit | Flekslån F3-F4 | F3 |
-| Nykredit | Flekslån F5-F10 | F5 |
-| Nordea | Fastforrentet lån | FIXED |
-| Nordea | Flekslån F1 | F1 |
-| Nordea | Flekslån F3 | F3 |
-| Nordea | Flekslån F5 & Kort Rente | F5 |
-| RD | Fastforrentet lån | FIXED |
-| RD | Flekslån F1-F2 | F1 |
-| RD | Flekslån F3-F4 | F3 |
-| RD | Flekslån F5 | F5 |
+| Fastforrentet lån | FIXED | Fixed-rate obligation |
+| Flekslån F1 | F1 | 1-year reset |
+| Flekslån F1-F2 | F1 | F2 not in enum; F1 is representative |
+| Flekslån F3 | F3 | 3-year reset |
+| Flekslån F3-F4 | F3 | Column covers F3; F4 not in enum |
+| Flekslån F5 | F5 | 5-year reset |
+| Flekslån F5-F6 | F5 | Column covers F5; F6 not in enum |
+| Flekslån F5-F10 | F5 | Column covers F5+; F5 is representative |
+| Flekslån F5 & Kort Rente | F5 | Nordea-specific column name |
 
 The "0-60%" and "0-80%" columns on Jyske's own page are blended weighted averages, not
 separate brackets. The per-band brackets are 0-40%, 40-60%, Over 60%. Do not store blended
@@ -513,7 +509,7 @@ stays hardcoded — it is institute-specific and no public API publishes borrowe
 | F5 realkredit rate | `engine.py:121` | 0.042 (4.2%) | RD.dk renteudvikling (2.66% Apr 2026) | No |
 | FIXED realkredit rate | `engine.py:131` | 0.04 (4.0%) | Nordea "500.000" page (coupon 4.00%) or Finans Danmark (4.49% proxy) | No |
 | FIXED bond price | `engine.py:132` | 94.52 | Nordea "500.000" page (95.45 for 4% obligation Oct 2026) | No |
-| T-lån realkredit rate | `engine.py:141` | 0.038 (3.8%) | RD.dk renteudvikling F10 rate (3.19%) — closest proxy for 30-yr amortization; T-lån rates not published separately | No |
+| T-lån realkredit rate | `engine.py:141` | 0.038 (3.8%) | Not sourced — T-lån is an F-loan variant (fixed ydelse, variable duration). Uses underlying flexlån rate (typically F5). `rate` is user/config input. | No |
 | Bank rate | `engine.py:113,123,133,143,154,165,177` | 0.045 (4.5%) | ECB MIR API (4.03%) | No |
 | Issue costs | `engine.py:115,125,135,145,156,167,179` | 0.0171–0.0182 | No API — institute websites only | No |
 | F1 realkredit rate | (used as bank) | — | RD.dk renteudvikling (2.27% Apr 2026) | No |
