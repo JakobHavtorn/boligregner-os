@@ -48,9 +48,7 @@ mcp = MCPServer(
 class _ComponentSpec(BaseModel):
     """One loan component as supplied over the wire."""
 
-    component: LoanComponent = Field(
-        ..., description="'realkredit' or 'bank'."
-    )
+    component: LoanComponent = Field(..., description="'realkredit' or 'bank'.")
     loan_type: LoanType = Field(
         ...,
         description="'fixed' (obligationslån), 'f3' (3-årlig), 'f5' (5-årlig), "
@@ -64,13 +62,10 @@ class _ComponentSpec(BaseModel):
         description="Obligation price/kurs; 100 for flexlån. "
         "E.g. 94.52 for a discounted 4% obligation.",
     )
-    maturity_years: int = Field(
-        ..., ge=1, le=40, description="Loan term in years."
-    )
+    maturity_years: int = Field(..., ge=1, le=40, description="Loan term in years.")
     issue_costs_pct: float = Field(
         default=0.0,
-        description="Udstedelsesomkostninger as a fraction of hovedstol, "
-        "e.g. 0.0177.",
+        description="Udstedelsesomkostninger as a fraction of hovedstol, e.g. 0.0177.",
     )
     bidragssats: float = Field(
         default=0.0,
@@ -128,8 +123,7 @@ class MortgageInput(BaseModel):
     )
     rate_shocks: list[float] | None = Field(
         default=None,
-        description="Rate-shock scenarios for horizon analysis, e.g. "
-        "[-0.02, 0, 0.02].",
+        description="Rate-shock scenarios for horizon analysis, e.g. [-0.02, 0, 0.02].",
     )
     preset: str | None = Field(
         default=None,
@@ -217,8 +211,10 @@ def _build_input_inner(args: MortgageInput) -> CalculatorInput:
     else:
         raise ToolError("start_date is required when no preset is given.")
 
-    horizon_years = args.horizon_years if args.horizon_years is not None else (
-        base.horizon_years if base is not None else 5
+    horizon_years = (
+        args.horizon_years
+        if args.horizon_years is not None
+        else (base.horizon_years if base is not None else 5)
     )
     tax_rate = (
         _to_decimal(args.tax_rate)
