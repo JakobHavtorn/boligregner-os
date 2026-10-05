@@ -11,23 +11,23 @@ unchanged — the data layer populates `LoanSpec` fields before calculate is cal
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                   server.py (FastAPI)                     │
-│  GET /api/market-rates/{lt}   GET /api/bidragssatser        │
-│  GET /api/bond-prices          GET /api/reference-rates/{t} │
-│  POST /api/market-rates/refresh                             │
+│  GET /api/market-rates/{lt}  GET /api/bidragssatser      │
+│  GET /api/bond-prices         GET /api/reference-rates/{t}│
+│  POST /api/market-rates/refresh                           │
 ├─────────────────────────────────────────────────────────┤
 │                   market_data.py (NEW)                   │
-│  ┌─────────────────────────────────────────────────────┐ │
-│  │  get_market_rates()          ← full snapshot (MCP/adapter) │ │
-│  │  get_nominal_rate()         ← per-loan-type (endpoint)   │ │
-│  │  get_reference_rate()       ← per-reference-type (endpoint)│ │
-│  │  get_bidragssatser()        ← filtered list (endpoint)    │ │
-│  │  get_bond_prices()          ← fixed kurs (endpoint)        │ │
-│  │  build_preset_from_market() ← adapter to engine           │ │
-│  ├─────────┬──────────┬────────┬───────────────┐             │ │
-│  │ _fetch_ │ _cache   │ lookup │ _normalize    │             │ │
-│  │ (intern)│ (per-   │ (bidrag│ (column→      │             │ │
-│  │         │ source) │ table) │ LoanType)     │             │ │
-│  └─────────┴──────────┴────────┴───────────────┘             │ │
+│  ┌───────────────────────────────────────────────────┐  │
+│  │ get_market_rates()        ← full snapshot (MCP)   │  │
+│  │ get_nominal_rate()       ← per-loan-type          │  │
+│  │ get_reference_rate()     ← per-reference-type     │  │
+│  │ get_bidragssatser()      ← filtered bidragssatser │  │
+│  │ get_bond_prices()        ← fixed kurs             │  │
+│  │ build_preset_from_market()← adapter to engine     │  │
+│  ├──────────┬─────────┬────────┬──────────────┐       │  │
+│  │ _fetch_  │ _cache  │ lookup │ _normalize   │       │  │
+│  │ (intern) │ (per-   │ (bidrag│ (column→     │       │  │
+│  │          │ source) │ table) │ LoanType)    │       │  │
+│  └──────────┴─────────┴────────┴──────────────┘       │  │
 ├─────────────────────────────────────────────────────────┤
 │  mcp_server.py  ← new get_market_rates tool              │
 ├─────────────────────────────────────────────────────────┤
@@ -76,20 +76,21 @@ class BidragssatsEntry(BidragssatsKey):
     bidragssats: Decimal
 
 class NominalRates(BaseModel):
-    """Nominal rates keyed by LoanType — typed replacement for dict[str, Decimal]."""
+    """Nominal rates keyed by LoanType — typed replacement for dict[str, Decimal].
+    Assumes LoanType extended with F2, F4, F6, F10 (follow-up code change)."""
     f1: Decimal | None = None
+    f2: Decimal | None = None
     f3: Decimal | None = None
+    f4: Decimal | None = None
     f5: Decimal | None = None
-    # F10 not included: T-lån uses the same rate as its underlying flexlån product (F5),
-    # not a separately sourced rate. T-lån rate is a user/config input.
+    f6: Decimal | None = None
+    f10: Decimal | None = None
 
 class ReferenceRates(BaseModel):
     """Reference rates keyed by rate type — typed replacement for dict[str, Decimal]."""
     cibor_3m: Decimal | None = None
     cibor_6m: Decimal | None = None
     cita_3m: Decimal | None = None
-    # CITA 6M is not published by Jyske Bank's referencerenter page; only CITA 3M is available.
-    cita_6m: Decimal | None = None
     destr: Decimal | None = None
 
 class MarketRates(BaseModel):
@@ -227,35 +228,46 @@ def lookup_bidragssats(
 ### Loan-type normalization
 
 Maps Mybanker.dk bidragssats column labels to `LoanType`. Mybanker.dk groups bidragssatser
-by fixation-period ranges (e.g. "F3-F4" covers the F3 product), but each `LoanType` is a
-single discrete product. The map resolves which column to look up for a given `LoanType`:
+by fixation-period ranges (e.g. "Flekslån F3-F4" covers both F3 and F4 products). Each
+`LoanType` is a single discrete product (F3 = 3-year rate reset).
+
+**Prerequisite:** The `LoanType` enum currently has `F1`, `F3`, `F5` only. Mybanker.dk
+columns reference F2, F4, F6, F10 as distinct products. Before implementing this module,
+extend `LoanType` with `F2`, `F4`, `F6`, `F10` (code change in `models.py` + engine support
+for amortization/rate shocks). This is out of scope for this docs-only PR — tracked as a
+follow-up. The normalization map below assumes the extended enum.
 
 ```python
 # Mybanker.dk bidragssats column → LoanType(s) it covers
+# Assumes LoanType extended with F2, F4, F6, F10 (follow-up code change)
 _BIDRAGSSATS_COLUMN_TO_LOAN_TYPES = {
     "Flekslån F1": [LoanType.F1],
-    "Flekslån F1-F2": [LoanType.F1],       # F2 not in LoanType enum; F1 is the closest
+    "Flekslån F1-F2": [LoanType.F1, LoanType.F2],
     "Flekslån F3": [LoanType.F3],
-    "Flekslån F3-F4": [LoanType.F3],       # Column covers F3 product
+    "Flekslån F3-F4": [LoanType.F3, LoanType.F4],
     "Flekslån F5": [LoanType.F5],
-    "Flekslån F5-F6": [LoanType.F5],       # Column covers F5 product
-    "Flekslån F5-F10": [LoanType.F5],      # Column covers F5+; F5 is the representative
+    "Flekslån F5-F6": [LoanType.F5, LoanType.F6],
+    "Flekslån F5-F10": [LoanType.F5, LoanType.F6, LoanType.F10],
     "Flekslån F5 & Kort Rente": [LoanType.F5],
     "Fastforrentet lån": [LoanType.FIXED],
 }
 
 # Reverse lookup: which bidragssats column to use for a given LoanType
 _LOAN_TYPE_TO_BIDRAGSSATS_COLUMN = {
-    LoanType.F1: "Flekslån F1",
-    LoanType.F3: "Flekslån F3",
+    LoanType.F1: "Flekslån F1-F2",     # F1 shares a column with F2
+    LoanType.F2: "Flekslån F1-F2",
+    LoanType.F3: "Flekslån F3-F4",     # F3 shares a column with F4
+    LoanType.F4: "Flekslån F3-F4",
     LoanType.F5: "Flekslån F5",
+    LoanType.F6: "Flekslån F5-F6",
+    LoanType.F10: "Flekslån F5-F10",
     LoanType.FIXED: "Fastforrentet lån",
 }
 ```
 
-**Note:** An F3 is always exactly one product (3-year rate reset). Mybanker.dk's "F3-F4"
+**Note:** An F3 is always exactly one product (3-year rate reset). Mybanker.dk's "Flekslån F3-F4"
 column is a bidragssats bracket covering both F3 and F4 — it is not itself a product range.
-The normalization maps the column to the `LoanType` it serves, not the reverse.
+The normalization maps the column to the `LoanType`(s) it covers, not the reverse.
 
 ## New API endpoints (in `server.py`)
 
@@ -376,8 +388,7 @@ in presets). The reference rate is sourced:
 | DESTR | DESTR Referencerente | DST Statbank DNRENTD (DESNAA) | JSON/CSV POST | Daily |
 
 **CITA 6M note:** Jyske Bank's referencerenter page only publishes CITA 3M, not CITA 6M.
-CITA 6M is not used in any preset. The `ReferenceRates.cita_6m` field exists for completeness
-but will be `None` in practice.
+CITA 6M is not used in any preset. No `cita_6m` field in `ReferenceRates`.
 
 **CIBOR/CITA availability notes:**
 - DFBF (Danish Financial Benchmark Facility) owns CIBOR, CITA, SWAP, Tom/Next.
@@ -400,7 +411,7 @@ but will be `None` in practice.
 - **Cache tests**: Verify TTL expiry, last-good fallback on fetch failure.
 - **Bidragssats lookup tests**: Verify lookup returns correct rate for
   `BidragssatsKey(institute, loan_type, ltv_band, afdragsfrihed)`.
-- **Normalization tests**: Verify institute product names map to correct LoanType.
+- **Normalization tests**: Verify bidragssats columns resolve to correct LoanType.
 - **Integration**: `build_preset_from_market()` with mock MarketRates produces valid
   CalculatorInput that passes model validation.
 
