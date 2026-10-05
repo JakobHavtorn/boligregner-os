@@ -93,6 +93,11 @@ If `uv run boligregner` fails with ModuleNotFoundError, use:
 PYTHONPATH=src uv run python -m boligregner.http_cli --port 8000
 ```
 
+## Diagrams
+
+Prefer `mermaid` code blocks for diagrams over ASCII art. Mermaid renders on GitHub
+and in most Markdown viewers; ASCII art breaks alignment across fonts and is hard to maintain.
+
 ## Package management
 
 This project uses `uv` with the `uv_build` backend (not hatchling/pip). The `pyproject.toml` has `[tool.uv.build-backend]` with `module-name = "boligregner"` and `module-root = "src"`.
