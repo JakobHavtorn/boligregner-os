@@ -384,6 +384,35 @@ form h3::before {
   font-family: inherit;
 }
 .alt-add-btn:hover { border-color: var(--navy); background: var(--navy-tint); }
+.bank-add-btn {
+  background: none;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--navy);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+.bank-add-btn:hover { border-color: var(--navy); background: var(--navy-tint); }
+.bank-remove-btn {
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  align-self: flex-end;
+  margin-bottom: 0;
+}
+.bank-remove-btn:hover { border-color: var(--remove-hover-fg); color: var(--remove-hover-fg); background: var(--remove-hover-bg); }
+.bank-section { align-items: flex-end; }
 .alt-label-input {
   font-size: 14px;
   font-weight: 600;
@@ -885,11 +914,16 @@ function buildAltBlock(alt, idx, isNew) {
   html += '</div>';
   html += '</div>';
 
-  // Bank share — single fraction field (only if bank component exists)
+  // Bank section — add button if no bank, fields + remove if bank exists
   if (bank) {
-    html += '<div class="form-row">';
+    html += '<div class="form-row bank-section">';
     html += '<div class="form-field"><label>Bankandel (%)</label><input class="comp-bank-share" type="number" step="0.5" min="0" max="100" value="' + (bankShare*100) + '"></div>';
     html += '<div class="form-field"><label>Bank — Rente (%)</label><input class="comp-bank-rate" type="number" step="0.001" min="0" value="' + (bank ? Number(bank.rate)*100 : 4.5) + '"></div>';
+    html += '<button type="button" class="bank-remove-btn" onclick="removeBankLoan(this)">Fjern banklån</button>';
+    html += '</div>';
+  } else {
+    html += '<div class="form-row">';
+    html += '<button type="button" class="bank-add-btn" onclick="addBankLoan(this)">+ Tilføj banklån</button>';
     html += '</div>';
   }
 
@@ -897,10 +931,67 @@ function buildAltBlock(alt, idx, isNew) {
   return block;
 }
 
+// ── Sync form fields back into altData before rebuilding ──
+function syncBlockFormToAltData(block) {
+  const altData = JSON.parse(block.dataset.altData);
+  const realkredit = altData.components.find(c => c.component === 'realkredit');
+  const bank = altData.components.find(c => c.component === 'bank');
+
+  if (realkredit) {
+    // Loan type
+    const loanTypeEl = block.querySelector('.comp-loan-type');
+    if (loanTypeEl) realkredit.loan_type = loanTypeEl.value;
+    // Rate or reference rate + margin
+    if (REF_TYPES.includes(realkredit.loan_type)) {
+      const refRateEl = block.querySelector('.comp-ref-rate');
+      const marginEl = block.querySelector('.comp-margin');
+      if (refRateEl) realkredit.reference_rate = String(Number(refRateEl.value) / 100);
+      if (marginEl) realkredit.margin = String(Number(marginEl.value) / 100);
+      realkredit.rate = String(Number(realkredit.reference_rate) + Number(realkredit.margin));
+    } else {
+      const rateEl = block.querySelector('.comp-rate');
+      if (rateEl) realkredit.rate = String(Number(rateEl.value) / 100);
+    }
+    // Price
+    const priceEl = block.querySelector('.comp-price');
+    if (priceEl) realkredit.price = priceEl.value;
+    // Fixed ydelse
+    const fyEl = block.querySelector('.comp-fixed-ydelse');
+    if (realkredit.loan_type === 't' && fyEl) realkredit.fixed_ydelse = fyEl.value;
+    // Afdragsfrihed
+    const ioEl = block.querySelector('.comp-io');
+    if (ioEl) realkredit.interest_only_years = parseInt(ioEl.value, 10) || 0;
+    // Issue costs
+    const issueEl = block.querySelector('.comp-issue');
+    if (issueEl) {
+      if (issueEl.dataset.mode === 'nominal') {
+        realkredit.issue_costs_nominal = issueEl.value;
+        realkredit.issue_costs_pct = '0';
+      } else {
+        realkredit.issue_costs_pct = String(Number(issueEl.value) / 100);
+        realkredit.issue_costs_nominal = null;
+      }
+    }
+  }
+
+  // Bank fields
+  const bankShareEl = block.querySelector('.comp-bank-share');
+  const bankRateEl = block.querySelector('.comp-bank-rate');
+  if (bank) {
+    if (bankShareEl) bank.provenu_share = String(Number(bankShareEl.value) / 100);
+    if (bankRateEl) bank.rate = String(Number(bankRateEl.value) / 100);
+    if (realkredit && bankShareEl) realkredit.provenu_share = String(1 - Number(bankShareEl.value) / 100);
+  }
+
+  block.dataset.altData = JSON.stringify(altData);
+  return altData;
+}
+
 // ── Loan type change handler ──
 function onLoanTypeChange(select) {
   const block = select.closest('.alt-block');
-  const altData = JSON.parse(block.dataset.altData);
+  // Sync current form edits before changing type
+  const altData = syncBlockFormToAltData(block);
   const newType = select.value;
   const realkredit = altData.components.find(c => c.component === 'realkredit');
 
@@ -980,6 +1071,49 @@ function addAlt() {
   };
   const block = buildAltBlock(newAlt, idx, true);
   document.getElementById('alt-fields').appendChild(block);
+}
+
+// ── Add/remove bank loan within an alternative ──
+function addBankLoan(btn) {
+  const block = btn.closest('.alt-block');
+  // Sync current form edits before adding bank loan
+  const altData = syncBlockFormToAltData(block);
+  // Check if bank component already exists
+  if (altData.components.some(c => c.component === 'bank')) return;
+  // Add a default bank component with 20% share
+  const realkredit = altData.components.find(c => c.component === 'realkredit');
+  const bankShare = 0.20;
+  if (realkredit) realkredit.provenu_share = String(1 - bankShare);
+  altData.components.push({
+    component: 'bank', loan_type: 'f1', rate: '0.045', price: '100',
+    maturity_years: 30, issue_costs_pct: '0', issue_costs_nominal: null,
+    redemption_price: '100', provenu_share: String(bankShare),
+    bidragssats: '0', interest_only_years: 0, fixed_ydelse: null,
+    reference_rate: null, margin: null,
+  });
+  block.dataset.altData = JSON.stringify(altData);
+  // Rebuild the block
+  const idx = Array.from(block.parentNode.children).indexOf(block);
+  const newBlock = buildAltBlock(altData, idx, false);
+  block.parentNode.replaceChild(newBlock, block);
+  // Re-apply property-value-derived bank share if active
+  updateProvenuFromProperty();
+}
+
+function removeBankLoan(btn) {
+  const block = btn.closest('.alt-block');
+  // Sync current form edits before removing bank loan
+  const altData = syncBlockFormToAltData(block);
+  altData.components = altData.components.filter(c => c.component !== 'bank');
+  const realkredit = altData.components.find(c => c.component === 'realkredit');
+  if (realkredit) realkredit.provenu_share = '1';
+  block.dataset.altData = JSON.stringify(altData);
+  // Rebuild the block
+  const idx = Array.from(block.parentNode.children).indexOf(block);
+  const newBlock = buildAltBlock(altData, idx, false);
+  block.parentNode.replaceChild(newBlock, block);
+  // Re-apply property-value-derived state
+  updateProvenuFromProperty();
 }
 
 // ── Gather form input ──
