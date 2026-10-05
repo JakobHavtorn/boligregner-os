@@ -563,10 +563,11 @@ i forhold til ejendommens værdi i belåningsintervaller." Use the three per-ban
 ## Recommended new API endpoints
 
 ```
-GET /api/market-rates              → current rates by loan type + fixation period
+GET /api/market-rates/{loan_type}  → current nominal rate for a specific loan type
 GET /api/bidragssatser             → bidragssatser by institute + LTV bracket + loan type
 GET /api/bond-prices               → current bond prices (kurs) by loan type
-GET /api/market-rates/refresh      → force cache refresh (admin)
+GET /api/reference-rates/{type}    → reference rate (CIBOR/CITA/DESTR) by type
+POST /api/market-rates/refresh     → force cache refresh (admin)
 ```
 
 MCP tool: `get_market_rates` returns current sourced rates for auto-populating calculator
@@ -585,5 +586,6 @@ inputs.
 | Jyske Bank referencerenter | 12h | CIBOR/CITA set quarterly; page updated at each rate-setting |
 | DST Statbank DNRENTD (DESTR) | 6h | Daily rate, published by Nationalbanken each banking day |
 
-Store cached data as JSON in `data/market-rates.json`. Fall back to last-good value if a
-source is unavailable.
+Store cached data as per-source JSON in `data/cache/{source_name}.json`. Each source has
+its own TTL and cache file, so endpoints can serve from their source's cache independently.
+Fall back to last-good value if a source is unavailable.

@@ -11,8 +11,9 @@ unchanged — the data layer populates `LoanSpec` fields before calculate is cal
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                   server.py (FastAPI)                     │
-│  GET /api/market-rates      GET /api/bidragssatser        │
-│  GET /api/bond-prices        GET /api/market-rates/refresh│
+│  GET /api/market-rates/{lt}   GET /api/bidragssatser        │
+│  GET /api/bond-prices          GET /api/reference-rates/{t} │
+│  POST /api/market-rates/refresh                             │
 ├─────────────────────────────────────────────────────────┤
 │                   market_data.py (NEW)                   │
 │  ┌─────────────────────────────────────────────────────┐ │
@@ -75,7 +76,8 @@ class NominalRates(BaseModel):
     f1: Decimal | None = None
     f3: Decimal | None = None
     f5: Decimal | None = None
-    f10: Decimal | None = None  # Used as T-lån rate proxy (30-yr amortization)
+    # F10 not included: T-lån uses the same rate as its underlying flexlån product (F5),
+    # not a separately sourced rate. T-lån rate is a user/config input.
 
 class ReferenceRates(BaseModel):
     """Reference rates keyed by rate type — typed replacement for dict[str, Decimal]."""
@@ -166,8 +168,8 @@ def _fetch_destr_rate() -> Decimal:
 ```
 
 ### Cache
-
-File-based JSON at `data/market-rates.json`. TTL per source:
+Per-source JSON files in `data/cache/`. Each source has its own TTL and cache file, so
+a slow or unavailable source doesn't block others. Split endpoints read only their cache file.
 
 ```python
 CACHE_TTL = {
@@ -177,9 +179,11 @@ CACHE_TTL = {
     "rd":            24 * 3600,
     "nordea":        24 * 3600,
     "finansdanmark": 24 * 3600,
-    "jyske_ref":     12 * 3600,   # CIBOR/CITA set quarterly; DESTR daily
+    "jyske_ref":     12 * 3600,   # CIBOR/CITA set quarterly; page updated at each rate-setting
     "destr":         6 * 3600,    # daily rate
 }
+# Each source writes to data/cache/{source_name}.json
+# Endpoints read only their source's cache — no single-file bottleneck.
 ```
 
 ```python
@@ -204,46 +208,66 @@ def lookup_bidragssats(
 
 ### Loan-type normalization
 
-Maps institute product names to `LoanType`:
+Maps Mybanker.dk bidragssats column labels to `LoanType`. Mybanker.dk groups bidragssatser
+by fixation-period ranges (e.g. "F3-F4" covers the F3 product), but each `LoanType` is a
+single discrete product. The map resolves which column to look up for a given `LoanType`:
 
 ```python
-_INSTITUTE_LOAN_TYPE_MAP = {
-    # (Institute, product_label) → LoanType
-    (Institute.JYSKE, "F1"): LoanType.F1,
-    (Institute.JYSKE, "F2-F4"): LoanType.F3,
-    (Institute.JYSKE, "F5-F6"): LoanType.F5,
-    (Institute.NYKREDIT, "F1-F2"): LoanType.F1,
-    (Institute.NYKREDIT, "F3-F4"): LoanType.F3,
-    (Institute.NYKREDIT, "F5-F10"): LoanType.F5,
-    (Institute.NORDEA, "F1"): LoanType.F1,
-    (Institute.NORDEA, "F3"): LoanType.F3,
-    (Institute.NORDEA, "F5&Kort"): LoanType.F5,
-    (Institute.RD, "F1-F2"): LoanType.F1,
-    (Institute.RD, "F3-F4"): LoanType.F3,
-    (Institute.RD, "F5"): LoanType.F5,
+# Mybanker.dk bidragssats column → LoanType(s) it covers
+_BIDRAGSSATS_COLUMN_TO_LOAN_TYPES = {
+    "Flekslån F1": [LoanType.F1],
+    "Flekslån F1-F2": [LoanType.F1],       # F2 not in LoanType enum; F1 is the closest
+    "Flekslån F3": [LoanType.F3],
+    "Flekslån F3-F4": [LoanType.F3],       # Column covers F3 product
+    "Flekslån F5": [LoanType.F5],
+    "Flekslån F5-F6": [LoanType.F5],       # Column covers F5 product
+    "Flekslån F5-F10": [LoanType.F5],      # Column covers F5+; F5 is the representative
+    "Flekslån F5 & Kort Rente": [LoanType.F5],
+    "Fastforrentet lån": [LoanType.FIXED],
+}
+
+# Reverse lookup: which bidragssats column to use for a given LoanType
+_LOAN_TYPE_TO_BIDRAGSSATS_COLUMN = {
+    LoanType.F1: "Flekslån F1",
+    LoanType.F3: "Flekslån F3",
+    LoanType.F5: "Flekslån F5",
+    LoanType.FIXED: "Fastforrentet lån",
 }
 ```
+
+**Note:** An F3 is always exactly one product (3-year rate reset). Mybanker.dk's "F3-F4"
+column is a bidragssats bracket covering both F3 and F4 — it is not itself a product range.
+The normalization maps the column to the `LoanType` it serves, not the reverse.
 
 ## New API endpoints (in `server.py`)
 
 Existing endpoints are `def` (sync). New endpoints match — sync `def`, not `async def`.
 
+Each data type gets its own endpoint with its own cache entry. Splitting by data type
+means a slow or unavailable source (e.g. Jyske Bank behind Cloudflare) doesn't block
+other data types. Each endpoint returns only the data it sources, not the full snapshot.
+
 ```python
-@app.get("/api/market-rates", response_model=MarketRates)
-def api_market_rates() -> MarketRates:
-    """Current sourced market rates (cached, 24h TTL)."""
+@app.get("/api/market-rates/{loan_type}", response_model=NominalRates | Decimal)
+def api_market_rates(loan_type: str) -> dict:
+    """Current nominal rate for a specific loan type (F1, F3, F5, FIXED).
+    Cached per loan type. Returns {"loan_type": "f3", "rate": 0.0239, "fetched_at": ...}."""
 
 @app.get("/api/bidragssatser")
-def api_bidragssatser(institute: str | None = None) -> dict:
+def api_bidragssatser(institute: str | None = None, loan_type: str | None = None) -> dict:
     """Bidragssatser by institute × LTV × loan type × afdragsfrihed.
-    Returns flat list of BidragssatsEntry dicts, optionally filtered by institute."""
+    Returns flat list of BidragssatsEntry dicts, optionally filtered."""
 
 @app.get("/api/bond-prices")
 def api_bond_prices() -> dict:
     """Current fixed-rate bond prices (kurs). Flexlån always 100 (par)."""
 
-@app.post("/api/market-rates/refresh", response_model=MarketRates)
-def api_market_rates_refresh() -> MarketRates:
+@app.get("/api/reference-rates/{rate_type}")
+def api_reference_rates(rate_type: str) -> dict:
+    """Reference rate (CIBOR 3M/6M, CITA 3M, DESTR). Cached per source."""
+
+@app.post("/api/market-rates/refresh")
+def api_market_rates_refresh() -> dict:
     """Force refresh all sources. Returns fresh snapshot."""
 ```
 
@@ -290,7 +314,7 @@ No new models added to `models.py`. Market-data schemas live in `market_data.py`
 
 ### `server.py` — New endpoints
 
-Four new sync endpoints (described above). No changes to existing endpoints.
+Five new sync endpoints (described above). No changes to existing endpoints.
 
 ### `mcp_server.py` — New tool
 
@@ -304,7 +328,7 @@ One new sync tool `get_market_rates` (described above). No changes to existing t
 | `rate` (F3) | RD.dk renteudvikling | `_fetch_rd_nominal_rates()` | 0.0239 (2.39% Apr 2026) |
 | `rate` (F5) | RD.dk renteudvikling | `_fetch_rd_nominal_rates()` | 0.0266 (2.66% Apr 2026) |
 | `rate` (FIXED) | Nordea "500.000" page coupon, or Finans Danmark proxy | `_fetch_nordea_bond_prices()` | 0.04 (4.00% Oct 2026) |
-| `rate` (T-lån) | RD.dk renteudvikling (F10 closest match) | `_fetch_rd_nominal_rates()` | Proxy: F10 rate (3.19% Apr 2026) as baseline |
+| `rate` (T-lån) | Not sourced — uses underlying flexlån rate (typically F5) | — | User/config input; T-lån is an F-loan with fixed ydelse, not a separate rate product |
 | `price` (FIXED) | Nordea "500.000" page kurs | `_fetch_nordea_bond_prices()` | 95.45 (Oct 2026) |
 | `price` (F1/F3/F5) | Hardcoded 100 (par) | — | Flexlån always trade at par |
 | `bidragssats` | Mybanker.dk | `_fetch_mybanker_bidragssatser()` | Per LTV × loan type × afdragsfrihed |
@@ -315,9 +339,10 @@ One new sync tool `get_market_rates` (described above). No changes to existing t
 | Bank `rate` | ECB MIR API | `_fetch_ecb_bank_rate()` | 0.0403 (4.03% Aug 2026) |
 | `issue_costs_pct` | Stays hardcoded | — | No public API; institute-specific |
 
-T-lån rate note: T-lån uses a fixed monthly ydelse with variable duration. The `rate` field
-serves as the starting amortization rate. RD.dk's F10 nominal rate (3.19%) is the closest proxy
-for 30-yr T-lån amortization — T-lån rates are not published separately. The `fixed_ydelse` stays as user input.
+T-lån rate note: T-lån is an F-loan variant — fixed monthly ydelse with variable duration
+instead of fixed duration and variable ydelse. It uses the same underlying flexlån rate
+(typically F5). The `rate` is a user/config input, not a separately sourced value.
+The `fixed_ydelse` also stays as user input.
 
 ## CIBOR/CITA/DESTR sourcing details
 
@@ -383,7 +408,7 @@ The `build_preset_from_market()` function is opt-in.
 2. **`market_data.py`**: Fetchers (one at a time, each with fixture-based test).
 3. **`market_data.py`**: Cache + `get_market_rates()` + `lookup_bidragssats()`.
 4. **`market_data.py`**: `build_preset_from_market()` (adapter, not in engine.py).
-5. **`server.py`**: Add 4 new sync endpoints.
+5. **`server.py`**: Add 5 new sync endpoints (per-loan-type rates, bidragssatser, bond-prices, reference-rates, refresh).
 6. **`mcp_server.py`**: Add `get_market_rates` sync tool.
 7. **`tests/test_market_data.py`**: Parser tests with fixtures.
 8. **`docs/market-data-sources.md`**: Already written.
