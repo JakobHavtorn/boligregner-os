@@ -57,6 +57,8 @@ All dynamic content inserted into HTML must go through `escapeHtml()`. This incl
 uv run pytest tests/ -q
 ```
 
+Or: `make test`.
+
 Tests verify annuity math, IRR, hovedstol derivation, ÅOP ordering, horizon scenarios, rate shock effects, fixed-obligation price sensitivity, afdragsfrihed, T-lån, CITA/CIBOR/DESTR rate paths, and preset smoke tests.
 
 ## Commit conventions
@@ -88,6 +90,8 @@ uv sync --extra dev --reinstall
 uv run boligregner --port 8000
 ```
 
+Or: `make server`.
+
 If `uv run boligregner` fails with ModuleNotFoundError, use:
 ```bash
 PYTHONPATH=src uv run python -m boligregner.http_cli --port 8000
@@ -95,7 +99,7 @@ PYTHONPATH=src uv run python -m boligregner.http_cli --port 8000
 
 ## Package management
 
-This project uses `uv` with the `uv_build` backend (not hatchling/pip). The `pyproject.toml` has `[tool.uv.build-backend]` with `module-name = "boligregner"` and `module-root = "src"`.
+This project uses `uv` with the `uv_build` backend (not hatchling/pip). The `pyproject.toml` has `[tool.uv.build-backend]` with `module-name = "boligregner"` and `module-root = "src"`. Run `make install` to set up the dev environment and pre-commit hooks.
 
 ## What NOT to do
 

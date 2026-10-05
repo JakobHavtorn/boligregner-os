@@ -39,8 +39,11 @@ The calculation engine (`engine.py`) is a **deep module**: one function, two typ
 ```bash
 git clone <repo-url>
 cd boligregner-os
-uv sync --extra dev
+make install
 ```
+
+This installs dependencies via `uv sync --extra dev` and sets up pre-commit hooks.
+Alternatively: `uv sync --extra dev && pre-commit install`.
 
 ## Usage
 
