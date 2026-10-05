@@ -282,8 +282,22 @@ Udregningerne er baseret på en uafhængig reimplementering af danske realkredit
 <script>
 function initTheme() {
   const saved = localStorage.getItem('boligregner-theme');
-  if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+  if (saved) {
+    if (saved === 'dark') document.documentElement.setAttribute('data-theme', 'dark');
+  } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+    document.documentElement.setAttribute('data-theme', 'dark');
+  }
   updateThemeLabel();
+  // Follow OS changes when no explicit preference is saved
+  if (window.matchMedia) {
+    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+      if (!localStorage.getItem('boligregner-theme')) {
+        if (e.matches) document.documentElement.setAttribute('data-theme', 'dark');
+        else document.documentElement.removeAttribute('data-theme');
+        updateThemeLabel();
+      }
+    });
+  }
 }
 function toggleTheme() {
   const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
