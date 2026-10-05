@@ -26,7 +26,7 @@ dev = [
 ]
 
 [project.scripts]
-boligregner = "boligregner.cli:main"
+boligregner = "boligregner.http_cli:main"
 
 [tool.uv.build-backend]
 module-name = "boligregner"

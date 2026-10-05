@@ -1,14 +1,15 @@
-"""CLI entry point for boligregner-os.
+"""HTTP CLI entry point for boligregner-os.
 
 Launches the FastAPI app via uvicorn.
 """
+
 from __future__ import annotations
 
 import argparse
 
 
 def main() -> None:
-    """Run the boligregner-os server."""
+    """Run the boligregner-os HTTP server."""
     parser = argparse.ArgumentParser(
         prog="boligregner",
         description="Open-source Danish realkredit mortgage calculator server.",
@@ -28,7 +29,7 @@ def main() -> None:
 
     import uvicorn
 
-    from .server import app
+    from .http_server import app
 
     uvicorn.run(app, host=args.host, port=args.port)
 

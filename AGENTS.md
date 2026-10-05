@@ -12,7 +12,8 @@ boligregner-os is an open-source Danish realkredit (mortgage) calculator. It com
 
 - `models.py` — Pydantic schemas (LoanSpec, CalculatorInput, CalculatorResult, etc.)
 - `engine.py` — All mortgage math: hovedstol derivation, annuity amortization, ÅOP via IRR, horizon analysis, rate shocks, afdragsfrihed, T-lån
-- `server.py` — FastAPI adapter: POST /api/calculate, POST /api/amortization/{n}, GET /api/presets, page routes
+- `http_server.py` — FastAPI HTTP adapter: POST /api/calculate, POST /api/amortization/{n}, GET /api/presets, page routes
+- `http_cli.py` — uvicorn launcher for `http_server.app` (the `boligregner` console script)
 - `templates/results.html` — Single-page frontend (inline CSS/JS, no build step)
 - `templates/alternative.html` — Per-alternative subpage with ydelsestabel and CSV export
 - `mcp_server.py` / `mcp_cli.py` — MCP tool adapter for AI agents
@@ -89,7 +90,7 @@ uv run boligregner --port 8000
 
 If `uv run boligregner` fails with ModuleNotFoundError, use:
 ```bash
-PYTHONPATH=src uv run python -m boligregner.cli --port 8000
+PYTHONPATH=src uv run python -m boligregner.http_cli --port 8000
 ```
 
 ## Package management
@@ -101,6 +102,6 @@ This project uses `uv` with the `uv_build` backend (not hatchling/pip). The `pyp
 - Do not add external dependencies to the frontend (no CDN, no npm)
 - Do not use `float` for monetary calculations in the engine
 - Do not change the `calculate()` interface signature
-- Do not modify server.py templates path logic (uses `Path(__file__).parent`)
+- Do not modify http_server.py templates path logic (uses `Path(__file__).parent`)
 - Do not use `text-transform: uppercase` on labels (sentence case only)
 - Do not hardcode alternative count or color count — both are dynamic
