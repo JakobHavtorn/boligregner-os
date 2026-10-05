@@ -8,33 +8,61 @@ unchanged — the data layer populates `LoanSpec` fields before calculate is cal
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────┐
-│                   server.py (FastAPI)                     │
-│  GET /api/market-rates/{lt}  GET /api/bidragssatser      │
-│  GET /api/bond-prices         GET /api/reference-rates/{t}│
-│  POST /api/market-rates/refresh                           │
-├─────────────────────────────────────────────────────────┤
-│                   market_data.py (NEW)                   │
-│  ┌───────────────────────────────────────────────────┐  │
-│  │ get_market_rates()        ← full snapshot (MCP)   │  │
-│  │ get_nominal_rate()       ← per-loan-type          │  │
-│  │ get_reference_rate()     ← per-reference-type     │  │
-│  │ get_bidragssatser()      ← filtered bidragssatser │  │
-│  │ get_bond_prices()        ← fixed kurs             │  │
-│  │ build_preset_from_market()← adapter to engine     │  │
-│  ├──────────┬─────────┬────────┬──────────────┐       │  │
-│  │ _fetch_  │ _cache  │ lookup │ _normalize   │       │  │
-│  │ (intern) │ (per-   │ (bidrag│ (column→     │       │  │
-│  │          │ source) │ table) │ LoanType)    │       │  │
-│  └──────────┴─────────┴────────┴──────────────┘       │  │
-├─────────────────────────────────────────────────────────┤
-│  mcp_server.py  ← new get_market_rates tool              │
-├─────────────────────────────────────────────────────────┤
-│                   engine.py (unchanged)                   │
-│  calculate(CalculatorInput) → CalculatorResult           │
-│  PRESETS: remain as hardcoded fallback defaults          │
-└─────────────────────────────────────────────────────────┘
+```mermaid
+graph TB
+    subgraph server["server.py (FastAPI)"]
+        MR["GET /api/market-rates/{loan_type}"]
+        BS["GET /api/bidragssatser"]
+        BP["GET /api/bond-prices"]
+        RR["GET /api/reference-rates/{type}"]
+        RF["POST /api/market-rates/refresh"]
+    end
+
+    subgraph md["market_data.py (NEW)"]
+        direction TB
+        subgraph pub["Public interface"]
+            GMR["get_market_rates()<br/>full snapshot (MCP/adapter)"]
+            GNR["get_nominal_rate()<br/>per-loan-type"]
+            GRR["get_reference_rate()<br/>per-reference-type"]
+            GBS["get_bidragssatser()<br/>filtered list"]
+            GBP["get_bond_prices()<br/>fixed kurs"]
+            BPM["build_preset_from_market()<br/>adapter to engine"]
+        end
+        subgraph priv["Internal"]
+            F["_fetch_* (urllib)"]
+            C["_cache (per-source JSON)"]
+            L["lookup (bidragssats table)"]
+            N["_normalize (column→LoanType)"]
+        end
+    end
+
+    subgraph mcp["mcp_server.py"]
+        MCP["get_market_rates tool"]
+    end
+
+    subgraph eng["engine.py (unchanged)"]
+        CALC["calculate(CalculatorInput) → CalculatorResult"]
+        PRE["PRESETS: hardcoded fallback defaults"]
+    end
+
+    MR --> GNR
+    BS --> GBS
+    BP --> GBP
+    RR --> GRR
+    RF --> GMR
+
+    MCP --> GMR
+
+    BPM --> CALC
+
+    GMR --> F
+    GNR --> C
+    GRR --> C
+    GBS --> C
+    GBP --> C
+    F --> C
+    GBS --> L
+    GBS --> N
 ```
 
 ## New file: `src/boligregner/market_data.py`
@@ -442,7 +470,7 @@ The `build_preset_from_market()` function is opt-in.
 5. **`server.py`**: Add 5 new sync endpoints (per-loan-type rates, bidragssatser, bond-prices, reference-rates, refresh).
 6. **`mcp_server.py`**: Add `get_market_rates` sync tool.
 7. **`tests/test_market_data.py`**: Parser tests with fixtures.
-8. **`docs/market-data-sources.md`**: Already written.
+8. **`docs/2026-10-05-market-data-sources.md`**: Already written.
 
 ## Risks
 
