@@ -37,6 +37,20 @@ class LoanComponent(str, Enum):
     BANK = "bank"
 
 
+class Ejendomstype(str, Enum):
+    """Property type determining the realkredit LTV bracket (belåningsgrænse)."""
+
+    PRIVATE = "private"  # Ejerbolig til helårsbrug: 80%
+    LEISURE = "leisure"  # Fritidsbolig: 75%
+    BUSINESS = "business"  # Erhverv: 70%
+
+
+LTV_BRACKETS: dict[Ejendomstype, Decimal] = {
+    Ejendomstype.PRIVATE: Decimal("0.80"),
+    Ejendomstype.LEISURE: Decimal("0.75"),
+    Ejendomstype.BUSINESS: Decimal("0.70"),
+}
+
 # ─── Inputs ──────────────────────────────────────────────────────────
 
 
@@ -200,6 +214,26 @@ class CalculatorInput(BaseModel):
         default_factory=lambda: [Decimal("-0.02"), Decimal("0"), Decimal("+0.02")],
         description="Renteændring scenarios for horizon analysis: -0.02, 0, +0.02 → -2%, 0%, +2%.",
     )
+    ejendomsvaerdi: Decimal | None = Field(
+        default=None,
+        ge=Decimal("0"),
+        description="Ejendomsværdi — property value. When set together with "
+        "ejendomstype, the realkredit/banklån split is auto-computed from "
+        "the LTV bracket instead of using manual provenu_share values.",
+    )
+    ejendomstype: Ejendomstype | None = Field(
+        default=None,
+        description="Ejendomstype determining the realkredit belåningsgrænse "
+        "(LTV bracket). Required when ejendomsvaerdi is set.",
+    )
+
+    @model_validator(mode="after")
+    def validate_ejendom_fields(self) -> "CalculatorInput":
+        if self.ejendomsvaerdi is not None and self.ejendomstype is None:
+            raise ValueError("ejendomstype is required when ejendomsvaerdi is set")
+        if self.ejendomstype is not None and self.ejendomsvaerdi is None:
+            raise ValueError("ejendomsvaerdi is required when ejendomstype is set")
+        return self
 
 
 # ─── Outputs ─────────────────────────────────────────────────────────
@@ -265,6 +299,7 @@ class CalculatorResult(BaseModel):
     """Full result returned by calculate()."""
 
     desired_provenu: Decimal
+    ejendomsvaerdi: Decimal | None = None
     start_date: date
     horizon_date: date
     tax_rate: Decimal

@@ -25,6 +25,7 @@ from pydantic import BaseModel, Field, ValidationError
 from .engine import PRESETS, calculate
 from .models import (
     CalculatorInput,
+    Ejendomstype,
     FinancingAlternative,
     LoanComponent,
     LoanSpec,
@@ -130,6 +131,18 @@ class MortgageInput(BaseModel):
         description="Name of a built-in preset to load before applying overrides. "
         "Use 'list_presets' to see available names.",
     )
+    ejendomsvaerdi: float | None = Field(
+        default=None,
+        ge=0,
+        description="Property value (ejendomsværdi) in kr. When set with "
+        "ejendomstype, the realkredit/banklån split is auto-computed from "
+        "the LTV bracket instead of using manual provenu_share values.",
+    )
+    ejendomstype: str | None = Field(
+        default=None,
+        description="Property type: 'private' (80% LTV), 'leisure' (75%), "
+        "or 'business' (70%). Required when ejendomsvaerdi is set.",
+    )
 
 
 # ─── Conversion helpers ──────────────────────────────────────────────
@@ -228,6 +241,26 @@ def _build_input_inner(args: MortgageInput) -> CalculatorInput:
     else:
         rate_shocks = [Decimal("-0.02"), Decimal("0"), Decimal("0.02")]
 
+    # Optional LTV fields: override preset, inherit from preset, or leave None.
+    if args.ejendomsvaerdi is not None:
+        ejendomsvaerdi = _to_decimal(args.ejendomsvaerdi)
+    elif base is not None:
+        ejendomsvaerdi = base.ejendomsvaerdi
+    else:
+        ejendomsvaerdi = None
+
+    ejendomstype = args.ejendomstype or (
+        base.ejendomstype if base is not None else None
+    )
+    if ejendomstype is not None:
+        try:
+            ejendomstype = Ejendomstype(ejendomstype)
+        except ValueError as exc:
+            raise ToolError(
+                f"Invalid ejendomstype {ejendomstype!r}. "
+                "Valid: 'private', 'leisure', 'business'."
+            ) from exc
+
     return CalculatorInput(
         desired_provenu=provenu,
         alternatives=alternatives,
@@ -235,6 +268,8 @@ def _build_input_inner(args: MortgageInput) -> CalculatorInput:
         horizon_years=horizon_years,
         tax_rate=tax_rate,
         rate_shocks=rate_shocks,
+        ejendomsvaerdi=ejendomsvaerdi,
+        ejendomstype=ejendomstype,
     )
 
 
@@ -250,6 +285,8 @@ def calculate_mortgage(
     tax_rate: float | None = None,
     rate_shocks: list[float] | None = None,
     preset: str | None = None,
+    ejendomsvaerdi: float | None = None,
+    ejendomstype: str | None = None,
 ) -> dict[str, Any]:
     """Calculate Danish mortgage financing alternatives with 5-year horizon
     analysis. Returns comparison table and periodeomkostninger for -2%/0%/+2%
@@ -280,6 +317,12 @@ def calculate_mortgage(
         Rate-shock scenarios (default [-0.02, 0, 0.02]).
     preset:
         Built-in preset name to load first.
+    ejendomsvaerdi:
+        Property value in kr. When set with ejendomstype, the realkredit/
+        banklån split is auto-computed from the LTV bracket.
+    ejendomstype:
+        Property type: ``"private"`` (80% LTV), ``"leisure"`` (75%), or
+        ``"business"`` (70%). Required when ejendomsvaerdi is set.
 
     Returns
     -------
@@ -306,6 +349,10 @@ def calculate_mortgage(
         raw["rate_shocks"] = rate_shocks
     if preset is not None:
         raw["preset"] = preset
+    if ejendomsvaerdi is not None:
+        raw["ejendomsvaerdi"] = ejendomsvaerdi
+    if ejendomstype is not None:
+        raw["ejendomstype"] = ejendomstype
 
     try:
         parsed = MortgageInput.model_validate(raw)

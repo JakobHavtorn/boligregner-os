@@ -17,11 +17,12 @@ All monetary values are Decimal for reproducibility.
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from datetime import date, timedelta
 from decimal import ROUND_CEILING, Decimal, getcontext
-from typing import Iterator
 
 from .models import (
+    LTV_BRACKETS,
     AlternativeSummary,
     CalculatorInput,
     CalculatorResult,
@@ -54,12 +55,12 @@ def _make_alt(
     bank_share: Decimal,
     issue_pct: Decimal,
     realkredit_bidrag: Decimal = Decimal("0.006"),
-    bank_bidrag: Decimal = Decimal("0"),
+    bank_bidrag: Decimal = Decimal(0),
     interest_only_years: int = 0,
     fixed_ydelse: Decimal | None = None,
     reference_rate: Decimal | None = None,
     margin: Decimal | None = None,
-) -> "FinancingAlternative":  # type: ignore[name-defined]
+) -> FinancingAlternative:  # type: ignore[name-defined]
     """Build a two-component alternative (realkredit + bank)."""
     from .models import FinancingAlternative
 
@@ -90,9 +91,9 @@ def _make_alt(
                 component=LoanComponent.BANK,
                 loan_type=LoanType.F1,  # banklån: 1-årlig variabel
                 rate=bank_rate,
-                price=Decimal("100"),
+                price=Decimal(100),
                 maturity_years=30,
-                issue_costs_pct=Decimal("0"),
+                issue_costs_pct=Decimal(0),
                 provenu_share=bank_share,
             ),
         ],
@@ -110,7 +111,7 @@ def _make_realkredit_only_alt(
     fixed_ydelse: Decimal | None = None,
     reference_rate: Decimal | None = None,
     margin: Decimal | None = None,
-) -> "FinancingAlternative":  # type: ignore[name-defined]
+) -> FinancingAlternative:  # type: ignore[name-defined]
     """Build a single-component realkredit-only alternative (no bank loan)."""
     from .models import FinancingAlternative
 
@@ -141,7 +142,7 @@ def _make_realkredit_only_alt(
 
 PRESETS: dict[str, CalculatorInput] = {
     "default": CalculatorInput(
-        desired_provenu=Decimal("2500000"),
+        desired_provenu=Decimal(2500000),
         start_date=date(2026, 10, 2),
         horizon_years=5,
         tax_rate=Decimal("0.336"),
@@ -151,7 +152,7 @@ PRESETS: dict[str, CalculatorInput] = {
                 label="30 år DESTR",
                 realkredit_type=LoanType.DESTR,
                 realkredit_rate=Decimal("0.0340"),  # total = reference + margin
-                realkredit_price=Decimal("100"),
+                realkredit_price=Decimal(100),
                 issue_pct=Decimal("0.0177"),
                 reference_rate=Decimal("0.0315"),
                 margin=Decimal("0.0025"),
@@ -161,7 +162,7 @@ PRESETS: dict[str, CalculatorInput] = {
                 label="30 år F1",
                 realkredit_type=LoanType.F1,
                 realkredit_rate=Decimal("0.036"),
-                realkredit_price=Decimal("100"),  # par for flexlån
+                realkredit_price=Decimal(100),  # par for flexlån
                 issue_pct=Decimal("0.0177"),
             ),
             # Alt 3: 30-yr 4% obligation
@@ -642,7 +643,7 @@ def _horizon_scenarios(
                 )
                 # Clamp to reasonable bounds
                 shocked_price = min(
-                    _HUNDRED * Decimal("1.1"), max(Decimal("50"), shocked_price)
+                    _HUNDRED * Decimal("1.1"), max(Decimal(50), shocked_price)
                 )
                 payoff = balance * shocked_price / _HUNDRED
                 weighted_price += shocked_price * (
@@ -703,7 +704,7 @@ def _horizon_scenarios(
                 afdrag_total=afdrag_total,
                 ydelse_total=ydelse_total,
                 restgaeld=restgaeld_total,
-                gns_kurs=weighted_price if weighted_price > _ZERO else Decimal("100"),
+                gns_kurs=weighted_price if weighted_price > _ZERO else Decimal(100),
                 indfrielse=indfrielse_total,
                 periodeomkostning=periodeomk,
             )
@@ -735,6 +736,57 @@ def _monthly_payment_after_tax(
     return total
 
 
+# ─── LTV-based realkredit/banklån split ─────────────────────────────
+
+
+def _ltv_shares(
+    input: CalculatorInput,
+    components: list[LoanSpec],
+) -> list[Decimal] | None:
+    """Compute per-component provenu shares from the LTV bracket.
+
+    When the user provides ejendomsværdi + ejendomstype, the total
+    realkredit provenu is capped at ``ejendomsværdi × LTV%`` and the
+    banklån covers the remainder.  Among multiple realkredit components
+    the original ``provenu_share`` ratios are preserved (scaled to fit
+    the cap).  Returns ``None`` when no LTV info is given, signalling
+    the caller to use the manual ``provenu_share`` values on each spec.
+    """
+    if input.ejendomsvaerdi is None or input.ejendomstype is None:
+        return None
+    if input.desired_provenu <= _ZERO:
+        return None
+
+    ltv = LTV_BRACKETS[input.ejendomstype]
+    max_realkredit_provenu = input.ejendomsvaerdi * ltv
+    realkredit_cap = min(max_realkredit_provenu / input.desired_provenu, _ONE)
+
+    # Original shares within realkredit and bank, used to distribute
+    # the capped realkredit budget among multiple realkredit components.
+    orig_realkredit = sum(
+        s.provenu_share for s in components if s.component == LoanComponent.REALKREDIT
+    )
+    orig_bank = sum(
+        s.provenu_share for s in components if s.component == LoanComponent.BANK
+    )
+
+    shares: list[Decimal] = []
+    for spec in components:
+        if spec.component == LoanComponent.REALKREDIT:
+            if orig_realkredit > _ZERO:
+                # Scale this component's realkredit share into the cap.
+                shares.append(realkredit_cap * spec.provenu_share / orig_realkredit)
+            else:
+                shares.append(_ZERO)
+        else:
+            # Bank gets the remainder of provenu after the realkredit cap.
+            if orig_bank > _ZERO:
+                shares.append((_ONE - realkredit_cap) * spec.provenu_share / orig_bank)
+            else:
+                shares.append(_ZERO)
+    return shares
+
+
 # ─── The interface: calculate() ─────────────────────────────────────
 
 
@@ -754,11 +806,12 @@ def calculate(input: CalculatorInput) -> CalculatorResult:
 
     alt_summaries: list[AlternativeSummary] = []
     horizon_analyses: list[HorizonAnalysis] = []
-
     for alt in input.alternatives:
         comp_results: list[tuple[LoanSpec, LoanComponentResult]] = []
-        for spec in alt.components:
-            comp_provenu = input.desired_provenu * spec.provenu_share
+        ltv_shares = _ltv_shares(input, alt.components)
+        for i, spec in enumerate(alt.components):
+            share = ltv_shares[i] if ltv_shares is not None else spec.provenu_share
+            comp_provenu = input.desired_provenu * share
             comp_results.append(
                 (spec, _compute_component(spec, comp_provenu, input.tax_rate))
             )
@@ -788,7 +841,7 @@ def calculate(input: CalculatorInput) -> CalculatorResult:
                 sum(r.gns_kurs * r.hovedstol for _, r in comp_results) / total_hovedstol
             )
         else:
-            gns_kurs = Decimal("100")
+            gns_kurs = Decimal(100)
 
         alt_summaries.append(
             AlternativeSummary(
@@ -822,6 +875,7 @@ def calculate(input: CalculatorInput) -> CalculatorResult:
 
     return CalculatorResult(
         desired_provenu=input.desired_provenu,
+        ejendomsvaerdi=input.ejendomsvaerdi,
         start_date=input.start_date,
         horizon_date=horizon_date,
         tax_rate=input.tax_rate,
@@ -836,7 +890,7 @@ def calculate(input: CalculatorInput) -> CalculatorResult:
 def amortization_schedule(
     input: CalculatorInput,
     alternative_index: int,
-) -> "AmortizationSchedule":  # type: ignore[name-defined]
+) -> AmortizationSchedule:  # type: ignore[name-defined]
     """Year-by-year amortization schedule for one alternative.
 
     Amortizes each component at its effective rate, aggregates by year.
@@ -845,11 +899,13 @@ def amortization_schedule(
     from .models import AmortizationSchedule, AmortizationYear
 
     alt = input.alternatives[alternative_index]
+    ltv_shares = _ltv_shares(input, alt.components)
 
     # Build per-component monthly amortization lists
     comp_monthly: list[list[tuple[Decimal, Decimal, Decimal]]] = []
-    for spec in alt.components:
-        comp_provenu = input.desired_provenu * spec.provenu_share
+    for i, spec in enumerate(alt.components):
+        share = ltv_shares[i] if ltv_shares is not None else spec.provenu_share
+        comp_provenu = input.desired_provenu * share
         comp = _compute_component(spec, comp_provenu, input.tax_rate)
         n = spec.maturity_years * 12
         io_months = spec.interest_only_years * 12
