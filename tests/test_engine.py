@@ -109,9 +109,9 @@ class TestCalculatePreset:
     def test_returns_three_alternatives(self, result):
         assert len(result.alternatives) == 3
         labels = [a.label for a in result.alternatives]
-        assert "30 år DESTR, 30 år Banklån" in labels
-        assert "30 år F1, 30 år Banklån" in labels
-        assert "30 år 4% obligation, 30 år Banklån" in labels
+        assert "30 år DESTR" in labels
+        assert "30 år F1" in labels
+        assert "30 år 4% obligation" in labels
 
     def test_provenu_preserved(self, result):
         assert result.desired_provenu == Decimal("2500000")

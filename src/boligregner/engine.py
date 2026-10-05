@@ -97,6 +97,47 @@ def _make_alt(
         ],
     )
 
+
+def _make_realkredit_only_alt(
+    label: str,
+    realkredit_type: LoanType,
+    realkredit_rate: Decimal,
+    realkredit_price: Decimal,
+    issue_pct: Decimal,
+    realkredit_bidrag: Decimal = Decimal("0.006"),
+    interest_only_years: int = 0,
+    fixed_ydelse: Decimal | None = None,
+    reference_rate: Decimal | None = None,
+    margin: Decimal | None = None,
+) -> "FinancingAlternative":  # type: ignore[name-defined]
+    """Build a single-component realkredit-only alternative (no bank loan)."""
+    from .models import FinancingAlternative
+
+    realkredit_kwargs: dict = dict(
+        component=LoanComponent.REALKREDIT,
+        loan_type=realkredit_type,
+        rate=realkredit_rate,
+        price=realkredit_price,
+        maturity_years=30,
+        issue_costs_pct=issue_pct,
+        bidragssats=realkredit_bidrag,
+        provenu_share=_ONE,
+    )
+    if interest_only_years:
+        realkredit_kwargs["interest_only_years"] = interest_only_years
+    if fixed_ydelse is not None:
+        realkredit_kwargs["fixed_ydelse"] = fixed_ydelse
+    if reference_rate is not None:
+        realkredit_kwargs["reference_rate"] = reference_rate
+    if margin is not None:
+        realkredit_kwargs["margin"] = margin
+
+    return FinancingAlternative(
+        label=label,
+        components=[LoanSpec(**realkredit_kwargs)],
+    )
+
+
 PRESETS: dict[str, CalculatorInput] = {
     "default": CalculatorInput(
         desired_provenu=Decimal("2500000"),
@@ -104,36 +145,30 @@ PRESETS: dict[str, CalculatorInput] = {
         horizon_years=5,
         tax_rate=Decimal("0.336"),
         alternatives=[
-            # Alt 1: 30-yr DESTR + 30-yr banklån
-            _make_alt(
-                label="30 år DESTR, 30 år Banklån",
+            # Alt 1: 30-yr DESTR
+            _make_realkredit_only_alt(
+                label="30 år DESTR",
                 realkredit_type=LoanType.DESTR,
                 realkredit_rate=Decimal("0.0340"),       # total = reference + margin
                 realkredit_price=Decimal("100"),
-                bank_rate=Decimal("0.045"),
-                bank_share=Decimal("0.20"),
                 issue_pct=Decimal("0.0177"),
                 reference_rate=Decimal("0.0315"),
                 margin=Decimal("0.0025"),
             ),
-            # Alt 2: 30-yr F1 flexlån + 30-yr banklån
-            _make_alt(
-                label="30 år F1, 30 år Banklån",
+            # Alt 2: 30-yr F1 flexlån
+            _make_realkredit_only_alt(
+                label="30 år F1",
                 realkredit_type=LoanType.F1,
                 realkredit_rate=Decimal("0.036"),
                 realkredit_price=Decimal("100"),       # par for flexlån
-                bank_rate=Decimal("0.045"),
-                bank_share=Decimal("0.20"),
                 issue_pct=Decimal("0.0177"),
             ),
-            # Alt 3: 30-yr 4% obligation + 30-yr banklån
-            _make_alt(
-                label="30 år 4% obligation, 30 år Banklån",
+            # Alt 3: 30-yr 4% obligation
+            _make_realkredit_only_alt(
+                label="30 år 4% obligation",
                 realkredit_type=LoanType.FIXED,
                 realkredit_rate=Decimal("0.04"),       # 4% coupon
                 realkredit_price=Decimal("94.52"),    # trading at discount
-                bank_rate=Decimal("0.045"),
-                bank_share=Decimal("0.20"),
                 issue_pct=Decimal("0.0171"),
             ),
         ],

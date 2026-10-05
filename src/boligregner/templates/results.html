@@ -885,11 +885,13 @@ function buildAltBlock(alt, idx, isNew) {
   html += '</div>';
   html += '</div>';
 
-  // Bank share — single fraction field
-  html += '<div class="form-row">';
-  html += '<div class="form-field"><label>Bankandel (%)</label><input class="comp-bank-share" type="number" step="0.5" min="0" max="100" value="' + (bankShare*100) + '"></div>';
-  html += '<div class="form-field"><label>Bank — Rente (%)</label><input class="comp-bank-rate" type="number" step="0.001" min="0" value="' + (bank ? Number(bank.rate)*100 : 4.5) + '"></div>';
-  html += '</div>';
+  // Bank share — single fraction field (only if bank component exists)
+  if (bank) {
+    html += '<div class="form-row">';
+    html += '<div class="form-field"><label>Bankandel (%)</label><input class="comp-bank-share" type="number" step="0.5" min="0" max="100" value="' + (bankShare*100) + '"></div>';
+    html += '<div class="form-field"><label>Bank — Rente (%)</label><input class="comp-bank-rate" type="number" step="0.001" min="0" value="' + (bank ? Number(bank.rate)*100 : 4.5) + '"></div>';
+    html += '</div>';
+  }
 
   block.innerHTML = html;
   return block;
@@ -973,8 +975,7 @@ function addAlt() {
   const newAlt = {
     label: 'Nyt alternativ',
     components: [
-      { component: 'realkredit', loan_type: 'f3', rate: '0.035', price: '100', maturity_years: 30, issue_costs_pct: '0.0177', issue_costs_nominal: null, redemption_price: '100', provenu_share: '0.80', bidragssats: '0.006', interest_only_years: 0, fixed_ydelse: null, reference_rate: null, margin: null },
-      { component: 'bank', loan_type: 'f1', rate: '0.045', price: '100', maturity_years: 30, issue_costs_pct: '0', issue_costs_nominal: null, redemption_price: '100', provenu_share: '0.20', bidragssats: '0', interest_only_years: 0, fixed_ydelse: null, reference_rate: null, margin: null },
+      { component: 'realkredit', loan_type: 'f3', rate: '0.035', price: '100', maturity_years: 30, issue_costs_pct: '0.0177', issue_costs_nominal: null, redemption_price: '100', provenu_share: '1', bidragssats: '0.006', interest_only_years: 0, fixed_ydelse: null, reference_rate: null, margin: null },
     ],
   };
   const block = buildAltBlock(newAlt, idx, true);
@@ -1058,10 +1059,10 @@ function gatherFormInput() {
       }
     }
 
-    // Bank share — single fraction
+    // Bank share — single fraction (0 if no bank component)
     const bankShareEl = block.querySelector('.comp-bank-share');
     const bankRateEl = block.querySelector('.comp-bank-rate');
-    let bankShare = bankShareEl ? Number(bankShareEl.value) / 100 : 0.20;
+    let bankShare = bank ? (bankShareEl ? Number(bankShareEl.value) / 100 : 0.20) : 0;
     bankShare = Math.max(0, Math.min(1, bankShare));
 
     // If property value is set, derive bank share from 80% realkredit rule
