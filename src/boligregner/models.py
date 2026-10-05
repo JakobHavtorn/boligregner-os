@@ -65,7 +65,14 @@ class LoanSpec(BaseModel):
     maturity_years: int = Field(..., ge=1, le=40, description="Loan term in years.")
     issue_costs_pct: Decimal = Field(
         default=Decimal("0"),
-        description="Udstedelsesomkostninger as a fraction of hovedstol, e.g. 0.0177.",
+        description="Udstedelsesomkostninger as a fraction of hovedstol, e.g. 0.0177. "
+        "Mutually exclusive with issue_costs_nominal.",
+    )
+    issue_costs_nominal: Decimal | None = Field(
+        default=None,
+        description="Udstedelsesomkostninger as a fixed kr. amount. "
+        "When set, overrides issue_costs_pct; the engine converts it to an "
+        "effective percentage for hovedstol derivation.",
     )
     redemption_price: Decimal = Field(
         default=Decimal("100"),

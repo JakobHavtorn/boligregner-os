@@ -107,11 +107,11 @@ class TestCalculatePreset:
         return calculate(PRESETS["default"])
 
     def test_returns_three_alternatives(self, result):
-        assert len(result.alternatives) == 7
+        assert len(result.alternatives) == 3
         labels = [a.label for a in result.alternatives]
-        assert "30 år F3 januar, 30 år Banklån" in labels
-        assert "30 år F5 januar, 30 år Banklån" in labels
-        assert "30 år 4% obligation, 30 år Banklån" in labels
+        assert "30 år DESTR" in labels
+        assert "30 år F1" in labels
+        assert "30 år 4% obligation" in labels
 
     def test_provenu_preserved(self, result):
         assert result.desired_provenu == Decimal("2500000")
@@ -137,12 +137,12 @@ class TestCalculatePreset:
         assert alt3.gns_kurs < Decimal("96")
 
     def test_flexlaan_par_kurs(self, result):
-        """Alt 1 & 2 (flexlån) should have gns_kurs near 100."""
+        """Alt 1 (DESTR) & Alt 2 (F1) should have gns_kurs near 100."""
         for alt in result.alternatives[:2]:
             assert alt.gns_kurs > Decimal("99")
 
     def test_aap_ordering(self, result):
-        """ÅOP should increase: F3 < F5 < 4% obligation (per boligregner)."""
+        """ÅOP should increase: DESTR < F1 < 4% obligation."""
         aaps = [a.aap_before_tax for a in result.alternatives]
         assert aaps[0] < aaps[1] < aaps[2]
 
@@ -153,7 +153,7 @@ class TestCalculatePreset:
             assert shocks == [Decimal("-0.02"), Decimal("0"), Decimal("0.02")]
 
     def test_horizon_rate_shock_affects_ydelse(self, result):
-        """For flexlån (Alt 1), +2% shock should raise ydelse_slut vs start."""
+        """For DESTR (Alt 1), +2% shock should raise ydelse_slut vs start."""
         alt1_ha = result.horizon_analyses[0]
         for row in alt1_ha.scenarios:
             if row.rate_shock == Decimal("0.02"):
@@ -162,8 +162,8 @@ class TestCalculatePreset:
                 assert row.ydelse_slut < row.ydelse_start
 
     def test_periodeomkostning_flexlaan_positive(self, result):
-        """Flexlån periodeomkostninger should be positive (no price-gain from rate shock)."""
-        for ha in result.horizon_analyses[:2]:  # Alt 1 & 2 are flexlån
+        """DESTR & F1 periodeomkostninger should be positive (no price-gain from rate shock)."""
+        for ha in result.horizon_analyses[:2]:  # Alt 1 (DESTR) & 2 (F1)
             for row in ha.scenarios:
                 assert row.periodeomkostning > Decimal("0")
 
