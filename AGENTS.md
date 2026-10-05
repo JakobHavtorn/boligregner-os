@@ -58,6 +58,28 @@ uv run pytest tests/ -q
 
 Tests verify annuity math, IRR, hovedstol derivation, ÅOP ordering, horizon scenarios, rate shock effects, fixed-obligation price sensitivity, afdragsfrihed, T-lån, CITA/CIBOR/DESTR rate paths, and preset smoke tests.
 
+## Commit conventions
+
+Use [Conventional Commits](https://www.conventionalcommits.org/) for all commit messages and PR titles:
+
+```
+<type>: <description>
+```
+
+Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`, `ci`, `build`, `perf`, `style`.
+
+Examples:
+- `feat: add DESTR daily-compounding rate path`
+- `fix: clamp negative F5 rate to zero in preset builder`
+- `docs: market data sources and implementation plan`
+- `refactor: move bidragssats lookup to BidragssatsKey`
+
+Rules:
+- Lowercase type, imperative mood, no trailing period
+- PR title matches the commit convention (same format)
+- Squash-merge commits get the PR title as their message
+
+
 ## Running the server
 
 ```bash
