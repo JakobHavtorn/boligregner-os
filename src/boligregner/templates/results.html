@@ -1325,11 +1325,10 @@ function applyFlash() {
 }
 
 async function renderResults(result) {
-  // Find cheapest by ydelse_after_tax and aap_before_tax
-  let cheapestYdelseIdx = 0, cheapestAapIdx = 0;
+  // Find cheapest by ydelse_after_tax
+  let cheapestYdelseIdx = 0;
   result.alternatives.forEach((alt, i) => {
     if (Number(alt.ydelse_after_tax) < Number(result.alternatives[cheapestYdelseIdx].ydelse_after_tax)) cheapestYdelseIdx = i;
-    if (Number(alt.aap_before_tax) < Number(result.alternatives[cheapestAapIdx].aap_before_tax)) cheapestAapIdx = i;
   });
 
   let html = '';
@@ -1353,7 +1352,6 @@ async function renderResults(result) {
   result.alternatives.forEach((alt, i) => {
     const color = ALT_COLORS[i % ALT_COLORS.length];
     const isCheapestYdelse = i === cheapestYdelseIdx;
-    const isCheapestAap = i === cheapestAapIdx;
     let label = '<span class="dot dot-' + color + '"></span>' + escapeHtml(alt.label);
     if (isCheapestYdelse) label += '<span class="badge">Billigst</span>';
     html += '<tr class="' + (isCheapestYdelse ? 'cheapest' : '') + ' alt-row" onclick="window.location.href=\'/resultater/alternativ/' + i + '\'">';
@@ -1367,7 +1365,6 @@ async function renderResults(result) {
     let ydelseAtHtml = fmtDKK(alt.ydelse_after_tax);
     html += '<td class="num" data-key="ydelse_at_' + i + '" data-value="' + Number(alt.ydelse_after_tax) + '">' + ydelseAtHtml + '</td>';
     let aapHtml = fmtPct(alt.aap_before_tax);
-    if (isCheapestAap) aapHtml += ' <span class="badge">Billigst</span>';
     html += '<td class="num" data-key="aap_' + i + '" data-value="' + Number(alt.aap_before_tax) + '">' + aapHtml + '</td>';
     html += '</tr>';
   });
