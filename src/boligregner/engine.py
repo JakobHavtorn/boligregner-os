@@ -667,6 +667,59 @@ def _compute_component(
     )
 
 
+def _bond_price(
+    coupon_rate: Decimal,
+    yield_rate: Decimal,
+    remaining_balance: Decimal,
+    remaining_periods: int,
+    ppy: int = 12,
+) -> Decimal:
+    """Price a finite bond as PV of remaining cashflows.
+
+    The bond pays coupon_rate on the declining balance each period,
+    plus principal is repaid via the annuity schedule.
+
+    Returns price as percent of remaining balance (e.g., 86.08 for 86.08%).
+    """
+    if yield_rate <= _ZERO:
+        return _HUNDRED
+
+    periodic_yield = yield_rate / Decimal(ppy)
+    r = coupon_rate / Decimal(ppy)  # periodic coupon rate
+    pv = _ZERO
+    balance = remaining_balance
+    n = Decimal(remaining_periods)
+    if r == _ZERO:
+        payment = remaining_balance / n
+    else:
+        pow_n = (_ONE + r) ** n
+        payment = remaining_balance * r * pow_n / (pow_n - _ONE)
+
+    for i in range(remaining_periods):
+        interest = balance * r
+        principal = payment - interest
+        cashflow = interest + principal  # total payment
+        pv += cashflow / (_ONE + periodic_yield) ** Decimal(i + 1)
+        balance -= principal
+
+    return pv / remaining_balance * _HUNDRED
+
+
+def _bond_price_with_option(
+    coupon_rate: Decimal,
+    yield_rate: Decimal,
+    remaining_balance: Decimal,
+    remaining_periods: int,
+    ppy: int = 12,
+    prepayment_premium: Decimal = Decimal("0.005"),
+) -> Decimal:
+    """Finite-bond price capped at par + premium (prepayment option)."""
+    option_free = _bond_price(
+        coupon_rate, yield_rate, remaining_balance, remaining_periods, ppy
+    )
+    return min(option_free, _HUNDRED * (_ONE + prepayment_premium))
+
+
 # ─── Horizon analysis: amortize, shock, compute periodeomkostning ─────
 
 
@@ -688,27 +741,36 @@ def _horizon_scenarios(
         ydelse_slut_at = _ZERO
         weighted_price = _ZERO
         total_hoved = sum(r.hovedstol for _, r in components)
+        total_balance = _ZERO
 
+        # First pass: compute balances at horizon for all components
+        component_data: list[
+            tuple[
+                LoanSpec,
+                LoanComponentResult,
+                Decimal,
+                list[tuple[Decimal, Decimal, Decimal]],
+                Decimal,
+                int,
+                Decimal,
+                Decimal | None,
+                list[Decimal],
+                int,
+                int,
+            ]
+        ] = []
         for spec, comp in components:
             ppy = spec.payments_per_year
             horizon_n = horizon_years * ppy
-            # Build rate path for the full term with this shock.
-            # _rate_path handles all loan types:
-            #   FIXED: shock doesn't affect amortization rate (only bond price)
-            #   F1/F3/F5/T: shock applies to effective rate
-            #   CITA/CIBOR/DESTR: shock on reference_rate (constant per scenario)
             n = spec.maturity_years * ppy
             io_months = spec.interest_only_years * ppy
             path = _rate_path(spec, shock, n, ppy)
 
-            # Fixed payment for T-lån, None for annuity loans
             if spec.loan_type == LoanType.T and spec.fixed_ydelse is not None:
                 fixed_payment = spec.fixed_ydelse
             else:
                 fixed_payment = None
 
-            # Amortize over the full term, then slice to the horizon.
-            # _amortize handles IO periods, fixed payments, and negative amortization.
             monthly = list(
                 _amortize(
                     comp.hovedstol,
@@ -724,32 +786,78 @@ def _horizon_scenarios(
             comp_interest = sum(m[0] for m in monthly)
             comp_principal = sum(m[1] for m in monthly)
             balance = monthly[-1][2] if monthly else comp.hovedstol
+            total_balance += balance
+            component_data.append(
+                (
+                    spec,
+                    comp,
+                    balance,
+                    monthly,
+                    comp_interest,
+                    comp_principal,
+                    path,
+                    fixed_payment,
+                    n,
+                    horizon_n,
+                    io_months,
+                )
+            )
 
-            # Tax deduction on interest over the horizon period
+        # Second pass: compute totals using balance-based weighting
+        for (
+            spec,
+            comp,
+            balance,
+            monthly,
+            comp_interest,
+            comp_principal,
+            path,
+            fixed_payment,
+            n,
+            horizon_n,
+            io_months,
+        ) in component_data:
+            ppy = spec.payments_per_year
             rente_total += comp_interest * (_ONE - tax_rate)
             afdrag_total += comp_principal
             restgaeld_total += balance
 
-            # Redemption payoff at horizon (indfrielse).
-            # For fixed-rate obligations, rate shocks affect the market price:
-            # when rates rise, the bond price falls (indfrielse becomes cheaper);
-            # when rates fall, the bond price rises (indfrielse becomes more expensive).
-            # For flexlån/T-lån/CITA/CIBOR/DESTR at par, redemption_price stays at 100.
             if spec.loan_type == LoanType.FIXED:
-                # Approximate price sensitivity: price moves inversely to rate shock.
                 shocked_yield = spec.rate + shock
-                shocked_price = (
-                    _HUNDRED * spec.rate / shocked_yield
-                    if shocked_yield != _ZERO
-                    else _HUNDRED
-                )
-                # Clamp to reasonable bounds
-                shocked_price = min(
-                    _HUNDRED * Decimal("1.1"), max(Decimal(50), shocked_price)
-                )
+                remaining_periods = n - horizon_n
+                if spec.bond_price_model == "finite":
+                    shocked_price = _bond_price(
+                        spec.rate, shocked_yield, balance, remaining_periods, ppy
+                    )
+                elif spec.bond_price_model == "finite_option":
+                    shocked_price = _bond_price_with_option(
+                        spec.rate,
+                        shocked_yield,
+                        balance,
+                        remaining_periods,
+                        ppy,
+                        spec.prepayment_premium,
+                    )
+                else:  # "simple" — existing perpetuity formula
+                    shocked_price = (
+                        _HUNDRED * spec.rate / shocked_yield
+                        if shocked_yield != _ZERO
+                        else _HUNDRED
+                    )
+                    # Clamp to reasonable bounds
+                    shocked_price = min(
+                        _HUNDRED * Decimal("1.1"), max(Decimal(50), shocked_price)
+                    )
                 payoff = balance * shocked_price / _HUNDRED
+                # Weight gns_kurs by balance share for proper average across components.
+                # For finite models, use total_balance (remaining balances) so
+                # single-component gns_kurs equals the bond price directly.
+                # For simple model, preserve existing balance/total_hoved behavior.
+                weight_base = (
+                    total_balance if spec.bond_price_model != "simple" else total_hoved
+                )
                 weighted_price += shocked_price * (
-                    balance / total_hoved if total_hoved else _ZERO
+                    balance / weight_base if weight_base else _ZERO
                 )
             else:
                 payoff = balance * spec.redemption_price / _HUNDRED

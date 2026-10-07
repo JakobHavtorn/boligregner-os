@@ -108,6 +108,17 @@ class LoanSpec(BaseModel):
         "to the effective rate for ydelse and ÅOP; 'split' charges bidrag as a "
         "separate fixed charge on the original hovedstol (matching boligregner.dk).",
     )
+    bond_price_model: str = Field(
+        default="simple",
+        description="Bond pricing model for indfrielse: 'simple' (perpetuity, existing), "
+        "'finite' (PV of remaining cashflows), 'finite_option' (finite + prepayment cap). "
+        "Default 'simple' preserves existing behavior.",
+    )
+    prepayment_premium: Decimal = Field(
+        default=Decimal("0.005"),
+        description="Maximum premium above par (100) when prepayment option is in-the-money. "
+        "Used only with bond_price_model='finite_option'. 0.005 = 100.50 max.",
+    )
     interest_only_years: int = Field(
         default=0,
         ge=0,
