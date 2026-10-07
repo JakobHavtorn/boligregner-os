@@ -73,7 +73,12 @@ def _make_alt(
         issue_costs_pct=issue_pct,
         bidragssats=realkredit_bidrag,
         provenu_share=_ONE - bank_share,
+        payments_per_year=4,  # Danish realkredit pays quarterly
+        bidrag_model="split",  # bidrag as separate charge, matching boligregner.dk
     )
+    # Fixed-rate obligations use finite-bond pricing with prepayment option
+    if realkredit_type == LoanType.FIXED:
+        realkredit_kwargs["bond_price_model"] = "finite_option"
     if interest_only_years:
         realkredit_kwargs["interest_only_years"] = interest_only_years
     if fixed_ydelse is not None:
@@ -124,7 +129,12 @@ def _make_realkredit_only_alt(
         issue_costs_pct=issue_pct,
         bidragssats=realkredit_bidrag,
         provenu_share=_ONE,
+        payments_per_year=4,  # Danish realkredit pays quarterly
+        bidrag_model="split",  # bidrag as separate charge, matching boligregner.dk
     )
+    # Fixed-rate obligations use finite-bond pricing with prepayment option
+    if realkredit_type == LoanType.FIXED:
+        realkredit_kwargs["bond_price_model"] = "finite_option"
     if interest_only_years:
         realkredit_kwargs["interest_only_years"] = interest_only_years
     if fixed_ydelse is not None:
@@ -818,7 +828,16 @@ def _horizon_scenarios(
             io_months,
         ) in component_data:
             ppy = spec.payments_per_year
-            rente_total += comp_interest * (_ONE - tax_rate)
+            # In split mode, bidrag is a separate charge on original hovedstol.
+            # The reference "rente" includes bidrag as part of the interest charge,
+            # and ydelse includes it as part of the total payment.
+            bidrag_charge = (
+                spec.bidragssats * comp.hovedstol / Decimal(ppy)
+                if spec.bidrag_model == "split"
+                else _ZERO
+            )
+            bidrag_total = bidrag_charge * Decimal(horizon_n)
+            rente_total += (comp_interest + bidrag_total) * (_ONE - tax_rate)
             afdrag_total += comp_principal
             restgaeld_total += balance
 
