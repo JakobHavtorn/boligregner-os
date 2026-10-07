@@ -906,7 +906,7 @@ def _horizon_scenarios(
             else:
                 payoff = balance * spec.redemption_price / _HUNDRED
                 weighted_price += spec.redemption_price * (
-                    balance / total_hoved if total_hoved else _ZERO
+                    balance / total_balance if total_balance else _ZERO
                 )
             indfrielse_total += payoff
 
