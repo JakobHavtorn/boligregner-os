@@ -94,6 +94,7 @@ def _make_alt(
                 price=Decimal(100),
                 maturity_years=30,
                 issue_costs_pct=Decimal(0),
+                provenu_share=bank_share,
                 payments_per_year=12,  # bank loans pay monthly
             ),
         ],
