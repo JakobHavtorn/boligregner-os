@@ -103,16 +103,16 @@ class LoanSpec(BaseModel):
         "e.g. 0.0055 = 0.55%/year. Added to effective rate for ydelse and ÅOP.",
     )
     bidrag_model: str = Field(
-        default="compounded",
-        description="How bidragssats is applied: 'compounded' (default) adds it "
-        "to the effective rate for ydelse and ÅOP; 'split' charges bidrag as a "
-        "separate fixed charge on the original hovedstol (matching boligregner.dk).",
+        default="split",
+        description="How bidragssats is applied: 'split' (default) charges bidrag "
+        "as a separate fixed charge on the original hovedstol (matching boligregner.dk); "
+        "'compounded' adds it to the effective rate for ydelse and ÅOP.",
     )
     bond_price_model: str = Field(
-        default="simple",
-        description="Bond pricing model for indfrielse: 'simple' (perpetuity, existing), "
-        "'finite' (PV of remaining cashflows), 'finite_option' (finite + prepayment cap). "
-        "Default 'simple' preserves existing behavior.",
+        default="finite_option",
+        description="Bond pricing model for indfrielse: 'finite_option' (default, "
+        "finite PV capped at par + prepayment_premium), 'finite' (PV of remaining "
+        "cashflows), 'simple' (perpetuity).",
     )
     prepayment_premium: Decimal = Field(
         default=Decimal("0.005"),
@@ -127,11 +127,11 @@ class LoanSpec(BaseModel):
         "0 = standard annuity from day one.",
     )
     payments_per_year: int = Field(
-        default=12,
+        default=4,
         ge=1,
         le=12,
         description="Payment frequency per year. Danish realkredit uses 4 (quarterly); "
-        "bank loans may use 12 (monthly). Default 12 preserves existing behavior.",
+        "bank loans may use 12 (monthly). Default 4 matches boligregner.dk.",
     )
     fixed_ydelse: Decimal | None = Field(
         default=None,
