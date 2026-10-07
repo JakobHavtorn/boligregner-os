@@ -1886,7 +1886,7 @@ class TestReferenceComparison:
             actual = row.gns_kurs
             assert abs(actual - expected) < tol, (
                 f"{ref_case['id']} shock={shock}: gns_kurs {actual} "
-                f"should be within {tol * 100:.0f}pp of {expected}"
+                f"should be within {tol:.0f}pp of {expected}"
             )
 
 
