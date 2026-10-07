@@ -202,8 +202,9 @@ realkredit hovedstol is lower (capped at par, not derived from discounted price)
 This means:
 - Our realkredit hovedstol is too high (2.030.000 vs 2.000.000).
 - Our bank hovedstol is too low (500.000 vs ~570.000).
-- The bank loan has a higher rate (8.4%), so shifting more principal to the bank
-  increases total ydelse — which is why our ydelse is lower than the reference.
+- The bank loan has a higher rate (8.4%). The reference allocates more principal
+  to the bank (higher rate), so the reference ydelse is higher. Our engine
+  allocates less to the bank, so our ydelse is lower.
 
 ### Proposed fix
 
