@@ -94,7 +94,7 @@ def _make_alt(
                 price=Decimal(100),
                 maturity_years=30,
                 issue_costs_pct=Decimal(0),
-                provenu_share=bank_share,
+                payments_per_year=12,  # bank loans pay monthly
             ),
         ],
     )
@@ -667,6 +667,32 @@ def _compute_component(
     )
 
 
+def _issue_yield(
+    coupon_rate: Decimal,
+    issue_price: Decimal,
+    total_periods: int,
+    ppy: int = 4,
+) -> Decimal:
+    """Compute the yield-to-maturity that prices a bond at issue_price.
+
+    Used for pull-to-par: at 0% shock, discount bonds trade below par
+    because they were issued below par and accrete toward par over time.
+    """
+    if issue_price >= _HUNDRED:
+        return coupon_rate  # par or premium: yield = coupon
+
+    lo = coupon_rate
+    hi = coupon_rate * _TWO
+    for _ in range(50):
+        mid = (lo + hi) / _TWO
+        price = _bond_price(coupon_rate, mid, _HUNDRED, total_periods, ppy)
+        if price > issue_price:
+            lo = mid
+        else:
+            hi = mid
+    return (lo + hi) / _TWO
+
+
 def _bond_price(
     coupon_rate: Decimal,
     yield_rate: Decimal,
@@ -832,7 +858,15 @@ def _horizon_scenarios(
             restgaeld_total += balance
 
             if spec.loan_type == LoanType.FIXED:
-                shocked_yield = spec.rate + shock
+                # Pull-to-par: at 0% shock, use issue yield (from issue price)
+                # so discount bonds price below par. At nonzero shocks, use
+                # coupon rate as base (market yield = coupon + shock).
+                base_yield = (
+                    _issue_yield(spec.rate, spec.price, n, ppy)
+                    if shock == _ZERO
+                    else spec.rate
+                )
+                shocked_yield = base_yield + shock
                 remaining_periods = n - horizon_n
                 if spec.bond_price_model == "finite":
                     shocked_price = _bond_price(

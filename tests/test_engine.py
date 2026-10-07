@@ -1344,13 +1344,14 @@ class TestAmortizationScheduleInvariants:
 # Session B: two-component (realkredit + bank), provenu=2.500.000, start 05-10-2026.
 #
 # Tolerance rationale:
-#   - Our engine uses MONTHLY payments; boligregner.dk uses QUARTERLY
-#     (Danish realkredit pays quarterly). This causes systematic differences.
+#   - Engine defaults to QUARTERLY payments (ppy=4), matching boligregner.dk.
+#     Bank loans use monthly (ppy=12). Ydelse is per-period; reference ydelse
+#     is monthly, so realkredit quarterly ydelse is /3 for comparison.
 #   - Hovedstol: EXACT — _hovedstol_for_provenu is deterministic.
-#   - ÅOP for fixed-rate: effective annual = (1 + aap/12)^12 - 1, within 0.1%.
+#   - ÅOP for fixed-rate: effective annual = (1 + aap/ppy)^ppy - 1, within 0.1%.
 #   - ÅOP for flexlån: engine overstates (amortizes discount over 30yr vs
 #     rate period); tolerance 1.0%.
-#   - Ydelse (monthly): ~3% lower than reference monthly-equivalent; tolerance 5%.
+#   - Ydelse: quarterly, converted to monthly-equivalent (/3); tolerance 5%.
 #   - Issue costs: single issue_costs_pct approximates itemized; tolerance 15%.
 
 
