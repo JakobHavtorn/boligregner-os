@@ -53,7 +53,13 @@ Alternatively: `uv sync --extra dev && pre-commit install`.
 from decimal import Decimal
 from datetime import date
 from boligregner import calculate, PRESETS
-from boligregner.models import CalculatorInput, FinancingAlternative, LoanSpec, LoanType, LoanComponent
+from boligregner.models import (
+    CalculatorInput,
+    FinancingAlternative,
+    LoanSpec,
+    LoanType,
+    LoanComponent,
+)
 
 # Use the default preset (matches boligregner.dk sample)
 result = calculate(PRESETS["default"])

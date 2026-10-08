@@ -27,7 +27,7 @@ import json
 import re
 import xml.etree.ElementTree as ET
 import zipfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from enum import Enum
 from html.parser import HTMLParser
@@ -909,7 +909,7 @@ def _is_expired(cached: dict, ttl_seconds: int) -> bool:
         fetched_at = datetime.fromisoformat(fetched_str)
     except (ValueError, TypeError):
         return True
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     age = (now - fetched_at).total_seconds()
     return age > ttl_seconds
 
@@ -947,7 +947,7 @@ def _fetch_and_cache(source_name: str) -> tuple[object | None, str]:
         data = result
 
     cache_entry = {
-        "fetched_at": datetime.now(timezone.utc).isoformat(),
+        "fetched_at": datetime.now(UTC).isoformat(),
         "ttl_seconds": CACHE_TTL[source_name],
         "data": data,
     }
@@ -1006,11 +1006,11 @@ def get_market_rates(force_refresh: bool = False) -> MarketRates:
     if not force_refresh and _CACHED_RATES is not None:
         # Check if the in-memory cache is still fresh (use shortest TTL)
         min_ttl = min(CACHE_TTL.values())
-        age = (datetime.now(timezone.utc) - _CACHED_RATES.fetched_at).total_seconds()
+        age = (datetime.now(UTC) - _CACHED_RATES.fetched_at).total_seconds()
         if age <= min_ttl:
             return _CACHED_RATES
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     rates = MarketRates(fetched_at=now)
     sources: dict[str, str] = {}
 

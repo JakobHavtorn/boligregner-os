@@ -4,7 +4,7 @@ Each test class loads a saved HTML/CSV/XLSX fixture from tests/fixtures/ and
 exercises the pure ``_parse_*`` function.  No HTTP requests are made.
 """
 
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from pathlib import Path
 
@@ -20,7 +20,6 @@ from boligregner.market_data import (
     NominalRates,
     NordeaBondPrices,
     ReferenceRates,
-    _apply_source,
     _parse_danish_decimal,
     _parse_destr_rate,
     _parse_dst_dnrnuri,
@@ -283,7 +282,7 @@ class TestDstDestrParser:
 class TestLookupBidragssats:
     def _make_rates(self, entries: list[BidragssatsEntry]) -> MarketRates:
         return MarketRates(
-            fetched_at=datetime.now(),
+            fetched_at=datetime.now(UTC),
             bidragssatser=entries,
         )
 
@@ -312,7 +311,7 @@ class TestLookupBidragssats:
 
     def test_fallback_to_dst_avg(self):
         rates = MarketRates(
-            fetched_at=datetime.now(),
+            fetched_at=datetime.now(UTC),
             dst_rates=DSTRates(f3_bidrag_avg=Decimal("0.00983")),
         )
         key = BidragssatsKey(
@@ -326,7 +325,7 @@ class TestLookupBidragssats:
         assert lookup_bidragssats(key, rates) == Decimal("0.00983")
 
     def test_fallback_to_default(self):
-        rates = MarketRates(fetched_at=datetime.now())
+        rates = MarketRates(fetched_at=datetime.now(UTC))
         key = BidragssatsKey(
             institute=Institute.NYKREDIT,
             loan_type=__import__(
@@ -343,7 +342,7 @@ class TestLookupBidragssats:
 
 class TestBuildPresetFromMarket:
     def test_preserves_preset_structure(self):
-        rates = MarketRates(fetched_at=datetime.now())
+        rates = MarketRates(fetched_at=datetime.now(UTC))
         result = build_preset_from_market(rates, preset_name="default")
         from boligregner.models import CalculatorInput
 
@@ -357,7 +356,7 @@ class TestBuildPresetFromMarket:
 
     def test_overrides_f3_rate(self):
         rates = MarketRates(
-            fetched_at=datetime.now(),
+            fetched_at=datetime.now(UTC),
             nominal_rates=NominalRates(f3=Decimal("0.0239")),
         )
         result = build_preset_from_market(rates, preset_name="default")
@@ -369,7 +368,7 @@ class TestBuildPresetFromMarket:
 
     def test_overrides_fixed_coupon_and_price(self):
         rates = MarketRates(
-            fetched_at=datetime.now(),
+            fetched_at=datetime.now(UTC),
             fixed_coupon_rate=Decimal("0.04"),
             fixed_bond_price=Decimal("93.48"),
         )
@@ -385,7 +384,7 @@ class TestBuildPresetFromMarket:
 
     def test_clamps_negative_rates(self):
         rates = MarketRates(
-            fetched_at=datetime.now(),
+            fetched_at=datetime.now(UTC),
             nominal_rates=NominalRates(f5=Decimal("-0.001")),
         )
         result = build_preset_from_market(rates, preset_name="default")
@@ -398,7 +397,7 @@ class TestBuildPresetFromMarket:
 
     def test_overrides_destr_reference_rate(self):
         rates = MarketRates(
-            fetched_at=datetime.now(),
+            fetched_at=datetime.now(UTC),
             reference_rates=ReferenceRates(destr=Decimal("0.02048")),
         )
         result = build_preset_from_market(rates, preset_name="default")
@@ -412,7 +411,7 @@ class TestBuildPresetFromMarket:
                     assert comp.rate == comp.reference_rate + comp.margin
 
     def test_unknown_preset_raises(self):
-        rates = MarketRates(fetched_at=datetime.now())
+        rates = MarketRates(fetched_at=datetime.now(UTC))
         with pytest.raises(ValueError, match="Unknown preset"):
             build_preset_from_market(rates, preset_name="nonexistent")
 
@@ -425,7 +424,7 @@ class TestCacheLayer:
         import tempfile
 
         import boligregner.market_data as md
-        from boligregner.market_data import CACHE_DIR, _read_cache, _write_cache
+        from boligregner.market_data import _read_cache, _write_cache
 
         # Use a temp dir to avoid polluting real cache
         orig_cache_dir = md.CACHE_DIR
@@ -455,12 +454,12 @@ class TestCacheLayer:
         assert _is_expired(old, 3600) is True
 
     def test_is_not_expired_with_recent_timestamp(self):
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from boligregner.market_data import _is_expired
 
         recent = {
-            "fetched_at": datetime.now(timezone.utc).isoformat(),
+            "fetched_at": datetime.now(UTC).isoformat(),
             "ttl_seconds": 3600,
         }
         assert _is_expired(recent, 3600) is False
@@ -469,7 +468,7 @@ class TestCacheLayer:
         import tempfile
 
         import boligregner.market_data as md
-        from boligregner.market_data import CACHE_DIR, _read_cache, _write_cache
+        from boligregner.market_data import _read_cache
 
         orig_cache_dir = md.CACHE_DIR
         with tempfile.TemporaryDirectory() as td:
@@ -550,7 +549,7 @@ class TestLastGoodFallback:
         """When a fetch fails and a stale cache exists, the stale value
         should be served rather than returning None."""
         import tempfile
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
 
         import boligregner.market_data as md
 
@@ -561,9 +560,7 @@ class TestLastGoodFallback:
             md._CACHED_RATES = None
             try:
                 # Write a stale cache entry for ecb
-                old_time = (
-                    datetime.now(timezone.utc) - timedelta(hours=48)
-                ).isoformat()
+                old_time = (datetime.now(UTC) - timedelta(hours=48)).isoformat()
                 md._write_cache(
                     "ecb",
                     {

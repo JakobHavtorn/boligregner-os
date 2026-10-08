@@ -240,7 +240,7 @@ def _build_input_inner(args: MortgageInput) -> CalculatorInput:
     elif base is not None:
         rate_shocks = base.rate_shocks
     else:
-        rate_shocks = [Decimal("-0.02"), Decimal("0"), Decimal("0.02")]
+        rate_shocks = [Decimal("-0.02"), Decimal(0), Decimal("0.02")]
 
     # Optional LTV fields: override preset, inherit from preset, or leave None.
     if args.ejendomsvaerdi is not None:

@@ -80,31 +80,40 @@ engine schemas only, avoiding divergent-change (two unrelated change axes in one
 ```python
 class LTVBand(str, Enum):
     """LTV bracket for bidragssats lookup."""
+
     ZERO_TO_40 = "0-40"
     FORTY_TO_60 = "40-60"
     OVER_60 = "over-60"
 
+
 class Institute(str, Enum):
     """Danish realkredit institutes."""
+
     JYSKE = "jyske"
     NYKREDIT = "nykredit"
     NORDEA = "nordea"
     RD = "rd"
 
+
 class BidragssatsKey(BaseModel):
     """Lookup key for bidragssats — bundles the clump that travels together."""
+
     institute: Institute
     loan_type: LoanType
     ltv_band: LTVBand
     afdragsfrihed: bool
 
+
 class BidragssatsEntry(BidragssatsKey):
     """One bidragssats value, keyed by (institute, loan_type, ltv_band, afdragsfrihed)."""
+
     bidragssats: Decimal
+
 
 class NominalRates(BaseModel):
     """Nominal rates keyed by LoanType — typed replacement for dict[str, Decimal].
     Assumes LoanType extended with F2, F4, F6, F10 (follow-up code change)."""
+
     f1: Decimal | None = None
     f2: Decimal | None = None
     f3: Decimal | None = None
@@ -113,15 +122,19 @@ class NominalRates(BaseModel):
     f6: Decimal | None = None
     f10: Decimal | None = None
 
+
 class ReferenceRates(BaseModel):
     """Reference rates keyed by rate type — typed replacement for dict[str, Decimal]."""
+
     cibor_3m: Decimal | None = None
     cibor_6m: Decimal | None = None
     cita_3m: Decimal | None = None
     destr: Decimal | None = None
 
+
 class MarketRates(BaseModel):
     """Snapshot of all sourced market data."""
+
     fetched_at: datetime
     # Nominal rates (LoanSpec.rate)
     nominal_rates: NominalRates = Field(default_factory=NominalRates)
@@ -144,6 +157,7 @@ Internal fetcher result types (not part of public interface):
 class DSTRates(BaseModel):
     """Effective rates + avg bidrag + ÅOP from DST Statbank DNRNURI.
     Validation data only — not used to populate LoanSpec fields."""
+
     f3_effective: Decimal | None = None
     f5_effective: Decimal | None = None
     fixed_effective: Decimal | None = None
@@ -151,9 +165,11 @@ class DSTRates(BaseModel):
     f5_bidrag_avg: Decimal | None = None
     fixed_bidrag_avg: Decimal | None = None
 
+
 class NordeaBondPrices(BaseModel):
     """Bond prices from Nordea's '500.000' page.
     Fixed kurs maps to LoanSpec.price; F3/F5 kurs are underlying bond prices (not LoanSpec.price for flexlån)."""
+
     fixed_coupon: Decimal | None = None
     fixed_kurs: Decimal | None = None
     f3_kontantrente: Decimal | None = None  # Reference only
@@ -171,28 +187,35 @@ def _fetch_dst_effective_rates() -> DSTRates:
     """POST api.statbank.dk/v1/data/DNRNURI — effective rates + avg bidrag + ÅOP.
     Returns validation data (not used to populate LoanSpec.rate)."""
 
+
 def _fetch_ecb_bank_rate() -> Decimal:
     """GET data-api.ecb.europa.eu — banklån rate (AAR)."""
+
 
 def _fetch_mybanker_bidragssatser() -> list[BidragssatsEntry]:
     """GET mybanker.dk/sammenlign/bolig/bidragssatser — parse 5 HTML tables.
     Returns per-institute × per-LTV × per-loan-type × per-afdragsfrihed entries."""
 
+
 def _fetch_rd_nominal_rates() -> NominalRates:
     """GET rd.dk/laantyper/flexlaan-k/renteudvikling — parse HTML tables.
     Returns typed NominalRates, not dict[str, Decimal]."""
+
 
 def _fetch_nordea_bond_prices() -> NordeaBondPrices:
     """GET nordea.dk/.../hvad-koster-det-at-laane-en-halv-million.html
     Returns fixed bond kurs + coupon, F3/F5 kontantrente (for reference only)."""
 
+
 def _fetch_finansdanmark_obligationsrente() -> Decimal:
     """Scrape finansdanmark.dk/.../obligationsrenter for XLSX URL, download XLSX.
     Returns lang obligationsrente (proxy for fixed coupon)."""
 
+
 def _fetch_jyske_reference_rates() -> ReferenceRates:
     """GET jyskebank.dk/bolig/boliglaan/referencerenter via urllib (Cloudflare blocks curl).
     Returns typed ReferenceRates, not dict[str, Decimal]."""
+
 
 def _fetch_destr_rate() -> Decimal:
     """POST api.statbank.dk/v1/data/DNRENTD — DESTR Referencerente (daily).
@@ -205,14 +228,15 @@ a slow or unavailable source doesn't block others. Split endpoints read only the
 
 ```python
 CACHE_TTL = {
-    "dst":           24 * 3600,   # monthly data
-    "ecb":           24 * 3600,
-    "mybanker":      24 * 3600,
-    "rd":            24 * 3600,
-    "nordea":        24 * 3600,
+    "dst": 24 * 3600,  # monthly data
+    "ecb": 24 * 3600,
+    "mybanker": 24 * 3600,
+    "rd": 24 * 3600,
+    "nordea": 24 * 3600,
     "finansdanmark": 24 * 3600,
-    "jyske_ref":     12 * 3600,   # CIBOR/CITA set quarterly; page updated at each rate-setting
-    "destr":         6 * 3600,    # daily rate
+    "jyske_ref": 12
+    * 3600,  # CIBOR/CITA set quarterly; page updated at each rate-setting
+    "destr": 6 * 3600,  # daily rate
 }
 # Each source writes to data/cache/{source_name}.json
 # Endpoints read only their source's cache — no single-file bottleneck.
@@ -224,18 +248,25 @@ def get_market_rates(force_refresh: bool = False) -> MarketRates:
     On fetch failure, return last-good cached value for that source.
     Used by build_preset_from_market() and MCP tool."""
 
+
 def get_nominal_rate(loan_type: LoanType) -> Decimal | None:
     """Return cached nominal rate for a single loan type. Reads only RD.dk cache."""
+
 
 def get_reference_rate(rate_type: str) -> Decimal | None:
     """Return cached reference rate (cibor_3m, cibor_6m, cita_3m, destr).
     Reads only Jyske/DESTR cache."""
 
-def get_bidragssatser(institute: str | None = None, loan_type: str | None = None) -> list[BidragssatsEntry]:
+
+def get_bidragssatser(
+    institute: str | None = None, loan_type: str | None = None
+) -> list[BidragssatsEntry]:
     """Return cached bidragssatser, optionally filtered. Reads only Mybanker.dk cache."""
+
 
 def get_bond_prices() -> dict:
     """Return cached fixed-rate bond prices. Reads only Nordea cache."""
+
 
 def refresh_market_rates() -> MarketRates:
     """Force refresh all sources. Used by /api/market-rates/refresh."""
@@ -281,9 +312,9 @@ _BIDRAGSSATS_COLUMN_TO_LOAN_TYPES = {
 
 # Reverse lookup: which bidragssats column to use for a given LoanType
 _LOAN_TYPE_TO_BIDRAGSSATS_COLUMN = {
-    LoanType.F1: "Flekslån F1-F2",     # F1 shares a column with F2
+    LoanType.F1: "Flekslån F1-F2",  # F1 shares a column with F2
     LoanType.F2: "Flekslån F1-F2",
-    LoanType.F3: "Flekslån F3-F4",     # F3 shares a column with F4
+    LoanType.F3: "Flekslån F3-F4",  # F3 shares a column with F4
     LoanType.F4: "Flekslån F3-F4",
     LoanType.F5: "Flekslån F5",
     LoanType.F6: "Flekslån F5-F6",
@@ -310,18 +341,24 @@ def api_market_rates(loan_type: str) -> dict:
     """Current nominal rate for a specific loan type (F1, F3, F5, FIXED).
     Cached per loan type. Returns {"loan_type": "f3", "rate": 0.0239, "fetched_at": ...}."""
 
+
 @app.get("/api/bidragssatser")
-def api_bidragssatser(institute: str | None = None, loan_type: str | None = None) -> dict:
+def api_bidragssatser(
+    institute: str | None = None, loan_type: str | None = None
+) -> dict:
     """Bidragssatser by institute × LTV × loan type × afdragsfrihed.
     Returns flat list of BidragssatsEntry dicts, optionally filtered."""
+
 
 @app.get("/api/bond-prices")
 def api_bond_prices() -> dict:
     """Current fixed-rate bond prices (kurs). Flexlån always 100 (par)."""
 
+
 @app.get("/api/reference-rates/{rate_type}")
 def api_reference_rates(rate_type: str) -> dict:
     """Reference rate (CIBOR 3M/6M, CITA 3M, DESTR). Cached per source."""
+
 
 @app.post("/api/market-rates/refresh")
 def api_market_rates_refresh() -> dict:
