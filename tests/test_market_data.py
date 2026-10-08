@@ -540,3 +540,52 @@ class TestNormalization:
         assert "Jyske Frihed" not in _BIDRAGSSATS_COLUMN_TO_LOAN_TYPES
         assert "Flekskort" not in _BIDRAGSSATS_COLUMN_TO_LOAN_TYPES
         assert "F-kort" not in _BIDRAGSSATS_COLUMN_TO_LOAN_TYPES
+
+
+# ─── Last-good fallback test ──────────────────────────────────────────
+
+
+class TestLastGoodFallback:
+    def test_stale_cache_served_on_fetch_failure(self):
+        """When a fetch fails and a stale cache exists, the stale value
+        should be served rather than returning None."""
+        import tempfile
+        from datetime import datetime, timedelta, timezone
+
+        import boligregner.market_data as md
+
+        orig_cache_dir = md.CACHE_DIR
+        orig_cached_rates = md._CACHED_RATES
+        with tempfile.TemporaryDirectory() as td:
+            md.CACHE_DIR = Path(td)
+            md._CACHED_RATES = None
+            try:
+                # Write a stale cache entry for ecb
+                old_time = (
+                    datetime.now(timezone.utc) - timedelta(hours=48)
+                ).isoformat()
+                md._write_cache(
+                    "ecb",
+                    {
+                        "fetched_at": old_time,
+                        "ttl_seconds": 3600,
+                        "data": "0.0403",
+                    },
+                )
+
+                # Mock ALL fetchers to fail
+                orig_fetchers = dict(md._SOURCE_FETCHERS)
+                for name in md._SOURCE_FETCHERS:
+                    md._SOURCE_FETCHERS[name] = lambda: (_ for _ in ()).throw(
+                        RuntimeError("network down")
+                    )
+                try:
+                    rates = md.get_market_rates(force_refresh=True)
+                    # The stale ecb value should be in bank_rate
+                    assert rates.bank_rate == Decimal("0.0403")
+                    assert "stale" in rates.sources.get("ecb", "")
+                finally:
+                    md._SOURCE_FETCHERS = orig_fetchers
+            finally:
+                md.CACHE_DIR = orig_cache_dir
+                md._CACHED_RATES = orig_cached_rates

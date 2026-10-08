@@ -937,7 +937,9 @@ def _fetch_and_cache(source_name: str) -> tuple[object | None, str]:
         return None, f"failed: {exc}"
 
     # Serialize result to cache
-    if hasattr(result, "model_dump"):
+    if isinstance(result, list) and result and hasattr(result[0], "model_dump"):
+        data = [e.model_dump(mode="json") for e in result]
+    elif hasattr(result, "model_dump"):
         data = result.model_dump(mode="json")
     elif isinstance(result, Decimal):
         data = str(result)
@@ -1151,13 +1153,15 @@ def get_bond_prices() -> dict:
             "source": "nordea.dk",
         }
     return {
-        "fixed_coupon": str(nordea.fixed_coupon) if nordea.fixed_coupon else None,
-        "fixed_kurs": str(nordea.fixed_kurs) if nordea.fixed_kurs else None,
+        "fixed_coupon": str(nordea.fixed_coupon)
+        if nordea.fixed_coupon is not None
+        else None,
+        "fixed_kurs": str(nordea.fixed_kurs) if nordea.fixed_kurs is not None else None,
         "f3_kontantrente": str(nordea.f3_kontantrente)
-        if nordea.f3_kontantrente
+        if nordea.f3_kontantrente is not None
         else None,
         "f5_kontantrente": str(nordea.f5_kontantrente)
-        if nordea.f5_kontantrente
+        if nordea.f5_kontantrente is not None
         else None,
         "fetched_at": cached.get("fetched_at"),
         "source": "nordea.dk",
@@ -1265,11 +1269,7 @@ def build_preset_from_market(
                     comp.rate = max(Decimal(0), nominal)
 
             # Override bidragssats for realkredit components
-            if (
-                comp.component.value == "realkredit"
-                if hasattr(comp.component, "value")
-                else True
-            ):
+            if comp.component.value == "realkredit":
                 afdragsfrihed = comp.interest_only_years > 0
                 key = BidragssatsKey(
                     institute=institute,
