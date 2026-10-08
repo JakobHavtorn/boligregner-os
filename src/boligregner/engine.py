@@ -868,7 +868,13 @@ def _horizon_scenarios(
                 else _ZERO
             )
             bidrag_total = bidrag_charge * Decimal(horizon_n)
-            rente_total += (comp_interest + bidrag_total) * (_ONE - tax_rate)
+            # FIXED: bidrag is tax-deductible (part of coupon interest).
+            # Flexlån (F1/F3/F5/T/CITA/CIBOR/DESTR): bidrag is an admin fee,
+            # not tax-deductible. Only the nominal interest is tax-deductible.
+            if spec.loan_type == LoanType.FIXED:
+                rente_total += (comp_interest + bidrag_total) * (_ONE - tax_rate)
+            else:
+                rente_total += comp_interest * (_ONE - tax_rate) + bidrag_total
             afdrag_total += comp_principal
             restgaeld_total += balance
 
