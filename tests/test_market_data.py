@@ -185,6 +185,28 @@ class TestMybankerBidragssatserParser:
         assert Institute.NORDEA in institutes
         assert Institute.RD in institutes
 
+    def test_fetch_raises_on_empty_parse(self):
+        """An empty parse (layout change) must raise, not cache success."""
+        from boligregner.market_data import _fetch_mybanker_bidragssatser
+
+        with pytest.MonkeyPatch.context() as mp:
+            mp.setattr(
+                "boligregner.market_data._http_get",
+                lambda _: "<html><body></body></html>",
+            )
+            mp.setattr(
+                "boligregner.market_data._parse_mybanker_bidragssatser",
+                lambda _: [],
+            )
+            with pytest.raises(ValueError, match="no bidragssats entries"):
+                _fetch_mybanker_bidragssatser()
+
+    def test_parse_raises_on_layout_change_html(self):
+        """HTML with no recognizable tables yields no entries (the raise
+        happens in the _fetch_ wrapper, not the parser)."""
+        entries = _parse_mybanker_bidragssatser("<html><body>no tables</body></html>")
+        assert entries == []
+
 
 # ─── RD.dk nominal rates parser ─────────────────────────────────────
 

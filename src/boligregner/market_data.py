@@ -526,7 +526,10 @@ def _fetch_mybanker_bidragssatser() -> list[BidragssatsEntry]:
     last-good cache instead of caching an empty success.
     """
     html_text = _http_get(MYBANKER_URL)
-    return _parse_mybanker_bidragssatser(html_text)
+    entries = _parse_mybanker_bidragssatser(html_text)
+    if not entries:
+        raise ValueError("mybanker.dk returned no bidragssats entries (layout change?)")
+    return entries
 
 
 def _parse_mybanker_bidragssatser(html_text: str) -> list[BidragssatsEntry]:
@@ -955,10 +958,10 @@ def _fetch_and_cache(source_name: str) -> tuple[object | None, str]:
     ) as exc:  # fetchers must not crash the aggregate
         return None, f"failed: {exc}"
 
-    # An empty parse result (e.g. mybanker layout change returning []) is not
-    # distinguishable from real data here — it gets cached with status "ok"
-    # and blocks re-fetch for the full TTL.  Fix: make fetchers raise on empty
-    # results so the failure path above applies instead.
+    # Fetchers must raise on empty/invalid results (e.g. a layout change
+    # parsing to zero entries) so this failure path invalidates the cache
+    # and last-good fallback engages — an empty result must never be
+    # cached as a success.
     if isinstance(result, list) and result and hasattr(result[0], "model_dump"):
         data = [e.model_dump(mode="json") for e in result]
     elif hasattr(result, "model_dump"):
