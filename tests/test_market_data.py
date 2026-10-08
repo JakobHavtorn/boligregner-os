@@ -472,7 +472,7 @@ class TestCacheLayer:
     def test_is_expired_with_old_timestamp(self):
         from boligregner.market_data import _is_expired
 
-        old = {"fetched_at": "2020-01-01T00:00:00+00:00", "ttl_seconds": 3600}
+        old = {"fetched_at": "2020-01-01T00:00:00+00:00"}
         assert _is_expired(old, 3600) is True
 
     def test_is_not_expired_with_recent_timestamp(self):
@@ -482,7 +482,6 @@ class TestCacheLayer:
 
         recent = {
             "fetched_at": datetime.now(UTC).isoformat(),
-            "ttl_seconds": 3600,
         }
         assert _is_expired(recent, 3600) is False
 
@@ -587,7 +586,6 @@ class TestLastGoodFallback:
                     "ecb",
                     {
                         "fetched_at": old_time,
-                        "ttl_seconds": 3600,
                         "data": "0.0403",
                     },
                 )

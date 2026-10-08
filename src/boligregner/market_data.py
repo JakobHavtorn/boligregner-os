@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import re
 import xml.etree.ElementTree as ET
 import zipfile
@@ -65,9 +66,11 @@ FINANSDANMARK_URL = (
 )
 JYSKE_URL = "https://www.jyskebank.dk/bolig/boliglaan/referencerenter"
 
-CACHE_DIR = Path(__file__).resolve().parents[2] / "data" / "cache"
+_DEFAULT_CACHE_DIR = Path(__file__).resolve().parents[2] / "data" / "cache"
 # parents[2] is the repo root in the src/ checkout layout.  In an installed
-# package this resolves inside site-packages, where the process cannot write.
+# package this resolves inside site-packages, where the process cannot write —
+# override with BOLIGREGNER_CACHE_DIR.
+CACHE_DIR = Path(os.environ.get("BOLIGREGNER_CACHE_DIR") or _DEFAULT_CACHE_DIR)
 
 CACHE_TTL: dict[str, int] = {
     "dst": 24 * 3600,
@@ -972,8 +975,7 @@ def _fetch_and_cache(source_name: str) -> tuple[object | None, str]:
         data = result
 
     cache_entry = {
-        # ttl_seconds is informational only; _is_expired re-reads CACHE_TTL
-        "ttl_seconds": CACHE_TTL[source_name],
+        "fetched_at": datetime.now(UTC).isoformat(),
         "data": data,
     }
     _write_cache(source_name, cache_entry)
