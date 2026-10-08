@@ -59,6 +59,7 @@ def _make_alt(
     interest_only_years: int = 0,
     fixed_ydelse: Decimal | None = None,
     reference_rate: Decimal | None = None,
+    margin: Decimal | None = None,
     par_cap: bool = False,
 ) -> FinancingAlternative:  # type: ignore[name-defined]
     """Build a two-component alternative (realkredit + bank)."""
@@ -578,20 +579,15 @@ def _compute_component(
         # Par cap: hovedstol at par (= provenu), bond issued at 100
         hovedstol = component_provenu
         kursvaerdi = hovedstol  # at par, not price-discounted
-        if spec.issue_costs_nominal is not None and spec.issue_costs_nominal > _ZERO:
-            udstedelse = spec.issue_costs_nominal
-        else:
-            udstedelse = hovedstol * spec.issue_costs_pct
-        kontant = kursvaerdi - udstedelse
         par_capped = True
     else:
         hovedstol = derived_hovedstol
         kursvaerdi = hovedstol * spec.price / _HUNDRED
-        if spec.issue_costs_nominal is not None and spec.issue_costs_nominal > _ZERO:
-            udstedelse = spec.issue_costs_nominal
-        else:
-            udstedelse = hovedstol * spec.issue_costs_pct
-        kontant = kursvaerdi - udstedelse
+    if spec.issue_costs_nominal is not None and spec.issue_costs_nominal > _ZERO:
+        udstedelse = spec.issue_costs_nominal
+    else:
+        udstedelse = hovedstol * spec.issue_costs_pct
+    kontant = kursvaerdi - udstedelse
 
     ppy = spec.payments_per_year
     # In split mode, the rate path excludes bidrag (nominal rate only);
@@ -1110,7 +1106,7 @@ def calculate(input: CalculatorInput) -> CalculatorResult:
     alt_summaries: list[AlternativeSummary] = []
     horizon_analyses: list[HorizonAnalysis] = []
     for alt in input.alternatives:
-        comp_results: list[tuple[LoanSpec, LoanComponentResult]] = []
+        comp_results: list[tuple[int, LoanSpec, LoanComponentResult]] = []
         ltv_shares = _ltv_shares(input, alt.components)
         # Two-pass: compute realkredit first, then bank as residual if par cap fired
         realkredit_kontant = _ZERO
@@ -1121,7 +1117,7 @@ def calculate(input: CalculatorInput) -> CalculatorResult:
             share = ltv_shares[i] if ltv_shares is not None else spec.provenu_share
             comp_provenu = input.desired_provenu * share
             comp = _compute_component(spec, comp_provenu, input.tax_rate)
-            comp_results.append((spec, comp))
+            comp_results.append((i, spec, comp))
             realkredit_kontant += comp.kontant
             if comp.par_capped:
                 any_par_capped = True
@@ -1139,10 +1135,11 @@ def calculate(input: CalculatorInput) -> CalculatorResult:
                 share = ltv_shares[i] if ltv_shares is not None else spec.provenu_share
                 bank_provenu = input.desired_provenu * share
             comp_results.append(
-                (spec, _compute_component(spec, bank_provenu, input.tax_rate))
+                (i, spec, _compute_component(spec, bank_provenu, input.tax_rate))
             )
         # Restore original component order
-        comp_results.sort(key=lambda pair: alt.components.index(pair[0]))
+        comp_results.sort(key=lambda pair: pair[0])
+        comp_results = [(spec, comp) for _, spec, comp in comp_results]
 
         # Aggregate
         total_hovedstol = sum(r.hovedstol for _, r in comp_results)
