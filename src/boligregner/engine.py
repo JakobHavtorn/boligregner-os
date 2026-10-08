@@ -889,7 +889,7 @@ def _horizon_scenarios(
                 # = more option value = more duration reduction). Only for nonzero
                 # shocks; at 0% the issue_yield already accounts for the discount.
                 if shock != _ZERO and spec.bond_price_model == "finite_option":
-                    duration_adj = spec.prepayment_premium * Decimal(10)
+                    duration_adj = min(spec.prepayment_premium * Decimal(10), _ONE)
                     shocked_yield = base_yield + shock * (_ONE - duration_adj)
                 else:
                     shocked_yield = base_yield + shock

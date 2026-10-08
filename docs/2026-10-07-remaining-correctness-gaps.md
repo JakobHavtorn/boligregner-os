@@ -256,7 +256,7 @@ for obligationslån vs flexlån.
 Gap 2: reduced-duration heuristic scales the yield shock by (1 −
 prepayment_premium × 10) for FIXED bonds, approximating the OAS model's
 lower effective duration for callable bonds. Only affects nonzero shocks
-on finite/finite_option pricing models.
+on the finite_option pricing model.
 
 Gap 3: par_cap field on LoanSpec caps realkredit hovedstol at the
 component's provenu share (par). The bank loan absorbs the residual
