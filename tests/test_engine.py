@@ -1570,6 +1570,7 @@ REFERENCE_CASES: list[dict] = [
                             issue_costs_pct=Decimal("0.018511"),
                             bidragssats=Decimal("0.0095"),
                             provenu_share=Decimal("0.80"),
+                            par_cap=True,
                         ),
                         LoanSpec(
                             component=LoanComponent.BANK,
@@ -1619,6 +1620,7 @@ REFERENCE_CASES: list[dict] = [
                             issue_costs_pct=Decimal("0.019114"),
                             bidragssats=Decimal("0.0095"),
                             provenu_share=Decimal("0.80"),
+                            par_cap=True,
                         ),
                         LoanSpec(
                             component=LoanComponent.BANK,

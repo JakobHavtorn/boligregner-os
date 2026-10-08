@@ -59,7 +59,7 @@ def _make_alt(
     interest_only_years: int = 0,
     fixed_ydelse: Decimal | None = None,
     reference_rate: Decimal | None = None,
-    margin: Decimal | None = None,
+    par_cap: bool = False,
 ) -> FinancingAlternative:  # type: ignore[name-defined]
     """Build a two-component alternative (realkredit + bank)."""
     from .models import FinancingAlternative
@@ -73,6 +73,7 @@ def _make_alt(
         issue_costs_pct=issue_pct,
         bidragssats=realkredit_bidrag,
         provenu_share=_ONE - bank_share,
+        par_cap=par_cap,
     )
     if interest_only_years:
         realkredit_kwargs["interest_only_years"] = interest_only_years
@@ -566,19 +567,31 @@ def _compute_component(
     tax_rate: Decimal,
 ) -> LoanComponentResult:
     """Compute all per-component numbers from a LoanSpec + the provenu slice."""
-    hovedstol = _hovedstol_for_provenu(
+    derived_hovedstol = _hovedstol_for_provenu(
         component_provenu,
         spec.price,
         spec.issue_costs_pct,
         spec.issue_costs_nominal,
     )
-
-    kursvaerdi = hovedstol * spec.price / _HUNDRED
-    if spec.issue_costs_nominal is not None and spec.issue_costs_nominal > _ZERO:
-        udstedelse = spec.issue_costs_nominal
+    par_capped = False
+    if spec.par_cap and derived_hovedstol > component_provenu:
+        # Par cap: hovedstol at par (= provenu), bond issued at 100
+        hovedstol = component_provenu
+        kursvaerdi = hovedstol  # at par, not price-discounted
+        if spec.issue_costs_nominal is not None and spec.issue_costs_nominal > _ZERO:
+            udstedelse = spec.issue_costs_nominal
+        else:
+            udstedelse = hovedstol * spec.issue_costs_pct
+        kontant = kursvaerdi - udstedelse
+        par_capped = True
     else:
-        udstedelse = hovedstol * spec.issue_costs_pct
-    kontant = kursvaerdi - udstedelse
+        hovedstol = derived_hovedstol
+        kursvaerdi = hovedstol * spec.price / _HUNDRED
+        if spec.issue_costs_nominal is not None and spec.issue_costs_nominal > _ZERO:
+            udstedelse = spec.issue_costs_nominal
+        else:
+            udstedelse = hovedstol * spec.issue_costs_pct
+        kontant = kursvaerdi - udstedelse
 
     ppy = spec.payments_per_year
     # In split mode, the rate path excludes bidrag (nominal rate only);
@@ -656,7 +669,7 @@ def _compute_component(
         component=spec.component,
         loan_type=spec.loan_type,
         hovedstol=hovedstol,
-        gns_kurs=spec.price,
+        gns_kurs=_HUNDRED if par_capped else spec.price,
         kursvaerdi=kursvaerdi,
         udstedelsesomkostning=udstedelse,
         kontant=kontant,
@@ -665,6 +678,7 @@ def _compute_component(
         aap_before_tax=aap,
         interest_only_years=spec.interest_only_years,
         actual_maturity_years=actual_maturity_years,
+        par_capped=par_capped,
     )
 
 
@@ -1080,12 +1094,37 @@ def calculate(input: CalculatorInput) -> CalculatorResult:
     for alt in input.alternatives:
         comp_results: list[tuple[LoanSpec, LoanComponentResult]] = []
         ltv_shares = _ltv_shares(input, alt.components)
+        # Two-pass: compute realkredit first, then bank as residual if par cap fired
+        realkredit_kontant = _ZERO
+        any_par_capped = False
         for i, spec in enumerate(alt.components):
+            if spec.component != LoanComponent.REALKREDIT:
+                continue
             share = ltv_shares[i] if ltv_shares is not None else spec.provenu_share
             comp_provenu = input.desired_provenu * share
+            comp = _compute_component(spec, comp_provenu, input.tax_rate)
+            comp_results.append((spec, comp))
+            realkredit_kontant += comp.kontant
+            if comp.par_capped:
+                any_par_capped = True
+        # Bank components: residual provenu if any realkredit was par-capped
+        bank_specs = [s for s in alt.components if s.component == LoanComponent.BANK]
+        total_bank_share = sum(s.provenu_share for s in bank_specs)
+        for i, spec in enumerate(alt.components):
+            if spec.component != LoanComponent.BANK:
+                continue
+            if any_par_capped and total_bank_share > _ZERO:
+                bank_provenu = (input.desired_provenu - realkredit_kontant) * (
+                    spec.provenu_share / total_bank_share
+                )
+            else:
+                share = ltv_shares[i] if ltv_shares is not None else spec.provenu_share
+                bank_provenu = input.desired_provenu * share
             comp_results.append(
-                (spec, _compute_component(spec, comp_provenu, input.tax_rate))
+                (spec, _compute_component(spec, bank_provenu, input.tax_rate))
             )
+        # Restore original component order
+        comp_results.sort(key=lambda pair: alt.components.index(pair[0]))
 
         # Aggregate
         total_hovedstol = sum(r.hovedstol for _, r in comp_results)
