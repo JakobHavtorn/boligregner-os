@@ -1351,7 +1351,8 @@ class TestAmortizationScheduleInvariants:
 #   hovedstol: exact (==) for single-component; 1% relative for 4%+bank
 #   ydelse: 5% relative (single-component), 20% relative (with-bank)
 #   aap: 0.5pp absolute (as fraction 0.005)
-#   horizon rente: 5% (flexlån H1 model), 5% (fixed)
+#   horizon rente: 11.5% (flexlån: deductible-tax residual unexplained),
+#                  5% (fixed)
 #   horizon afdrag: 20%
 #   horizon ydelse: 20% (flexlån), 5% (fixed)
 #   horizon restgaeld: 5%
@@ -1434,8 +1435,8 @@ REFERENCE_CASES: list[dict] = [
             "ydelse": Decimal("0.05"),
             "aap": Decimal("0.005"),
             "horizon_rente": Decimal(
-                "0.05"
-            ),  # flexlån: bidrag not tax-deductible (H1 model)
+                "0.115"
+            ),  # flexlån: bidrag tax-deductible per tax law; residual unexplained
             "horizon_afdrag": Decimal("0.20"),
             "horizon_ydelse": Decimal("0.20"),
             "horizon_restgaeld": Decimal("0.05"),
@@ -1487,8 +1488,8 @@ REFERENCE_CASES: list[dict] = [
             "ydelse": Decimal("0.05"),
             "aap": Decimal("0.005"),
             "horizon_rente": Decimal(
-                "0.05"
-            ),  # flexlån: bidrag not tax-deductible (H1 model)
+                "0.115"
+            ),  # flexlån: bidrag tax-deductible per tax law; residual unexplained
             "horizon_afdrag": Decimal("0.20"),
             "horizon_ydelse": Decimal("0.20"),
             "horizon_restgaeld": Decimal("0.05"),

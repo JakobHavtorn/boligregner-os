@@ -864,13 +864,11 @@ def _horizon_scenarios(
                 else _ZERO
             )
             bidrag_total = bidrag_charge * Decimal(horizon_n)
-            # For fixed-rate obligations, bidrag is part of the coupon and
-            # tax-deductible. For all other loan types (F1/F3/F5/T/CITA/
-            # CIBOR/DESTR), bidrag is an admin fee, not tax-deductible.
-            if spec.loan_type == LoanType.FIXED:
-                rente_total += (comp_interest + bidrag_total) * (_ONE - tax_rate)
-            else:
-                rente_total += comp_interest * (_ONE - tax_rate) + bidrag_total
+            # Bidrag is tax-deductible like interest (SL § 6 stk. 1 e / UfR
+            # 1947.725 HRD) for all realkredit loan types; boligregner.dk
+            # documents the same (1-skattesats) treatment for renter and
+            # bidrag alike.
+            rente_total += (comp_interest + bidrag_total) * (_ONE - tax_rate)
             afdrag_total += comp_principal
             restgaeld_total += balance
 

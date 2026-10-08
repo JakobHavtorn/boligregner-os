@@ -34,10 +34,16 @@ before-tax value (511.221). Two hypotheses were tested:
 2. **Both tax-deductible** (rente = (comp_interest + bidrag) × (1−tax)):
    F3 → 339.789 (11.2% off, bad), but 4% fixed → 408.427 (0.7% off, good).
 
-No single formula matches both flexlån and fixed. The reference likely computes flexlån
-rente differently — possibly because flexlån interest resets every 3/5 years, and the
-reference may use a different amortization schedule or tax treatment for the rate-reset
-period vs the full 30-year term.
+No single formula matches both flexlån and fixed.
+
+**Hypothesis 2 is the correct one**: Danish tax law treats bidrag as
+fradragsberettiget (SL § 6 stk. 1 e; UfR 1947.725 HRD — renter og fondsbidrag).
+boligregner.dk's own ordforklaring states: "Renter og bidrag er ganget med
+(1-skattesatsen) for at tage højde for, at disse udgifter er fradragsberettigede."
+No source distinguishes flexlån from fastrente. We keep both
+tax-deductible and accept the flexlån residual as unexplained; do not bend
+the engine to match the reference by treating some loan types' bidrag as
+non-deductible.
 
 ### Proposed fix
 
@@ -238,8 +244,8 @@ existing tests that assert specific hovedstol values.
 
 | Gap | Metric | Before deviation | After deviation | Root cause | Fix |
 |-----|--------|-------------------|-----------------|------------|-----|
-| 1 | Flexlån rente_h | 8–11% | 0.6–0.9% | Bidrag not tax-deductible for flexlån in horizon rente | H1 model: non-FIXED uses comp_interest×(1−tax)+bidrag |
-| 1 | Flexlån ydelse_h | 7.9–8.3% | 1.8–2.3% | (same + afdrag schedule gap) | (same; remaining gap from annuity schedule) |
+| 1 | Flexlån rente_h | 8–11% | 11.2% | Both-tax-deductible model kept (matches tax law); residual unexplained | Do NOT bend tax treatment to close the number |
+| 1 | Flexlån ydelse_h | 7.9–8.3% | 7.9–8.3% | (same root cause, unresolved) | (open; afdrag schedule gap) |
 | 2 | gns_kurs +2% shock | 4.17pp* | 0.03pp | OAS-like lower effective duration | Reduced-duration: shock × (1−prepayment_premium×10) |
 | 2 | gns_kurs 0% shock | 1.87pp* | 0.71pp | Issue yield accuracy | (unchanged; pull-to-par path) |
 | 2 | gns_kurs −2% shock | 0.00pp | 0.10pp | Cap at par+premium | (unchanged) |
@@ -248,10 +254,13 @@ existing tests that assert specific hovedstol values.
 * Gap 2 "before" values compare bond price to weighted gns_kurs (apples-to-oranges).
   Actual weighted gns_kurs gaps before fix: 0%=0.71pp, +2%=0.60pp, −2%=0.10pp.
 
-Gap 1: flexlån horizon rente now treats bidrag as non-tax-deductible
-(administration fee), while FIXED treats bidrag as tax-deductible (part
-of coupon interest). This matches boligregner.dk's different tax treatment
-for obligationslån vs flexlån.
+Gap 1: flexlån horizon rente keeps both bidrag and rente as tax-deductible,
+per Danish tax law (SL § 6; ligningsvejledningen C.A.11.x — UfR 1947.725 HRD
+treats renter og fondsbidrag as deductible) and boligregner.dk's own
+ordforklaring ("Renter og bidrag er ganget med (1-skattesatsen)…"). The
+earlier "fixed = deductible, flex = non-deductible" hypothesis was a
+curve-fit rescuing numbers, not tax law. No principled mechanism found; the
+11.2% residual is left open.
 
 Gap 2: reduced-duration heuristic scales the yield shock by (1 −
 prepayment_premium × 10) for FIXED bonds, approximating the OAS model's
