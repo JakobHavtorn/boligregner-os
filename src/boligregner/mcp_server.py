@@ -22,8 +22,10 @@ from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from pydantic import BaseModel, Field, ValidationError
 
+from .engine import PRESETS, calculate
 from .market_data import get_market_rates as _get_market_rates_impl
 from .models import (
+    CalculatorInput,
     Ejendomstype,
     FinancingAlternative,
     LoanComponent,

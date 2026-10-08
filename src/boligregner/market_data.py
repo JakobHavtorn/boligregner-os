@@ -343,14 +343,6 @@ _BIDRAGSSATS_COLUMN_TO_LOAN_TYPES: dict[str, list[LoanType]] = {
     "Flekslån F5 &amp; Kort Rente": [LoanType.F5],
 }
 
-# Reverse lookup: which bidragssats column to use for a given LoanType.
-_LOAN_TYPE_TO_BIDRAGSSATS_COLUMN: dict[LoanType, str] = {
-    LoanType.F1: "Flekslån F1-F2",
-    LoanType.F3: "Flekslån F3-F4",
-    LoanType.F5: "Flekslån F5",
-    LoanType.FIXED: "Fastforrentet lån",
-}
-
 
 def _normalize_ltv_band(text: str) -> LTVBand | None:
     """Parse an LTV band string from Mybanker.dk row labels."""
@@ -1010,7 +1002,11 @@ def get_market_rates(force_refresh: bool = False) -> MarketRates:
     global _CACHED_RATES
 
     if not force_refresh and _CACHED_RATES is not None:
-        return _CACHED_RATES
+        # Check if the in-memory cache is still fresh (use shortest TTL)
+        min_ttl = min(CACHE_TTL.values())
+        age = (datetime.now(timezone.utc) - _CACHED_RATES.fetched_at).total_seconds()
+        if age <= min_ttl:
+            return _CACHED_RATES
 
     now = datetime.now(timezone.utc)
     rates = MarketRates(fetched_at=now)
@@ -1067,7 +1063,13 @@ def _apply_source(rates: MarketRates, source_name: str, result: object) -> None:
     elif source_name == "finansdanmark":
         rates.lang_obligationsrente = result  # type: ignore[assignment]
     elif source_name == "jyske_ref":
-        rates.reference_rates = result  # type: ignore[assignment]
+        jyske = result
+        if jyske.cibor_3m is not None:
+            rates.reference_rates.cibor_3m = jyske.cibor_3m
+        if jyske.cibor_6m is not None:
+            rates.reference_rates.cibor_6m = jyske.cibor_6m
+        if jyske.cita_3m is not None:
+            rates.reference_rates.cita_3m = jyske.cita_3m
     elif source_name == "destr":
         rates.reference_rates.destr = result  # type: ignore[assignment]
 
@@ -1136,7 +1138,7 @@ def get_bond_prices() -> dict:
             "f3_kontantrente": None,
             "f5_kontantrente": None,
             "fetched_at": None,
-            "source": "nornea.dk",
+            "source": "nordea.dk",
         }
     nordea = _deserialize_cached("nordea", cached.get("data"))
     if nordea is None:
@@ -1225,9 +1227,13 @@ def build_preset_from_market(
     for alt in preset.alternatives:
         for comp in alt.components:
             if comp.loan_type == LoanType.FIXED:
-                # Fixed-rate: override coupon rate and bond price from Nordea
+                # Fixed-rate: override coupon rate from Nordea, fall back to
+                # Finans Danmark lang obligationsrente as a proxy
                 if rates.fixed_coupon_rate is not None:
                     comp.rate = max(Decimal(0), rates.fixed_coupon_rate)
+                elif rates.lang_obligationsrente is not None:
+                    comp.rate = max(Decimal(0), rates.lang_obligationsrente)
+                # Bond price (kurs) from Nordea only
                 if rates.fixed_bond_price is not None:
                     comp.price = rates.fixed_bond_price
 

@@ -415,3 +415,128 @@ class TestBuildPresetFromMarket:
         rates = MarketRates(fetched_at=datetime.now())
         with pytest.raises(ValueError, match="Unknown preset"):
             build_preset_from_market(rates, preset_name="nonexistent")
+
+
+# ─── Cache tests ──────────────────────────────────────────────────────
+
+
+class TestCacheLayer:
+    def test_write_and_read_cache(self, tmp_path=None):
+        import tempfile
+
+        import boligregner.market_data as md
+        from boligregner.market_data import CACHE_DIR, _read_cache, _write_cache
+
+        # Use a temp dir to avoid polluting real cache
+        orig_cache_dir = md.CACHE_DIR
+        with tempfile.TemporaryDirectory() as td:
+            md.CACHE_DIR = Path(td)
+            try:
+                _write_cache(
+                    "test_source",
+                    {"fetched_at": "2026-01-01T00:00:00+00:00", "data": "0.04"},
+                )
+                cached = _read_cache("test_source")
+                assert cached is not None
+                assert cached["data"] == "0.04"
+                assert "fetched_at" in cached
+            finally:
+                md.CACHE_DIR = orig_cache_dir
+
+    def test_read_missing_cache_returns_none(self):
+        from boligregner.market_data import _read_cache
+
+        assert _read_cache("nonexistent_source") is None
+
+    def test_is_expired_with_old_timestamp(self):
+        from boligregner.market_data import _is_expired
+
+        old = {"fetched_at": "2020-01-01T00:00:00+00:00", "ttl_seconds": 3600}
+        assert _is_expired(old, 3600) is True
+
+    def test_is_not_expired_with_recent_timestamp(self):
+        from datetime import datetime, timezone
+
+        from boligregner.market_data import _is_expired
+
+        recent = {
+            "fetched_at": datetime.now(timezone.utc).isoformat(),
+            "ttl_seconds": 3600,
+        }
+        assert _is_expired(recent, 3600) is False
+
+    def test_corrupt_json_returns_none(self):
+        import tempfile
+
+        import boligregner.market_data as md
+        from boligregner.market_data import CACHE_DIR, _read_cache, _write_cache
+
+        orig_cache_dir = md.CACHE_DIR
+        with tempfile.TemporaryDirectory() as td:
+            md.CACHE_DIR = Path(td)
+            try:
+                path = Path(td) / "corrupt.json"
+                path.write_text("not valid json{{{{", encoding="utf-8")
+                assert _read_cache("corrupt") is None
+            finally:
+                md.CACHE_DIR = orig_cache_dir
+
+
+# ─── Normalization tests ──────────────────────────────────────────────
+
+
+class TestNormalization:
+    def test_ltv_band_zero_to_40(self):
+        from boligregner.market_data import _normalize_ltv_band
+
+        assert _normalize_ltv_band("0-40%") == LTVBand.ZERO_TO_40
+        assert _normalize_ltv_band("0-40") == LTVBand.ZERO_TO_40
+
+    def test_ltv_band_forty_to_60(self):
+        from boligregner.market_data import _normalize_ltv_band
+
+        assert _normalize_ltv_band("40-60%") == LTVBand.FORTY_TO_60
+        assert _normalize_ltv_band("40-60") == LTVBand.FORTY_TO_60
+
+    def test_ltv_band_over_60(self):
+        from boligregner.market_data import _normalize_ltv_band
+
+        assert _normalize_ltv_band("Over 60%") == LTVBand.OVER_60
+        assert _normalize_ltv_band("over 60") == LTVBand.OVER_60
+
+    def test_ltv_band_invalid(self):
+        from boligregner.market_data import _normalize_ltv_band
+
+        assert _normalize_ltv_band("invalid") is None
+        assert _normalize_ltv_band("") is None
+
+    def test_bidragssats_column_to_loan_types_fixed(self):
+        from boligregner.market_data import _BIDRAGSSATS_COLUMN_TO_LOAN_TYPES
+        from boligregner.models import LoanType
+
+        assert _BIDRAGSSATS_COLUMN_TO_LOAN_TYPES["Fastforrentet lån"] == [
+            LoanType.FIXED
+        ]
+
+    def test_bidragssats_column_to_loan_types_f3(self):
+        from boligregner.market_data import _BIDRAGSSATS_COLUMN_TO_LOAN_TYPES
+        from boligregner.models import LoanType
+
+        assert LoanType.F3 in _BIDRAGSSATS_COLUMN_TO_LOAN_TYPES["Flekslån F3-F4"]
+        assert LoanType.F3 in _BIDRAGSSATS_COLUMN_TO_LOAN_TYPES["Flekslån F3"]
+
+    def test_bidragssats_column_to_loan_types_f5(self):
+        from boligregner.market_data import _BIDRAGSSATS_COLUMN_TO_LOAN_TYPES
+        from boligregner.models import LoanType
+
+        assert _BIDRAGSSATS_COLUMN_TO_LOAN_TYPES["Flekslån F5"] == [LoanType.F5]
+        assert (
+            LoanType.F5 in _BIDRAGSSATS_COLUMN_TO_LOAN_TYPES["Flekslån F5 & Kort Rente"]
+        )
+
+    def test_bidragssats_column_skips_unknown(self):
+        from boligregner.market_data import _BIDRAGSSATS_COLUMN_TO_LOAN_TYPES
+
+        assert "Jyske Frihed" not in _BIDRAGSSATS_COLUMN_TO_LOAN_TYPES
+        assert "Flekskort" not in _BIDRAGSSATS_COLUMN_TO_LOAN_TYPES
+        assert "F-kort" not in _BIDRAGSSATS_COLUMN_TO_LOAN_TYPES

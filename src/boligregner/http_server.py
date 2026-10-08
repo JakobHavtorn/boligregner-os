@@ -101,9 +101,11 @@ def api_market_rates(loan_type: LoanType) -> dict:
     FIXED returns rate=None (use /api/bond-prices for fixed-rate data).
     """
     rate = get_nominal_rate(loan_type)
+    rates = get_market_rates()
     return {
         "loan_type": loan_type.value,
         "rate": str(rate) if rate is not None else None,
+        "fetched_at": rates.fetched_at.isoformat(),
     }
 
 
