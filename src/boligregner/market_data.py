@@ -347,9 +347,8 @@ _BIDRAGSSATS_COLUMN_TO_LOAN_TYPES: dict[str, list[LoanType]] = {
 def _normalize_ltv_band(text: str) -> LTVBand | None:
     """Parse an LTV band string from Mybanker.dk row labels."""
     t = text.strip().lower().rstrip("%").strip()
-    if "0-40" in t or t.startswith("0"):
-        if "40" in t:
-            return LTVBand.ZERO_TO_40
+    if "0-40" in t or (t.startswith("0") and "40" in t):
+        return LTVBand.ZERO_TO_40
     if "40-60" in t:
         return LTVBand.FORTY_TO_60
     if "over 60" in t or "over-60" in t or ">60" in t or "60-" in t:
@@ -933,7 +932,15 @@ def _fetch_and_cache(source_name: str) -> tuple[object | None, str]:
     fetcher = _SOURCE_FETCHERS[source_name]
     try:
         result = fetcher()
-    except Exception as exc:  # — fetchers must not crash the aggregate
+    except (
+        HTTPError,
+        URLError,
+        ValueError,
+        KeyError,
+        IndexError,
+        RuntimeError,
+        OSError,
+    ) as exc:  # fetchers must not crash the aggregate
         return None, f"failed: {exc}"
 
     # Serialize result to cache
@@ -987,7 +994,7 @@ def _deserialize_cached(source_name: str, data: object) -> object | None:
             return ReferenceRates.model_validate(data)
         elif source_name == "destr":
             return Decimal(str(data))
-    except Exception:
+    except (ValueError, KeyError, TypeError):
         return None
     return None
 
