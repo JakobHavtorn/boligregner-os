@@ -10,7 +10,6 @@ from __future__ import annotations
 from datetime import date
 from decimal import Decimal
 from enum import Enum
-from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
@@ -73,13 +72,13 @@ class LoanSpec(BaseModel):
         "For CITA/CIBOR/DESTR this is auto-computed as reference_rate + margin.",
     )
     price: Decimal = Field(
-        default=Decimal("100"),
+        default=Decimal(100),
         description="Current price/kurs of the obligation. "
         "100 for flexlån (par); e.g. 94.52 for a discounted 4% obligation.",
     )
     maturity_years: int = Field(..., ge=1, le=40, description="Loan term in years.")
     issue_costs_pct: Decimal = Field(
-        default=Decimal("0"),
+        default=Decimal(0),
         description="Udstedelsesomkostninger as a fraction of hovedstol, e.g. 0.0177. "
         "Mutually exclusive with issue_costs_nominal.",
     )
@@ -90,18 +89,35 @@ class LoanSpec(BaseModel):
         "effective percentage for hovedstol derivation.",
     )
     redemption_price: Decimal = Field(
-        default=Decimal("100"),
+        default=Decimal(100),
         description="Indfrielseskurs as a percent of hovedstol, used in horizon payoff.",
     )
     provenu_share: Decimal = Field(
-        default=Decimal("1"),
+        default=Decimal(1),
         description="Fraction of desired_provenu this component funds. "
         "Components in one alternative should sum to 1.0. Default 1.0 = sole component.",
     )
     bidragssats: Decimal = Field(
-        default=Decimal("0"),
+        default=Decimal(0),
         description="Annual administration fee (bidrag) as a fraction of hovedstol, "
         "e.g. 0.0055 = 0.55%/year. Added to effective rate for ydelse and ÅOP.",
+    )
+    bidrag_model: str = Field(
+        default="split",
+        description="How bidragssats is applied: 'split' (default) charges bidrag "
+        "as a separate fixed charge on the original hovedstol (matching boligregner.dk); "
+        "'compounded' adds it to the effective rate for ydelse and ÅOP.",
+    )
+    bond_price_model: str = Field(
+        default="finite_option",
+        description="Bond pricing model for indfrielse: 'finite_option' (default, "
+        "finite PV capped at par + prepayment_premium), 'finite' (PV of remaining "
+        "cashflows), 'simple' (perpetuity).",
+    )
+    prepayment_premium: Decimal = Field(
+        default=Decimal("0.005"),
+        description="Maximum premium above par (100) when prepayment option is in-the-money. "
+        "Used only with bond_price_model='finite_option'. 0.005 = 100.50 max.",
     )
     interest_only_years: int = Field(
         default=0,
@@ -109,6 +125,13 @@ class LoanSpec(BaseModel):
         le=10,
         description="Years of interest-only payments at the start (afdragsfrihed). "
         "0 = standard annuity from day one.",
+    )
+    payments_per_year: int = Field(
+        default=4,
+        ge=1,
+        le=12,
+        description="Payment frequency per year. Danish realkredit uses 4 (quarterly); "
+        "bank loans may use 12 (monthly). Default 4 matches boligregner.dk.",
     )
     fixed_ydelse: Decimal | None = Field(
         default=None,
@@ -136,12 +159,12 @@ class LoanSpec(BaseModel):
     @field_validator("price")
     @classmethod
     def price_range(cls, v: Decimal) -> Decimal:
-        if not (0 < v <= Decimal("200")):
+        if not (0 < v <= Decimal(200)):
             raise ValueError("price must be in (0, 200]")
         return v
 
     @model_validator(mode="after")
-    def validate_loan_constraints(self) -> "LoanSpec":
+    def validate_loan_constraints(self) -> LoanSpec:
         # Afdragsfrihed: interest_only_years must be < maturity_years
         if self.interest_only_years >= self.maturity_years:
             raise ValueError("interest_only_years must be less than maturity_years")
@@ -194,7 +217,7 @@ class CalculatorInput(BaseModel):
 
     desired_provenu: Decimal = Field(
         ...,
-        ge=Decimal("0"),
+        ge=Decimal(0),
         description="Ønsket provenu — net cash the borrower wants to receive.",
     )
     alternatives: list[FinancingAlternative] = Field(
@@ -211,12 +234,12 @@ class CalculatorInput(BaseModel):
         description="Marginal skat (efter skat): 0.336 = 33,6% tax rate → interest deduction reduces cost by this fraction.",
     )
     rate_shocks: list[Decimal] = Field(
-        default_factory=lambda: [Decimal("-0.02"), Decimal("0"), Decimal("+0.02")],
+        default_factory=lambda: [Decimal("-0.02"), Decimal(0), Decimal("+0.02")],
         description="Renteændring scenarios for horizon analysis: -0.02, 0, +0.02 → -2%, 0%, +2%.",
     )
     ejendomsvaerdi: Decimal | None = Field(
         default=None,
-        ge=Decimal("0"),
+        ge=Decimal(0),
         description="Ejendomsværdi — property value. When set together with "
         "ejendomstype, the realkredit/banklån split is auto-computed from "
         "the LTV bracket instead of using manual provenu_share values.",
@@ -228,7 +251,7 @@ class CalculatorInput(BaseModel):
     )
 
     @model_validator(mode="after")
-    def validate_ejendom_fields(self) -> "CalculatorInput":
+    def validate_ejendom_fields(self) -> CalculatorInput:
         if self.ejendomsvaerdi is not None and self.ejendomstype is None:
             raise ValueError("ejendomstype is required when ejendomsvaerdi is set")
         if self.ejendomstype is not None and self.ejendomsvaerdi is None:
