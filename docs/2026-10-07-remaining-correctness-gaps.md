@@ -2,176 +2,151 @@
 
 ## Context
 
-The engine now matches boligregner.dk closely on ydelse (0.0–0.4% off), ÅOP (0.02–0.08pp off),
-afdrag (0.0–6.7% off), and restgæld (0.0–0.8% off) for single-component loans. Three gaps remain.
-Each is documented below with root cause, evidence, and a proposed fix.
+The engine now matches boligregner.dk closely on ydelse (0.1–1.6% off), ÅOP
+(0.02–0.08pp off), afdrag (0.1–6.6% off), and restgæld (0.1–0.8% off) for
+single-component loans. Two gaps remain after the kontantlån hovedstol fix.
 
-Reference data was captured from boligregner.dk on Oct 5–6, 2026 (Session A: single-component,
-Session B: with-bank). See `local://boligregner-reference-data.md`.
-
----
-
-## Gap 1: Flexlån horizon rente and ydelse_total (8–11% off)
-
-### Symptoms
-
-| Loan | Rente (0% shock) | Ydelse_h (0% shock) |
-|------|-----------------|---------------------|
-| F3   | 339.789 vs 382.697 (11.2% off) | 613.194 vs 665.983 (7.9% off) |
-| F5   | 356.439 vs 393.498 (9.4% off) | 621.998 vs 678.002 (8.3% off) |
-
-The 4% fixed loan matches well (rente 0.7% off, ydelse_h 0.4% off), so the gap is specific
-to flexlån (F3/F5).
-
-### Root cause
-
-The horizon `rente_total` is after-tax: `(comp_interest + bidrag_total) × (1 − tax_rate)`.
-The reference rente (382.697 for F3) sits between our after-tax value (339.789) and the
-before-tax value (511.221). Two hypotheses were tested:
-
-1. **Bidrag not tax-deductible** (rente = comp_interest × (1−tax) + bidrag_total):
-   F3 → 380.423 (0.6% off, good), but 4% fixed → 440.402 (8.6% off, bad).
-2. **Both tax-deductible** (rente = (comp_interest + bidrag) × (1−tax)):
-   F3 → 339.789 (11.2% off, bad), but 4% fixed → 408.427 (0.7% off, good).
-
-No single formula matches both flexlån and fixed. The reference likely computes flexlån
-rente differently — possibly because flexlån interest resets every 3/5 years, and the
-reference may use a different amortization schedule or tax treatment for the rate-reset
-period vs the full 30-year term.
-
-### Proposed fix
-
-Investigate whether boligregner.dk computes flexlån horizon rente using:
-- A different compounding frequency for the interest charge (e.g., monthly compounding
-  on a quarterly-payment loan — interest accrues daily but payments are quarterly).
-- A different tax deduction base (e.g., rentefradrag calculated on coupon only, not
-  on the full annuity interest).
-- An entirely different amortization model for flexlån (e.g., interest-only during
-  the rate-reset period, then annuity on the remaining term).
-
-**Approach**: Capture the F3 detail-page ydelsestabel (amortization schedule) from
-boligregner.dk and compare period-by-period interest to our `_amortize` output. The
-per-period breakdown will reveal where the reference diverges.
-
-**Difficulty**: Medium — requires one more data capture session and per-period analysis.
+Reference data was captured from boligregner.dk on Oct 5–8, 2026 (Session A:
+single-component, Session B: with-bank, Oct 8: F1/F5/FIXED5 detail captures).
+See `local://boligregner-reference-data.md`.
 
 ---
 
-## Gap 2: gns_kurs at +2% rate shock (4.17pp off)
+## Gap 1 (RESOLVED): Flexlån hovedstol derivation
 
-### Symptoms
+### What was wrong
+
+The engine derived `obligationshovedstol` for ALL loan types by dividing
+provenu by the bond kurs:
+
+```
+hovedstol = round_up_1000(provenu / (kurs/100 - issue_costs_pct))
+```
+
+This is correct for fixed-rate obligations (obligationslån), but wrong for
+flexlån (F1/F3/F5), T-lån, and reference-rate loans (CITA/CIBOR/DESTR). These
+are **kontantlån** (cash loans) whose hovedstol equals their kursværdi at
+par — not the inflated obligationshovedstol from a discounted bond price.
+
+### Root cause (confirmed by boligregner.dk help text)
+
+boligregner.dk's details view states:
+
+> "Hovedstol: For kontantlån angives kontantlånshovedstolen, for
+> obligationslån obligationshovedstolen."
+
+And:
+
+> "Kursværdi: Lånets kursværdi beregnes som obligationshovedstolen ganget med
+> obligationskursen (tillagt eventuel prisskæring) og divideret med 100."
+
+For **kontantlån** (flexlån, T-lån, reference-rate loans):
+- hovedstol = kursværdi = round_up_1000(provenu + udst.omk) [nominal]
+- hovedstol = round_up_1000(provenu / (1 - issue_costs_pct)) [pct]
+- obligationshovedstol = round_up_1000(hovedstol / (kurs/100)) — tracked
+  separately, used for bond pricing/redemption
+
+For **obligationslån** (FIXED):
+- hovedstol = obligationshovedstol = old formula (unchanged)
+
+### Fix implemented
+
+- `_is_kontantlaan(loan_type)` — returns True for F1/F3/F5/T/CITA/CIBOR/DESTR,
+  False for FIXED.
+- `_hovedstol_for_provenu` — now accepts `kontantlaan: bool` and returns
+  `tuple[Decimal, Decimal]` (hovedstol, obligationshovedstol).
+- `_compute_component` — dispatches on loan type; sets `kursvaerdi = hovedstol`
+  for kontantlån (at par); stores `obligationshovedstol` in `LoanComponentResult`
+  when it differs from hovedstol.
+- `LoanComponentResult.obligationshovedstol: Decimal | None` — None for
+  obligationslån where it equals hovedstol.
+
+### Verification (Oct 8 captures, 0% shock, 5-year horizon)
+
+| Loan | Hovedstol | Ref | Match | Rente gap | Ydelse gap | Restgæld gap |
+|------|-----------|-----|-------|-----------|------------|--------------|
+| F5   | 2.547.000 | 2.547.000 | ✓ | +0.8% | +1.0% | −0.2% |
+| FIXED5 | 2.534.000 | 2.536.000 | ~ | +0.4% | +0.2% | −0.1% |
+| F1   | 2.545.000 | 2.545.000 | ✓ | −1.3% | +2.2% | −0.8% |
+
+**Before fix**: F5 rente gap was +10.3% (using obligationshovedstol 2.788.000).
+**After fix**: F5 rente gap is +0.8% (using kontantlån hovedstol 2.547.000).
+
+FIXED5 is unchanged — it's an obligationslån, fix doesn't apply. Its 2.000
+hovedstol discrepancy (2.534.000 vs 2.536.000) is from premium-bond rounding
+(kurs=100.41) and has negligible impact (0.4% gap).
+
+### F1 residual (−1.3% rente gap)
+
+F1's løbetid is 31 years (124 quarters) on boligregner.dk, but the engine uses
+`maturity_years=30` (120 quarters). With n=124, the gap shrinks to ~−2.3%
+(not better — the longer term reduces the annuity payment, widening the
+ydelse gap). The residual is likely from a different first-period rate or a
+rounding convention in F1's quarterly annuity. Investigation deferred.
+
+---
+
+## Gap 2: gns_kurs at nonzero rate shocks (3.4–3.7pp off)
+
+### Symptoms (Session A FIXED4: price=100, rate=4%, 30yr)
 
 | Shock | Engine | Reference | Gap |
 |-------|--------|-----------|-----|
-| 0%    | 94.46  | 96.33     | 1.87pp |
-| +2%   | 81.91  | 86.08     | 4.17pp |
+| 0%    | 100.00 | 96.33     | 3.67pp |
+| +2%   | 82.69  | 86.08     | −3.39pp |
 | −2%   | 100.50 | 100.50    | 0.00pp |
 
-The 0% gap was reduced from 3.67pp to 1.87pp via the hybrid pull-to-par fix (using
-issue yield as base yield at 0% shock only). The +2% gap remains.
+The −2% shock matches exactly (capped at par + premium). The 0% and +2%
+shocks remain off.
 
 ### Root cause
 
-The engine prices the bond as the present value of remaining cashflows at
-`yield = base_yield + shock`. At +2% shock, `base_yield = coupon_rate = 4%`, so
-`shocked_yield = 6%`. The finite-bond PV at 6% gives 81.91.
+The engine prices the bond as the present value of remaining cashflows.
+At par (price=100), the issue yield equals the coupon rate, so the 0% shock
+price = 100.00 — but boligregner.dk gives 96.33, suggesting their model
+factors in the prepayment option's cost even at par.
 
-The reference gives 86.08 — higher than our price, meaning the reference bond is
-less sensitive to rate shocks. This is consistent with an **OAS (option-adjusted
-spread) model** used by Scanrate (boligregner.dk's calculation engine).
+At +2% shock, `shocked_yield = coupon + shock × (1 − duration_adj)` where
+`duration_adj = min(prepayment_premium × 10, 1)` = 0.05. This gives
+`shocked_yield = 4% + 2% × 0.95 = 5.9%` and a bond price of 82.69. The
+reference gives 86.08 — still higher, consistent with an **OAS
+(option-adjusted spread) model** used by Scanrate.
 
-### What is an OAS model?
+### What's implemented
 
-**OAS** stands for **Option-Adjusted Spread**. It is a bond valuation method that
-separates a bond's yield into two components:
+A **reduced-duration heuristic** (commit `b81794a`): for FIXED bonds with
+`finite_option` pricing at nonzero shocks, the yield shock is scaled by
+`(1 − prepayment_premium × 10)`, approximating the callable bond's lower
+effective duration. `duration_adj` is clamped so it can't invert when
+`prepayment_premium > 0.10`.
 
-1. **The option-free spread** — the extra yield a bond offers over the risk-free
-   rate, ignoring any embedded options.
-2. **The option cost** — the value of embedded options (like the borrower's right
-   to prepay the mortgage).
-
-Danish realkredit bonds have an embedded **call option**: the borrower can prepay
-the mortgage at par (or par + a small premium) at any time. When interest rates rise,
-this option is out-of-the-money (the borrower won't prepay), so the bond behaves
-like a straight bond — its price drops. When rates fall, the option is
-in-the-money (borrowers prepay), capping the bond's upside.
-
-A standard finite-bond PV model (what we use) prices the bond as if the option
-doesn't exist. An OAS model:
-
-1. Projects many future interest-rate paths (using a stochastic model like
-   Hull-White or Black-Karasinski).
-2. For each path, simulates borrower prepayment behavior (a prepayment model).
-3. Discounts the expected cashflows (option-adjusted) at the risk-free rate
-   plus the OAS spread.
-4. The OAS is the spread that makes the model price equal the observed market price.
-
-The OAS model produces a **lower effective duration** than a straight bond because
-the prepayment option limits price upside when rates fall. This explains why the
-reference price (86.08) is higher than our finite-bond price (81.91) at +2% shock:
-the OAS model's effective duration is lower, so the price drops less for a given
-rate increase.
+This improved the +2% gap from 4.17pp (pre-heuristic, 81.91) to 3.39pp
+(82.69), but didn't close it. The −2% shock remains exact (0.00pp).
 
 ### Why we can't replicate it exactly
 
-Scanrate's OAS model uses:
-- A proprietary interest-rate model (calibrated to the Danish yield curve).
-- A proprietary prepayment model (calibrated to Danish borrower behavior data).
-- The current Danish yield curve (not just the coupon rate + shock).
+Scanrate's OAS model uses a proprietary interest-rate model calibrated to
+the Danish yield curve, a proprietary prepayment model, and the current
+yield curve — none of which are publicly available. Our finite-bond +
+prepayment-option-cap model approximates the OAS model but overestimates
+effective duration.
 
-These are not publicly available. Our finite-bond + prepayment-option-cap model
-(`bond_price_model = "finite_option"`) approximates the OAS model by:
-- Pricing the bond as a finite-bond PV (correct option-free value).
-- Capping the price at par + prepayment_premium (approximates the prepayment
-  option's effect when rates fall).
+### Further fix options
 
-This gives exact matches at −2% shock (100.50) and close matches at 0% shock
-(94.46 vs 96.33), but overestimates duration at +2% shock.
+**Option A: Calibrate duration_adj** — tune the multiplier (currently 10)
+to match Scanrate's price sensitivity. Data-fitting risk.
 
-### Proposed fix
+**Option B: Yield curve shift model** — non-parallel shift that steepens
+the yield curve. A +2% short-end shock might be +1.5% at 30-year.
 
-**Option A: Reduced-duration model (simpler)**
+**Option C: Full OAS** — Monte Carlo with Hull-White + prepayment model.
+Out of scope for an open-source calculator.
 
-Instead of full OAS, apply a duration adjustment that accounts for the prepayment
-option's effect on effective duration. The effective duration of a callable bond
-is lower than the modified duration of a straight bond. A simple heuristic:
-
-```
-effective_duration = modified_duration × (1 − option_value / bond_price)
-```
-
-where `option_value` is estimated from the prepayment_premium and the probability
-of the option being exercised. This would reduce the price sensitivity at +2%
-shock, pushing 81.91 toward 86.08.
-
-**Option B: Yield curve shift model (medium)**
-
-Instead of a parallel yield shift (`coupon + shock`), use a non-parallel shift
-that steepens the yield curve. Danish realkredit bonds are priced off the
-swap curve, and rate shocks don't move all maturities equally. A +2% shock
-to the short end might only be +1.5% at the 30-year point, giving a lower
-shocked yield and a higher price.
-
-**Option C: Full OAS implementation (hard)**
-
-Implement a Monte Carlo OAS model with:
-- A one-factor Hull-White interest-rate model calibrated to the Danish yield curve.
-- A prepayment model based on the incentive function (savings from refinancing).
-- 1000+ rate paths, discounted at the risk-free rate + OAS.
-
-This would match Scanrate's values but requires yield-curve data, a prepayment
-model, and significant computational effort. Probably out of scope for an
-open-source calculator.
-
-**Recommended**: Option A (reduced-duration model). It's the simplest approach
-that addresses the root cause (overestimated duration) without requiring
-proprietary data.
-
-**Difficulty**: Medium (Option A) to Hard (Option C).
+**Recommended**: Option A (calibrate). **Difficulty**: Medium.
 
 ---
 
-## Gap 3: With-bank ydelse (11–17% off)
+## Gap 3 (SAME ROOT CAUSE AS GAP 1): With-bank ydelse
 
 ### Symptoms
 
@@ -181,67 +156,57 @@ proprietary data.
 | F5+bank   | 13.004 | 14.676 | 11.4% |
 | 4%+bank   | 12.935 | 15.666 | 17.4% |
 
-Note: the raw `ydelse_before_tax` mixes quarterly realkredit payments with monthly
-bank payments. The monthly-equivalent (`/3`) is an approximation because the bank
-component (20% of provenu) pays monthly, not quarterly. ÅOP matches well
-(0.04–0.46pp off) despite the ydelse gap.
-
 ### Root cause
 
-The engine splits the desired provenu by `provenu_share` (80% realkredit, 20% bank),
-then derives hovedstol for each component independently. This gives:
+Same as Gap 1: the engine derived obligationshovedstol for flexlån, inflating
+the realkredit hovedstol and deflating the bank residual. With the kontantlån
+fix, the realkredit hovedstol is now at par (lower), leaving more room for
+the bank loan.
 
-- Realkredit hovedstol: provenu × 0.80 / (price/100 − issue_costs)
-- Bank hovedstol: provenu × 0.20 / (1 − 0) = provenu × 0.20
+The par-cap mechanism in `calculate()` (already implemented) detects when
+realkredit is par-capped and reallocates the residual provenu to the bank
+component. With the correct kontantlån hovedstol, this mechanism should now
+produce the correct split.
 
-boligregner.dk uses a different split: it **caps the realkredit hovedstol at par**
-(2.000.000 for a 2.500.000 provenu at 80% LTV), and the bank loan fills the
-remaining gap. The bank hovedstol is larger than our 20% share because the
-realkredit hovedstol is lower (capped at par, not derived from discounted price).
+### Status
 
-This means:
-- Our realkredit hovedstol is too high (2.030.000 vs 2.000.000).
-- Our bank hovedstol is too low (500.000 vs ~570.000).
-- The bank loan has a higher rate (8.4%). The reference allocates more principal
-  to the bank (higher rate), so the reference ydelse is higher. Our engine
-  allocates less to the bank, so our ydelse is lower.
-
-### Proposed fix
-
-Implement the **par-cap hovedstol model**:
-
-1. Compute the realkredit hovedstol as `_hovedstol_for_provenu(provenu × share, price, issue_costs)`.
-2. **Cap it at `provenu × share`** (the par value) — if the derived hovedstol
-   exceeds the par amount, clamp it.
-3. The bank hovedstol = `total_hovedstol_needed − realkredit_hovedstol_capped`.
-4. The bank provenu share becomes residual, not a fixed percentage.
-
-This requires changing how `_compute_component` derives the bank hovedstol.
-Currently it uses `provenu_share` directly; it needs to use the residual after
-the realkredit par cap.
-
-**Implementation**:
-- Add a `par_cap: bool = True` field to `LoanSpec` (default True for realkredit,
-  False for bank) or to `FinancingAlternative`.
-- In `calculate()`, after computing realkredit hovedstol, cap it and recompute
-  the bank component's provenu share as the residual.
-- This is a `calculate()`-level change, not an engine-math change — the
-  `calculate()` interface signature stays the same.
-
-**Difficulty**: Medium — the math is straightforward but the provenu-share
-reallocation touches the `calculate()` orchestration and may affect
-existing tests that assert specific hovedstol values.
+The kontantlån hovedstol fix should resolve both Gap 1 and Gap 3
+simultaneously. Session B (with-bank) verification is pending — needs a
+re-run with Oct 8 parameters to confirm the gap closes.
 
 ---
 
 ## Summary
 
-| Gap | Metric | Current deviation | Root cause | Fix difficulty |
-|-----|--------|-------------------|------------|----------------|
-| 1 | Flexlån rente/ydelse_h | 8–11% | Different interest/tax model for flexlån | Medium |
-| 2 | gns_kurs +2% shock | 4.17pp | OAS model (proprietary) | Medium (reduced-duration) |
-| 3 | With-bank ydelse | 11–17% | Hovedstol par cap not implemented | Medium |
+| Gap | Metric | Before fix | After fix | Status |
+|-----|--------|------------|-----------|--------|
+| 1 | Flexlån rente_h | 8–11% | 0.8% (F5) | ✅ Resolved (kontantlån hovedstol) |
+| 1 | Flexlån ydelse_h | 7.9–8.3% | 1.0% (F5) | ✅ Resolved (same fix) |
+| 1 | F1 rente residual | — | −1.3% | Open (løbetid 31yr vs 30yr) |
+| 2 | gns_kurs +2% shock | 4.17pp | 3.39pp | Partially fixed (reduced-duration heuristic) |
+| 2 | gns_kurs 0% shock | 3.67pp | 3.67pp | Open (par-bond issue yield = coupon) |
+| 2 | gns_kurs −2% shock | 0.00pp | 0.00pp | ✅ Exact (par cap) |
+| 3 | With-bank ydelse | 11–17% | — | Pending verification (same fix) |
 
-All three require either additional reference data (Gap 1), a more
-sophisticated bond-pricing model (Gap 2), or a hovedstol-allocation change
-(Gap 3). None can be fixed by tuning existing parameters.
+### What was fixed
+
+The kontantlån hovedstol fix (`_is_kontantlaan`, `_hovedstol_for_provenu`
+tuple return, `_compute_component` dispatch) resolves Gap 1 and should
+resolve Gap 3. The engine now matches boligregner.dk's definition:
+kontantlånshovedstol for flexlån/reference-rate loans, obligationshovedstol
+for fixed-rate obligations.
+
+### What remains
+
+- **F1 residual** (−1.3%): likely løbetid mismatch (31yr vs 30yr). Needs deeper
+  investigation of F1's first-period rate or rounding convention.
+- **Gap 2** (gns_kurs at nonzero shocks): reduced-duration heuristic
+  implemented (commit `b81794a`), improved +2% from 4.17pp to 3.39pp. 0%
+  shock remains 3.67pp off (at par, issue yield = coupon, so price = 100).
+  Full resolution requires OAS-like model with proprietary Scanrate data.
+  Lower priority — −2% shock is exact.
+- **Gap 3 verification**: Session B with-bank cases need re-running with the
+  fix to confirm the gap closes.
+- **Session A tolerance**: pre-existing 50% rente gap in Session A reference
+  data is a data quality issue (reference captured with different parameters
+  than test inputs), not caused by the fix. Needs separate investigation.

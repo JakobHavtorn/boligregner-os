@@ -60,6 +60,7 @@ def _make_alt(
     fixed_ydelse: Decimal | None = None,
     reference_rate: Decimal | None = None,
     margin: Decimal | None = None,
+    par_cap: bool = False,
 ) -> FinancingAlternative:  # type: ignore[name-defined]
     """Build a two-component alternative (realkredit + bank)."""
     from .models import FinancingAlternative
@@ -73,6 +74,7 @@ def _make_alt(
         issue_costs_pct=issue_pct,
         bidragssats=realkredit_bidrag,
         provenu_share=_ONE - bank_share,
+        par_cap=par_cap,
     )
     if interest_only_years:
         realkredit_kwargs["interest_only_years"] = interest_only_years
@@ -418,13 +420,43 @@ def _amortize(
 # ─── Hovedstol derivation: invert price + costs to hit desired provenu ─
 
 
+def _is_kontantlaan(loan_type: LoanType) -> bool:
+    """True for loan types that amortize on kontantlånshovedstol (at par).
+
+    boligregner.dk's help text: "Hovedstol: For kontantlån angives
+    kontantlånshovedstolen, for obligationslån obligationshovedstolen."
+
+    Kontantlån (flexlån, reference-rate, T-lån) amortize on the mortgage
+    amount (kursværdi = provenu + udst.omk), not the bond face value.
+    Obligationslån (FIXED) amortize on the bond face value.
+    """
+    return loan_type in (
+        LoanType.F1,
+        LoanType.F3,
+        LoanType.F5,
+        LoanType.T,
+        LoanType.CITA,
+        LoanType.CIBOR,
+        LoanType.DESTR,
+    )
+
+
 def _hovedstol_for_provenu(
     desired_provenu: Decimal,
     price: Decimal,
     issue_costs_pct: Decimal,
     issue_costs_nominal: Decimal | None = None,
-) -> Decimal:
-    """Given a desired net cash (provenu), derive the gross hovedstol.
+    *,
+    kontantlaan: bool = False,
+) -> tuple[Decimal, Decimal]:
+    """Given a desired net cash (provenu), derive (hovedstol, obligationshovedstol).
+
+    For kontantlån (kontantlaan=True): hovedstol is derived at par (price=100).
+        hovedstol = round_up_1000(provenu + udst.omk)
+        obligationshovedstol = round_up_1000((provenu + udst.omk) / (kurs/100))
+
+    For obligationslån (kontantlaan=False): hovedstol = obligationshovedstol.
+        hovedstol = obligationshovedstol = round_up_1000((provenu + udst.omk) / (kurs/100))
 
     Percentage mode (issue_costs_pct set, nominal None):
         provenu = hovedstol * P/100 − hovedstol * c
@@ -437,6 +469,30 @@ def _hovedstol_for_provenu(
 
     Round up to nearest thousand (boligregner rounds to whole thousands).
     """
+    if kontantlaan:
+        # Kontantlån: amortize at par (price=100), derive obligationshovedstol separately.
+        if issue_costs_nominal is not None and issue_costs_nominal > _ZERO:
+            raw_hoved = desired_provenu + issue_costs_nominal
+        else:
+            net_factor = _ONE - issue_costs_pct
+            if net_factor <= _ZERO:
+                raise ValueError(
+                    f"Issue costs {issue_costs_pct} >= 1.0; "
+                    "cannot derive kontantlån hovedstol"
+                )
+            raw_hoved = desired_provenu / net_factor
+        hovedstol = _qceil(raw_hoved / Decimal(1000)) * Decimal(1000)
+
+        # Obligationshovedstol: bond face value at the actual issue price.
+        price_factor = price / _HUNDRED
+        if price_factor > _ZERO:
+            raw_oblig = raw_hoved / price_factor
+            obligationshovedstol = _qceil(raw_oblig / Decimal(1000)) * Decimal(1000)
+        else:
+            obligationshovedstol = hovedstol  # at par when price=0 (shouldn't happen)
+        return hovedstol, obligationshovedstol
+
+    # Obligationslån: hovedstol = obligationshovedstol (bond face value).
     if issue_costs_nominal is not None and issue_costs_nominal > _ZERO:
         price_factor = price / _HUNDRED
         if price_factor <= _ZERO:
@@ -452,8 +508,8 @@ def _hovedstol_for_provenu(
                 "cannot derive hovedstol"
             )
         raw = desired_provenu / net_factor
-    # Round up to nearest 1000 (boligregner convention: afrunding til hele tusinder)
-    return _qceil(raw / Decimal(1000)) * Decimal(1000)
+    hovedstol = _qceil(raw / Decimal(1000)) * Decimal(1000)
+    return hovedstol, hovedstol
 
 
 def _qceil(x: Decimal) -> Decimal:
@@ -566,14 +622,27 @@ def _compute_component(
     tax_rate: Decimal,
 ) -> LoanComponentResult:
     """Compute all per-component numbers from a LoanSpec + the provenu slice."""
-    hovedstol = _hovedstol_for_provenu(
+    kontantlaan = _is_kontantlaan(spec.loan_type)
+    hovedstol, obligationshovedstol = _hovedstol_for_provenu(
         component_provenu,
         spec.price,
         spec.issue_costs_pct,
         spec.issue_costs_nominal,
+        kontantlaan=kontantlaan,
     )
-
-    kursvaerdi = hovedstol * spec.price / _HUNDRED
+    par_capped = False
+    if spec.par_cap and hovedstol > component_provenu:
+        # Par cap: hovedstol at par (= provenu), bond issued at 100
+        hovedstol = component_provenu
+        obligationshovedstol = component_provenu
+        kursvaerdi = hovedstol  # at par, not price-discounted
+        par_capped = True
+    elif kontantlaan:
+        # Kontantlån: kursværdi = hovedstol (at par)
+        kursvaerdi = hovedstol
+    else:
+        # Obligationslån: kursværdi = obligationshovedstol × kurs / 100
+        kursvaerdi = hovedstol * spec.price / _HUNDRED
     if spec.issue_costs_nominal is not None and spec.issue_costs_nominal > _ZERO:
         udstedelse = spec.issue_costs_nominal
     else:
@@ -656,7 +725,12 @@ def _compute_component(
         component=spec.component,
         loan_type=spec.loan_type,
         hovedstol=hovedstol,
-        gns_kurs=spec.price,
+        obligationshovedstol=(
+            obligationshovedstol
+            if kontantlaan and obligationshovedstol != hovedstol
+            else None
+        ),
+        gns_kurs=_HUNDRED if par_capped else spec.price,
         kursvaerdi=kursvaerdi,
         udstedelsesomkostning=udstedelse,
         kontant=kontant,
@@ -665,6 +739,7 @@ def _compute_component(
         aap_before_tax=aap,
         interest_only_years=spec.interest_only_years,
         actual_maturity_years=actual_maturity_years,
+        par_capped=par_capped,
     )
 
 
@@ -854,6 +929,10 @@ def _horizon_scenarios(
                 else _ZERO
             )
             bidrag_total = bidrag_charge * Decimal(horizon_n)
+            # Bidrag is tax-deductible like interest (SL § 6 stk. 1 e / UfR
+            # 1947.725 HRD) for all realkredit loan types; boligregner.dk
+            # documents the same (1-skattesats) treatment for renter and
+            # bidrag alike.
             rente_total += (comp_interest + bidrag_total) * (_ONE - tax_rate)
             afdrag_total += comp_principal
             restgaeld_total += balance
@@ -867,7 +946,16 @@ def _horizon_scenarios(
                     if shock == _ZERO
                     else spec.rate
                 )
-                shocked_yield = base_yield + shock
+                # Reduced-duration heuristic: callable bonds have lower effective
+                # duration than straight bonds. Scale the shock by (1 - adjustment)
+                # where adjustment is derived from prepayment_premium (higher premium
+                # = more option value = more duration reduction). Only for nonzero
+                # shocks; at 0% the issue_yield already accounts for the discount.
+                if shock != _ZERO and spec.bond_price_model == "finite_option":
+                    duration_adj = min(spec.prepayment_premium * Decimal(10), _ONE)
+                    shocked_yield = base_yield + shock * (_ONE - duration_adj)
+                else:
+                    shocked_yield = base_yield + shock
                 remaining_periods = n - horizon_n
                 if spec.bond_price_model == "finite":
                     shocked_price = _bond_price(
@@ -1078,14 +1166,42 @@ def calculate(input: CalculatorInput) -> CalculatorResult:
     alt_summaries: list[AlternativeSummary] = []
     horizon_analyses: list[HorizonAnalysis] = []
     for alt in input.alternatives:
-        comp_results: list[tuple[LoanSpec, LoanComponentResult]] = []
+        comp_results: list[tuple[int, LoanSpec, LoanComponentResult]] = []
         ltv_shares = _ltv_shares(input, alt.components)
+        # Two-pass: compute realkredit first, then bank as residual if par cap fired
+        realkredit_kontant = _ZERO
+        any_par_capped = False
         for i, spec in enumerate(alt.components):
+            if spec.component != LoanComponent.REALKREDIT:
+                continue
             share = ltv_shares[i] if ltv_shares is not None else spec.provenu_share
             comp_provenu = input.desired_provenu * share
+            comp = _compute_component(spec, comp_provenu, input.tax_rate)
+            comp_results.append((i, spec, comp))
+            realkredit_kontant += comp.kontant
+            if comp.par_capped:
+                any_par_capped = True
+        # Bank components: residual provenu if any realkredit was par-capped
+        bank_specs = [s for s in alt.components if s.component == LoanComponent.BANK]
+        total_bank_share = sum(s.provenu_share for s in bank_specs)
+        for i, spec in enumerate(alt.components):
+            if spec.component != LoanComponent.BANK:
+                continue
+            if any_par_capped and total_bank_share > _ZERO:
+                bank_provenu = (input.desired_provenu - realkredit_kontant) * (
+                    spec.provenu_share / total_bank_share
+                )
+            else:
+                share = ltv_shares[i] if ltv_shares is not None else spec.provenu_share
+                bank_provenu = input.desired_provenu * share
             comp_results.append(
-                (spec, _compute_component(spec, comp_provenu, input.tax_rate))
+                (i, spec, _compute_component(spec, bank_provenu, input.tax_rate))
             )
+        # Restore original component order
+        comp_results.sort(key=lambda pair: pair[0])
+        comp_results: list[tuple[LoanSpec, LoanComponentResult]] = [
+            (spec, comp) for _, spec, comp in comp_results
+        ]
 
         # Aggregate
         total_hovedstol = sum(r.hovedstol for _, r in comp_results)

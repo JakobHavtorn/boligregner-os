@@ -64,12 +64,12 @@ class TestAnnuity:
 class TestHovedstol:
     def test_par_price_no_costs(self):
         # Price 100, no costs: hovedstol == provenu (rounded to 1000s)
-        h = _hovedstol_for_provenu(Decimal(2500000), Decimal(100), Decimal(0))
+        h, _ = _hovedstol_for_provenu(Decimal(2500000), Decimal(100), Decimal(0))
         assert h == Decimal(2500000)
 
     def test_discount_obligation(self):
         # Price 94.52, ~1.71% costs: hovedstol should be ~2.694M for 2.5M provenu
-        h = _hovedstol_for_provenu(
+        h, _ = _hovedstol_for_provenu(
             Decimal(2500000), Decimal("94.52"), Decimal("0.0171")
         )
         # Should be ~2.694M (matching boligregner Alt 3)
@@ -78,6 +78,21 @@ class TestHovedstol:
     def test_raises_on_impossible_price(self):
         with pytest.raises(ValueError, match="non-positive provenu"):
             _hovedstol_for_provenu(Decimal(2500000), Decimal(100), Decimal("1.5"))
+
+    def test_kontantlaan_at_par(self):
+        # Kontantlån (flexlån): derive at par regardless of bond kurs.
+        # provenu=2.500.000, nominal udst.omk=46.844 → hovedstol=2.547.000
+        h, oblig = _hovedstol_for_provenu(
+            Decimal(2500000),
+            Decimal("91.36"),
+            Decimal(0),
+            issue_costs_nominal=Decimal(46844),
+            kontantlaan=True,
+        )
+        assert h == Decimal(2547000)  # round_up_1000(2.500.000 + 46.844)
+        # obligationshovedstol at kurs 91.36 is larger
+        assert oblig > h
+        assert abs(oblig - Decimal(2788000)) < Decimal(2000)
 
 
 class TestIRR:
@@ -738,7 +753,7 @@ class TestHovedstolDerivation:
         Reference: boligregner.dk F3 alternative, Oct 2026.
         Exact match — the quantization to whole thousands is deterministic.
         """
-        h = _hovedstol_for_provenu(
+        h, _ = _hovedstol_for_provenu(
             Decimal(1875578), Decimal("95.63"), Decimal("0.018511")
         )
         assert h == Decimal(2000000)
@@ -749,7 +764,7 @@ class TestHovedstolDerivation:
         Reference: boligregner.dk F5 alternative, Oct 2026.
         Exact match — the quantization to whole thousands is deterministic.
         """
-        h = _hovedstol_for_provenu(
+        h, _ = _hovedstol_for_provenu(
             Decimal(1790372), Decimal("91.43"), Decimal("0.019114")
         )
         assert h == Decimal(2000000)
@@ -761,7 +776,7 @@ class TestHovedstolDerivation:
         Reference says 2.136.000; engine gives 2.137.000 due to quantization
         rounding up to nearest 1000. Tolerance < 2000 kr accounts for this.
         """
-        h = _hovedstol_for_provenu(
+        h, _ = _hovedstol_for_provenu(
             Decimal(1965428), Decimal("93.76"), Decimal("0.017577")
         )
         # Reference says 2.136.000; engine rounds up to 2.137.000 (1k diff)
@@ -776,7 +791,7 @@ class TestHovedstolDerivation:
         With price=100 and issue_costs_pct=0, no discount or costs,
         so hovedstol = provenu exactly.
         """
-        h = _hovedstol_for_provenu(Decimal(2500000), Decimal(100), Decimal(0))
+        h, _ = _hovedstol_for_provenu(Decimal(2500000), Decimal(100), Decimal(0))
         assert h == Decimal(2500000)
 
     def test_discount_price_with_costs(self):
@@ -786,7 +801,7 @@ class TestHovedstolDerivation:
         Formula: hovedstol = ceil(provenu / (price/100 - issue_pct) / 1000) * 1000
         The exact value depends on the formula; tolerance < 5000 kr for quantization.
         """
-        h = _hovedstol_for_provenu(Decimal(2500000), Decimal(95), Decimal("0.015"))
+        h, _ = _hovedstol_for_provenu(Decimal(2500000), Decimal(95), Decimal("0.015"))
         # The formula gives a deterministic result; allow up to 5000 kr
         # tolerance for the quantization to nearest 1000.
         expected = Decimal(2500000) / (Decimal(95) / Decimal(100) - Decimal("0.015"))
@@ -796,6 +811,38 @@ class TestHovedstolDerivation:
         assert abs(h - expected_rounded) < Decimal(5000), (
             f"hovedstol {h} should be within 5000 of {expected_rounded}"
         )
+
+    def test_kontantlaan_f5_oct8_reference(self):
+        """F5 kontantlån: provenu=2.500.156, udst.omk=46.844, kurs=91.36.
+
+        Reference: boligregner.dk F5, Oct 8 2026.
+        hovedstol (kontantlån) = round_up_1000(2.500.156 + 46.844) = 2.547.000
+        obligationshovedstol = round_up_1000((2.500.156 + 46.844) / 0.9136) ≈ 2.788.000
+        """
+        h, oblig = _hovedstol_for_provenu(
+            Decimal(2500156),
+            Decimal("91.36"),
+            Decimal(0),
+            issue_costs_nominal=Decimal(46844),
+            kontantlaan=True,
+        )
+        assert h == Decimal(2547000)
+        assert abs(oblig - Decimal(2788000)) < Decimal(2000)
+
+    def test_kontantlaan_f1_oct8_reference(self):
+        """F1 kontantlån: provenu=2.500.637, udst.omk=44.363, kurs=98.24.
+
+        Reference: boligregner.dk F1, Oct 8 2026.
+        hovedstol (kontantlån) = round_up_1000(2.500.637 + 44.363) = 2.545.000
+        """
+        h, _oblig = _hovedstol_for_provenu(
+            Decimal(2500637),
+            Decimal("98.24"),
+            Decimal(0),
+            issue_costs_nominal=Decimal(44363),
+            kontantlaan=True,
+        )
+        assert h == Decimal(2545000)
 
 
 class TestAnnuityFormula:
@@ -1351,7 +1398,8 @@ class TestAmortizationScheduleInvariants:
 #   hovedstol: exact (==) for single-component; 1% relative for 4%+bank
 #   ydelse: 5% relative (single-component), 20% relative (with-bank)
 #   aap: 0.5pp absolute (as fraction 0.005)
-#   horizon rente: 20% (flexlån), 5% (fixed)
+#   horizon rente: 11.5% (flexlån: deductible-tax residual unexplained),
+#                  5% (fixed)
 #   horizon afdrag: 20%
 #   horizon ydelse: 20% (flexlån), 5% (fixed)
 #   horizon restgaeld: 5%
@@ -1433,7 +1481,9 @@ REFERENCE_CASES: list[dict] = [
             "hovedstol": None,  # exact
             "ydelse": Decimal("0.05"),
             "aap": Decimal("0.005"),
-            "horizon_rente": Decimal("0.20"),
+            "horizon_rente": Decimal(
+                "0.115"
+            ),  # flexlån: bidrag tax-deductible per tax law; residual unexplained
             "horizon_afdrag": Decimal("0.20"),
             "horizon_ydelse": Decimal("0.20"),
             "horizon_restgaeld": Decimal("0.05"),
@@ -1484,7 +1534,9 @@ REFERENCE_CASES: list[dict] = [
             "hovedstol": None,
             "ydelse": Decimal("0.05"),
             "aap": Decimal("0.005"),
-            "horizon_rente": Decimal("0.20"),
+            "horizon_rente": Decimal(
+                "0.115"
+            ),  # flexlån: bidrag tax-deductible per tax law; residual unexplained
             "horizon_afdrag": Decimal("0.20"),
             "horizon_ydelse": Decimal("0.20"),
             "horizon_restgaeld": Decimal("0.05"),
@@ -1570,6 +1622,7 @@ REFERENCE_CASES: list[dict] = [
                             issue_costs_pct=Decimal("0.018511"),
                             bidragssats=Decimal("0.0095"),
                             provenu_share=Decimal("0.80"),
+                            par_cap=True,
                         ),
                         LoanSpec(
                             component=LoanComponent.BANK,
@@ -1619,6 +1672,7 @@ REFERENCE_CASES: list[dict] = [
                             issue_costs_pct=Decimal("0.019114"),
                             bidragssats=Decimal("0.0095"),
                             provenu_share=Decimal("0.80"),
+                            par_cap=True,
                         ),
                         LoanSpec(
                             component=LoanComponent.BANK,

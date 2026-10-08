@@ -148,6 +148,13 @@ class LoanSpec(BaseModel):
         description="Margin above reference rate. Required for CITA/CIBOR/DESTR; "
         "forbidden otherwise.",
     )
+    par_cap: bool = Field(
+        default=False,
+        description="When True, cap the realkredit hovedstol at the component's "
+        "provenu share (par). Used for flexlån with bank loans where "
+        "boligregner.dk caps the realkredit at par and gives the bank "
+        "the residual. Default False preserves existing behavior.",
+    )
 
     @field_validator("rate")
     @classmethod
@@ -268,6 +275,9 @@ class LoanComponentResult(BaseModel):
     component: LoanComponent
     loan_type: LoanType
     hovedstol: Decimal
+    obligationshovedstol: Decimal | None = (
+        None  # Bond face value (only for kontantlån where it differs from hovedstol)
+    )
     gns_kurs: Decimal  # gennemsnitlig kurs
     kursvaerdi: Decimal  # kursværdi
     udstedelsesomkostning: Decimal
@@ -278,6 +288,9 @@ class LoanComponentResult(BaseModel):
     interest_only_years: int = 0  # Years of afdragsfrihed (0 = standard annuity)
     actual_maturity_years: Decimal | None = (
         None  # Actual term for T-lån (variable duration)
+    )
+    par_capped: bool = (
+        False  # True when par_cap fired (hovedstol was capped at provenu)
     )
 
 
