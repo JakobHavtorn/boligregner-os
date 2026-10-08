@@ -66,6 +66,8 @@ FINANSDANMARK_URL = (
 JYSKE_URL = "https://www.jyskebank.dk/bolig/boliglaan/referencerenter"
 
 CACHE_DIR = Path(__file__).resolve().parents[2] / "data" / "cache"
+# parents[2] is the repo root in the src/ checkout layout.  In an installed
+# package this resolves inside site-packages, where the process cannot write.
 
 CACHE_TTL: dict[str, int] = {
     "dst": 24 * 3600,
@@ -517,13 +519,23 @@ class _MybankerParser(HTMLParser):
 
 
 def _fetch_mybanker_bidragssatser() -> list[BidragssatsEntry]:
-    """GET mybanker.dk — parse 5 HTML tables for bidragssatser."""
+    """GET mybanker.dk — parse 5 HTML tables for bidragssatser.
+
+    Raises ValueError when the parse yields no entries (page layout
+    change), so the caller treats it as a fetch failure and keeps the
+    last-good cache instead of caching an empty success.
+    """
     html_text = _http_get(MYBANKER_URL)
     return _parse_mybanker_bidragssatser(html_text)
 
 
 def _parse_mybanker_bidragssatser(html_text: str) -> list[BidragssatsEntry]:
-    """Parse Mybanker.dk HTML and return per-institute × per-LTV entries."""
+    """Parse Mybanker.dk HTML and return per-institute × per-LTV entries.
+
+    An empty result means the page layout changed (no tables matched).
+    _fetch_mybanker_bidragssatser treats that as a fetch failure so the
+    stale-cache fallback kicks in, instead of caching success.
+    """
     parser = _MybankerParser()
     parser.feed(html_text)
     return parser.build_entries()
@@ -943,7 +955,10 @@ def _fetch_and_cache(source_name: str) -> tuple[object | None, str]:
     ) as exc:  # fetchers must not crash the aggregate
         return None, f"failed: {exc}"
 
-    # Serialize result to cache
+    # An empty parse result (e.g. mybanker layout change returning []) is not
+    # distinguishable from real data here — it gets cached with status "ok"
+    # and blocks re-fetch for the full TTL.  Fix: make fetchers raise on empty
+    # results so the failure path above applies instead.
     if isinstance(result, list) and result and hasattr(result[0], "model_dump"):
         data = [e.model_dump(mode="json") for e in result]
     elif hasattr(result, "model_dump"):
@@ -954,7 +969,7 @@ def _fetch_and_cache(source_name: str) -> tuple[object | None, str]:
         data = result
 
     cache_entry = {
-        "fetched_at": datetime.now(UTC).isoformat(),
+        # ttl_seconds is informational only; _is_expired re-reads CACHE_TTL
         "ttl_seconds": CACHE_TTL[source_name],
         "data": data,
     }
