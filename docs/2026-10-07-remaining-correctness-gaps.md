@@ -86,70 +86,63 @@ rounding convention in F1's quarterly annuity. Investigation deferred.
 
 ---
 
-## Gap 2: gns_kurs at +2% rate shock (4.17pp off)
+## Gap 2: gns_kurs at nonzero rate shocks (3.4–3.7pp off)
 
-### Symptoms
+### Symptoms (Session A FIXED4: price=100, rate=4%, 30yr)
 
 | Shock | Engine | Reference | Gap |
 |-------|--------|-----------|-----|
-| 0%    | 94.46  | 96.33     | 1.87pp |
-| +2%   | 81.91  | 86.08     | 4.17pp |
+| 0%    | 100.00 | 96.33     | 3.67pp |
+| +2%   | 82.69  | 86.08     | −3.39pp |
 | −2%   | 100.50 | 100.50    | 0.00pp |
 
-The 0% gap was reduced from 3.67pp to 1.87pp via the hybrid pull-to-par fix (using
-issue yield as base yield at 0% shock only). The +2% gap remains.
+The −2% shock matches exactly (capped at par + premium). The 0% and +2%
+shocks remain off.
 
 ### Root cause
 
-The engine prices the bond as the present value of remaining cashflows at
-`yield = base_yield + shock`. At +2% shock, `base_yield = coupon_rate = 4%`, so
-`shocked_yield = 6%`. The finite-bond PV at 6% gives 81.91.
+The engine prices the bond as the present value of remaining cashflows.
+At par (price=100), the issue yield equals the coupon rate, so the 0% shock
+price = 100.00 — but boligregner.dk gives 96.33, suggesting their model
+factors in the prepayment option's cost even at par.
 
-The reference gives 86.08 — higher than our price, meaning the reference bond is
-less sensitive to rate shocks. This is consistent with an **OAS (option-adjusted
-spread) model** used by Scanrate (boligregner.dk's calculation engine).
+At +2% shock, `shocked_yield = coupon + shock × (1 − duration_adj)` where
+`duration_adj = min(prepayment_premium × 10, 1)` = 0.05. This gives
+`shocked_yield = 4% + 2% × 0.95 = 5.9%` and a bond price of 82.69. The
+reference gives 86.08 — still higher, consistent with an **OAS
+(option-adjusted spread) model** used by Scanrate.
+
+### What's implemented
+
+A **reduced-duration heuristic** (commit `b81794a`): for FIXED bonds with
+`finite_option` pricing at nonzero shocks, the yield shock is scaled by
+`(1 − prepayment_premium × 10)`, approximating the callable bond's lower
+effective duration. `duration_adj` is clamped so it can't invert when
+`prepayment_premium > 0.10`.
+
+This improved the +2% gap from 4.17pp (pre-heuristic, 81.91) to 3.39pp
+(82.69), but didn't close it. The −2% shock remains exact (0.00pp).
 
 ### Why we can't replicate it exactly
 
-Scanrate's OAS model uses:
-- A proprietary interest-rate model (calibrated to the Danish yield curve).
-- A proprietary prepayment model (calibrated to Danish borrower behavior data).
-- The current Danish yield curve (not just the coupon rate + shock).
+Scanrate's OAS model uses a proprietary interest-rate model calibrated to
+the Danish yield curve, a proprietary prepayment model, and the current
+yield curve — none of which are publicly available. Our finite-bond +
+prepayment-option-cap model approximates the OAS model but overestimates
+effective duration.
 
-These are not publicly available. Our finite-bond + prepayment-option-cap model
-(`bond_price_model = "finite_option"`) approximates the OAS model by:
-- Pricing the bond as a finite-bond PV (correct option-free value).
-- Capping the price at par + prepayment_premium (approximates the prepayment
-  option's effect when rates fall).
+### Further fix options
 
-This gives exact matches at −2% shock (100.50) and close matches at 0% shock
-(94.46 vs 96.33), but overestimates duration at +2% shock.
+**Option A: Calibrate duration_adj** — tune the multiplier (currently 10)
+to match Scanrate's price sensitivity. Data-fitting risk.
 
-### Proposed fix
+**Option B: Yield curve shift model** — non-parallel shift that steepens
+the yield curve. A +2% short-end shock might be +1.5% at 30-year.
 
-**Option A: Reduced-duration model (simpler)**
+**Option C: Full OAS** — Monte Carlo with Hull-White + prepayment model.
+Out of scope for an open-source calculator.
 
-Apply a duration adjustment that accounts for the prepayment option's effect
-on effective duration:
-
-```
-effective_duration = modified_duration × (1 − option_value / bond_price)
-```
-
-This would reduce the price sensitivity at +2% shock, pushing 81.91 toward 86.08.
-
-**Option B: Yield curve shift model (medium)**
-
-Use a non-parallel shift that steepens the yield curve. A +2% shock to the
-short end might only be +1.5% at the 30-year point, giving a lower shocked
-yield and a higher price.
-
-**Option C: Full OAS implementation (hard)**
-
-Monte Carlo OAS with Hull-White rate model + prepayment model. Out of scope
-for an open-source calculator.
-
-**Recommended**: Option A. **Difficulty**: Medium.
+**Recommended**: Option A (calibrate). **Difficulty**: Medium.
 
 ---
 
@@ -190,8 +183,8 @@ re-run with Oct 8 parameters to confirm the gap closes.
 | 1 | Flexlån rente_h | 8–11% | 0.8% (F5) | ✅ Resolved (kontantlån hovedstol) |
 | 1 | Flexlån ydelse_h | 7.9–8.3% | 1.0% (F5) | ✅ Resolved (same fix) |
 | 1 | F1 rente residual | — | −1.3% | Open (løbetid 31yr vs 30yr) |
-| 2 | gns_kurs +2% shock | 4.17pp | 4.17pp | Open (OAS model needed) |
-| 2 | gns_kurs 0% shock | 1.87pp | 1.87pp | Open (issue yield accuracy) |
+| 2 | gns_kurs +2% shock | 4.17pp | 3.39pp | Partially fixed (reduced-duration heuristic) |
+| 2 | gns_kurs 0% shock | 3.67pp | 3.67pp | Open (par-bond issue yield = coupon) |
 | 2 | gns_kurs −2% shock | 0.00pp | 0.00pp | ✅ Exact (par cap) |
 | 3 | With-bank ydelse | 11–17% | — | Pending verification (same fix) |
 
@@ -207,8 +200,11 @@ for fixed-rate obligations.
 
 - **F1 residual** (−1.3%): likely løbetid mismatch (31yr vs 30yr). Needs deeper
   investigation of F1's first-period rate or rounding convention.
-- **Gap 2** (+2% shock gns_kurs): requires an OAS-like reduced-duration model.
-  Lower priority — the 0% and −2% shocks already match well.
+- **Gap 2** (gns_kurs at nonzero shocks): reduced-duration heuristic
+  implemented (commit `b81794a`), improved +2% from 4.17pp to 3.39pp. 0%
+  shock remains 3.67pp off (at par, issue yield = coupon, so price = 100).
+  Full resolution requires OAS-like model with proprietary Scanrate data.
+  Lower priority — −2% shock is exact.
 - **Gap 3 verification**: Session B with-bank cases need re-running with the
   fix to confirm the gap closes.
 - **Session A tolerance**: pre-existing 50% rente gap in Session A reference
