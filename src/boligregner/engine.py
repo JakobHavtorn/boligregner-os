@@ -887,7 +887,19 @@ def _horizon_scenarios(
                     if shock == _ZERO
                     else spec.rate
                 )
-                shocked_yield = base_yield + shock
+                # Reduced-duration heuristic: callable bonds have lower effective
+                # duration than straight bonds. Scale the shock by (1 - adjustment)
+                # where adjustment is derived from prepayment_premium (higher premium
+                # = more option value = more duration reduction). Only for nonzero
+                # shocks; at 0% the issue_yield already accounts for the discount.
+                if shock != _ZERO and spec.bond_price_model in (
+                    "finite",
+                    "finite_option",
+                ):
+                    duration_adj = spec.prepayment_premium * Decimal(10)
+                    shocked_yield = base_yield + shock * (_ONE - duration_adj)
+                else:
+                    shocked_yield = base_yield + shock
                 remaining_periods = n - horizon_n
                 if spec.bond_price_model == "finite":
                     shocked_price = _bond_price(
