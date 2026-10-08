@@ -420,13 +420,43 @@ def _amortize(
 # ─── Hovedstol derivation: invert price + costs to hit desired provenu ─
 
 
+def _is_kontantlaan(loan_type: LoanType) -> bool:
+    """True for loan types that amortize on kontantlånshovedstol (at par).
+
+    boligregner.dk's help text: "Hovedstol: For kontantlån angives
+    kontantlånshovedstolen, for obligationslån obligationshovedstolen."
+
+    Kontantlån (flexlån, reference-rate, T-lån) amortize on the mortgage
+    amount (kursværdi = provenu + udst.omk), not the bond face value.
+    Obligationslån (FIXED) amortize on the bond face value.
+    """
+    return loan_type in (
+        LoanType.F1,
+        LoanType.F3,
+        LoanType.F5,
+        LoanType.T,
+        LoanType.CITA,
+        LoanType.CIBOR,
+        LoanType.DESTR,
+    )
+
+
 def _hovedstol_for_provenu(
     desired_provenu: Decimal,
     price: Decimal,
     issue_costs_pct: Decimal,
     issue_costs_nominal: Decimal | None = None,
-) -> Decimal:
-    """Given a desired net cash (provenu), derive the gross hovedstol.
+    *,
+    kontantlaan: bool = False,
+) -> tuple[Decimal, Decimal]:
+    """Given a desired net cash (provenu), derive (hovedstol, obligationshovedstol).
+
+    For kontantlån (kontantlaan=True): hovedstol is derived at par (price=100).
+        hovedstol = round_up_1000(provenu + udst.omk)
+        obligationshovedstol = round_up_1000((provenu + udst.omk) / (kurs/100))
+
+    For obligationslån (kontantlaan=False): hovedstol = obligationshovedstol.
+        hovedstol = obligationshovedstol = round_up_1000((provenu + udst.omk) / (kurs/100))
 
     Percentage mode (issue_costs_pct set, nominal None):
         provenu = hovedstol * P/100 − hovedstol * c
@@ -439,6 +469,30 @@ def _hovedstol_for_provenu(
 
     Round up to nearest thousand (boligregner rounds to whole thousands).
     """
+    if kontantlaan:
+        # Kontantlån: amortize at par (price=100), derive obligationshovedstol separately.
+        if issue_costs_nominal is not None and issue_costs_nominal > _ZERO:
+            raw_hoved = desired_provenu + issue_costs_nominal
+        else:
+            net_factor = _ONE - issue_costs_pct
+            if net_factor <= _ZERO:
+                raise ValueError(
+                    f"Issue costs {issue_costs_pct} >= 1.0; "
+                    "cannot derive kontantlån hovedstol"
+                )
+            raw_hoved = desired_provenu / net_factor
+        hovedstol = _qceil(raw_hoved / Decimal(1000)) * Decimal(1000)
+
+        # Obligationshovedstol: bond face value at the actual issue price.
+        price_factor = price / _HUNDRED
+        if price_factor > _ZERO:
+            raw_oblig = raw_hoved / price_factor
+            obligationshovedstol = _qceil(raw_oblig / Decimal(1000)) * Decimal(1000)
+        else:
+            obligationshovedstol = hovedstol  # at par when price=0 (shouldn't happen)
+        return hovedstol, obligationshovedstol
+
+    # Obligationslån: hovedstol = obligationshovedstol (bond face value).
     if issue_costs_nominal is not None and issue_costs_nominal > _ZERO:
         price_factor = price / _HUNDRED
         if price_factor <= _ZERO:
@@ -454,8 +508,8 @@ def _hovedstol_for_provenu(
                 "cannot derive hovedstol"
             )
         raw = desired_provenu / net_factor
-    # Round up to nearest 1000 (boligregner convention: afrunding til hele tusinder)
-    return _qceil(raw / Decimal(1000)) * Decimal(1000)
+    hovedstol = _qceil(raw / Decimal(1000)) * Decimal(1000)
+    return hovedstol, hovedstol
 
 
 def _qceil(x: Decimal) -> Decimal:
@@ -568,20 +622,26 @@ def _compute_component(
     tax_rate: Decimal,
 ) -> LoanComponentResult:
     """Compute all per-component numbers from a LoanSpec + the provenu slice."""
-    derived_hovedstol = _hovedstol_for_provenu(
+    kontantlaan = _is_kontantlaan(spec.loan_type)
+    hovedstol, obligationshovedstol = _hovedstol_for_provenu(
         component_provenu,
         spec.price,
         spec.issue_costs_pct,
         spec.issue_costs_nominal,
+        kontantlaan=kontantlaan,
     )
     par_capped = False
-    if spec.par_cap and derived_hovedstol > component_provenu:
+    if spec.par_cap and hovedstol > component_provenu:
         # Par cap: hovedstol at par (= provenu), bond issued at 100
         hovedstol = component_provenu
+        obligationshovedstol = component_provenu
         kursvaerdi = hovedstol  # at par, not price-discounted
         par_capped = True
+    elif kontantlaan:
+        # Kontantlån: kursværdi = hovedstol (at par)
+        kursvaerdi = hovedstol
     else:
-        hovedstol = derived_hovedstol
+        # Obligationslån: kursværdi = obligationshovedstol × kurs / 100
         kursvaerdi = hovedstol * spec.price / _HUNDRED
     if spec.issue_costs_nominal is not None and spec.issue_costs_nominal > _ZERO:
         udstedelse = spec.issue_costs_nominal
@@ -665,6 +725,11 @@ def _compute_component(
         component=spec.component,
         loan_type=spec.loan_type,
         hovedstol=hovedstol,
+        obligationshovedstol=(
+            obligationshovedstol
+            if kontantlaan and obligationshovedstol != hovedstol
+            else None
+        ),
         gns_kurs=_HUNDRED if par_capped else spec.price,
         kursvaerdi=kursvaerdi,
         udstedelsesomkostning=udstedelse,

@@ -275,6 +275,9 @@ class LoanComponentResult(BaseModel):
     component: LoanComponent
     loan_type: LoanType
     hovedstol: Decimal
+    obligationshovedstol: Decimal | None = (
+        None  # Bond face value (only for kontantlån where it differs from hovedstol)
+    )
     gns_kurs: Decimal  # gennemsnitlig kurs
     kursvaerdi: Decimal  # kursværdi
     udstedelsesomkostning: Decimal
