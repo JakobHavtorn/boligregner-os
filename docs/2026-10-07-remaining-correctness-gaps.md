@@ -236,12 +236,32 @@ existing tests that assert specific hovedstol values.
 
 ## Summary
 
-| Gap | Metric | Current deviation | Root cause | Fix difficulty |
-|-----|--------|-------------------|------------|----------------|
-| 1 | Flexlån rente/ydelse_h | 8–11% | Different interest/tax model for flexlån | Medium |
-| 2 | gns_kurs +2% shock | 4.17pp | OAS model (proprietary) | Medium (reduced-duration) |
-| 3 | With-bank ydelse | 11–17% | Hovedstol par cap not implemented | Medium |
+| Gap | Metric | Before deviation | After deviation | Root cause | Fix |
+|-----|--------|-------------------|-----------------|------------|-----|
+| 1 | Flexlån rente_h | 8–11% | 0.6–0.9% | Bidrag not tax-deductible for flexlån in horizon rente | H1 model: non-FIXED uses comp_interest×(1−tax)+bidrag |
+| 1 | Flexlån ydelse_h | 7.9–8.3% | 1.8–2.3% | (same + afdrag schedule gap) | (same; remaining gap from annuity schedule) |
+| 2 | gns_kurs +2% shock | 4.17pp* | 0.03pp | OAS-like lower effective duration | Reduced-duration: shock × (1−prepayment_premium×10) |
+| 2 | gns_kurs 0% shock | 1.87pp* | 0.71pp | Issue yield accuracy | (unchanged; pull-to-par path) |
+| 2 | gns_kurs −2% shock | 0.00pp | 0.10pp | Cap at par+premium | (unchanged) |
+| 3 | With-bank ydelse | 2.3–5.9% | 0.4–0.5% | Hovedstol par cap not implemented | Par-cap: realkredit at par, bank gets residual |
 
-All three require either additional reference data (Gap 1), a more
-sophisticated bond-pricing model (Gap 2), or a hovedstol-allocation change
-(Gap 3). None can be fixed by tuning existing parameters.
+* Gap 2 "before" values compare bond price to weighted gns_kurs (apples-to-oranges).
+  Actual weighted gns_kurs gaps before fix: 0%=0.71pp, +2%=0.60pp, −2%=0.10pp.
+
+Gap 1: flexlån horizon rente now treats bidrag as non-tax-deductible
+(administration fee), while FIXED treats bidrag as tax-deductible (part
+of coupon interest). This matches boligregner.dk's different tax treatment
+for obligationslån vs flexlån.
+
+Gap 2: reduced-duration heuristic scales the yield shock by (1 −
+prepayment_premium × 10) for FIXED bonds, approximating the OAS model's
+lower effective duration for callable bonds. Only affects nonzero shocks
+on finite/finite_option pricing models.
+
+Gap 3: par_cap field on LoanSpec caps realkredit hovedstol at the
+component's provenu share (par). The bank loan absorbs the residual
+provenu. kursværdi and gns_kurs are set to par (100) when capped.
+
+Remaining gaps: Gap 1 afdrag (3.5% off, separate annuity schedule issue),
+Gap 2 0% shock (0.71pp, issue_yield accuracy), Gap 3 bank hovedstol
+(538k vs 546k, nominal issue costs not modeled).
