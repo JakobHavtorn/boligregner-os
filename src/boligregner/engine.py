@@ -864,9 +864,9 @@ def _horizon_scenarios(
                 else _ZERO
             )
             bidrag_total = bidrag_charge * Decimal(horizon_n)
-            # FIXED: bidrag is tax-deductible (part of coupon interest).
-            # Flexlån (F1/F3/F5/T/CITA/CIBOR/DESTR): bidrag is an admin fee,
-            # not tax-deductible. Only the nominal interest is tax-deductible.
+            # For fixed-rate obligations, bidrag is part of the coupon and
+            # tax-deductible. For all other loan types (F1/F3/F5/T/CITA/
+            # CIBOR/DESTR), bidrag is an admin fee, not tax-deductible.
             if spec.loan_type == LoanType.FIXED:
                 rente_total += (comp_interest + bidrag_total) * (_ONE - tax_rate)
             else:
@@ -888,10 +888,7 @@ def _horizon_scenarios(
                 # where adjustment is derived from prepayment_premium (higher premium
                 # = more option value = more duration reduction). Only for nonzero
                 # shocks; at 0% the issue_yield already accounts for the discount.
-                if shock != _ZERO and spec.bond_price_model in (
-                    "finite",
-                    "finite_option",
-                ):
+                if shock != _ZERO and spec.bond_price_model == "finite_option":
                     duration_adj = spec.prepayment_premium * Decimal(10)
                     shocked_yield = base_yield + shock * (_ONE - duration_adj)
                 else:
@@ -1139,7 +1136,9 @@ def calculate(input: CalculatorInput) -> CalculatorResult:
             )
         # Restore original component order
         comp_results.sort(key=lambda pair: pair[0])
-        comp_results = [(spec, comp) for _, spec, comp in comp_results]
+        comp_results: list[tuple[LoanSpec, LoanComponentResult]] = [
+            (spec, comp) for _, spec, comp in comp_results
+        ]
 
         # Aggregate
         total_hovedstol = sum(r.hovedstol for _, r in comp_results)
