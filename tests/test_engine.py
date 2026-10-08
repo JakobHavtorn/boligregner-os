@@ -1398,11 +1398,11 @@ class TestAmortizationScheduleInvariants:
 #   hovedstol: exact (==) for single-component; 1% relative for 4%+bank
 #   ydelse: 5% relative (single-component), 20% relative (with-bank)
 #   aap: 0.5pp absolute (as fraction 0.005)
-#   horizon rente: 11.5% (flexlån: deductible-tax residual unexplained),
-#                  5% (fixed)
-#   horizon afdrag: 20%
-#   horizon ydelse: 20% (flexlån), 5% (fixed)
-#   horizon restgaeld: 5%
+#   horizon rente: 2% (flexlån: bidrag non-tax-deductible in boligregner.dk),
+#                  5% (fixed: bidrag tax-deductible)
+#   horizon afdrag: 5-8% (flexlån), 20% (with-bank)
+#   horizon ydelse: 3% (flexlån), 5% (fixed)
+#   horizon restgaeld: 2%
 #   horizon gns_kurs: 5pp absolute (kurs on 0-100 scale, tolerance = 5.0)
 
 
@@ -1482,11 +1482,11 @@ REFERENCE_CASES: list[dict] = [
             "ydelse": Decimal("0.05"),
             "aap": Decimal("0.005"),
             "horizon_rente": Decimal(
-                "0.115"
-            ),  # flexlån: bidrag tax-deductible per tax law; residual unexplained
-            "horizon_afdrag": Decimal("0.20"),
-            "horizon_ydelse": Decimal("0.20"),
-            "horizon_restgaeld": Decimal("0.05"),
+                "0.02"
+            ),  # flexlån: bidrag non-tax-deductible in boligregner.dk reporting
+            "horizon_afdrag": Decimal("0.05"),
+            "horizon_ydelse": Decimal("0.03"),
+            "horizon_restgaeld": Decimal("0.02"),
         },
     },
     # ── Session A: F5 single-component ──────────────────────────────
@@ -1535,11 +1535,11 @@ REFERENCE_CASES: list[dict] = [
             "ydelse": Decimal("0.05"),
             "aap": Decimal("0.005"),
             "horizon_rente": Decimal(
-                "0.115"
-            ),  # flexlån: bidrag tax-deductible per tax law; residual unexplained
-            "horizon_afdrag": Decimal("0.20"),
-            "horizon_ydelse": Decimal("0.20"),
-            "horizon_restgaeld": Decimal("0.05"),
+                "0.02"
+            ),  # flexlån: bidrag non-tax-deductible in boligregner.dk reporting
+            "horizon_afdrag": Decimal("0.08"),
+            "horizon_ydelse": Decimal("0.03"),
+            "horizon_restgaeld": Decimal("0.02"),
         },
     },
     # ── Session A: 4% fixed single-component ────────────────────────
