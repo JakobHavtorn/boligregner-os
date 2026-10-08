@@ -22,9 +22,8 @@ from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 from pydantic import BaseModel, Field, ValidationError
 
-from .engine import PRESETS, calculate
+from .market_data import get_market_rates as _get_market_rates_impl
 from .models import (
-    CalculatorInput,
     Ejendomstype,
     FinancingAlternative,
     LoanComponent,
@@ -401,6 +400,19 @@ def list_presets() -> dict[str, Any]:
             }
         )
     return {"presets": presets}
+
+
+# ─── Market data tool ────────────────────────────────────────────────
+
+
+@mcp.tool()
+def get_market_rates(force_refresh: bool = False) -> dict[str, Any]:
+    """Get current Danish mortgage market data: nominal rates, bidragssatser,
+    bond prices, reference rates (CIBOR/CITA/DESTR), and bank rate.
+    Data is cached with 24h TTL; call with force_refresh=true to force update.
+    """
+    rates = _get_market_rates_impl(force_refresh)
+    return rates.model_dump(mode="json")
 
 
 # ─── Resource ─────────────────────────────────────────────────────────
