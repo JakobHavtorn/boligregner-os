@@ -27,6 +27,7 @@ sys.path.insert(0, str(_repo_root / "src"))
 sys.path.insert(0, str(_repo_root))
 
 from boligregner.engine import calculate  # noqa: E402
+from boligregner.models import LoanType  # noqa: E402
 from tests.test_engine import (  # noqa: E402
     REFERENCE_CASES,
     _effective_aap,
@@ -79,6 +80,35 @@ def _rel_diff(actual: Decimal, expected: Decimal) -> str:
 
 # Each row: (case_id, metric, engine_str, ref_str, abs_diff_str, rel_diff_str)
 Row = tuple[str, str, str, str, str, str]
+
+
+def _case_summary_rows(case: dict) -> list[Row]:
+    """One descriptive row per case for the summary table."""
+    inp = case["input"]
+    alt = inp.alternatives[0]
+    comps = alt.components
+    loan_type = comps[0].loan_type
+    n_comps = len(comps)
+
+    type_label = loan_type.value if isinstance(loan_type, LoanType) else str(loan_type)
+    if n_comps > 1:
+        type_label = f"{type_label}+bank"
+
+    rate_str = f"{float(comps[0].rate) * 100:.2f}%"
+    price_str = f"{float(comps[0].price):.2f}" if comps[0].price != 100 else "par"
+    provenu_str = f"{int(inp.desired_provenu):,}"
+    maturity_str = f"{comps[0].maturity_years}y"
+
+    return [
+        (
+            case["id"],
+            type_label,
+            rate_str,
+            price_str,
+            provenu_str,
+            maturity_str,
+        )
+    ]
 
 
 def _rows_for_case(case: dict) -> list[Row]:
@@ -228,11 +258,35 @@ def _print_table(rows: list[Row]) -> None:
         prev_case = row[0]
 
 
+def _print_summary_table(rows: list[Row]) -> None:
+    """Print a simple aligned table with all columns left-aligned."""
+    headers = ("Case", "Type", "Rate", "Price", "Provenu", "Maturity")
+    cols = list(zip(headers, *rows))
+    widths = [max(len(str(c)) for c in col) for col in cols]
+
+    def _fmt_row(values: tuple[str, ...]) -> str:
+        return "  ".join(str(v).ljust(w) for v, w in zip(values, widths))
+
+    sep = "  ".join("-" * w for w in widths)
+
+    print(_fmt_row(headers))
+    print(sep)
+    for row in rows:
+        print(_fmt_row(row))
+
+
 def main() -> None:
     print("boligregner-os correctness report")
     print(f"Reference data: boligregner.dk (captured Oct 5–8, 2026)")
     print(f"Cases: {len(REFERENCE_CASES)}")
     print(f"See docs/2026-10-07-boligregner-reference-data.md for provenance.")
+    print()
+
+    summary_rows: list[Row] = []
+    for case in REFERENCE_CASES:
+        summary_rows.extend(_case_summary_rows(case))
+
+    _print_summary_table(summary_rows)
     print()
 
     all_rows: list[Row] = []
