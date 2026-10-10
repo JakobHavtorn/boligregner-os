@@ -947,10 +947,6 @@ def _horizon_scenarios(
                 else _ZERO
             )
             bidrag_total = bidrag_charge * Decimal(horizon_n)
-            # Bidrag is tax-deductible like interest (SL § 6 stk. 1 e / UfR
-            # 1947.725 HRD) for all realkredit loan types. April 2023 PDF
-            # reference data confirms: F1 flexlån rente gap improves from
-            # 6.5% to 1.4% with deductible treatment, matching fixed loans.
             rente_total += (comp_interest + bidrag_total) * (_ONE - tax_rate)
             afdrag_total += comp_principal
             restgaeld_total += balance
