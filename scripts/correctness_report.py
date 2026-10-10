@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Correctness report: engine output vs boligregner.dk reference data.
 
-Produces a per-case, per-metric deviation table. Complements the unit tests
-(which assert pass/fail within tolerances) by showing the magnitude of each
-deviation — useful when iterating on correctness gaps.
+Produces an aligned deviation table across all reference cases. Complements
+the unit tests (which assert pass/fail within tolerances) by showing the
+magnitude of each deviation — useful when iterating on correctness gaps.
 
 Usage:
     uv run python scripts/correctness_report.py
@@ -34,6 +34,20 @@ from tests.test_engine import (  # noqa: E402
     _monthly_equiv_ydelse,
 )
 
+# ── Formatting helpers ──────────────────────────────────────────────
+
+
+def _money(v: Decimal) -> str:
+    return f"{v:,.0f}"
+
+
+def _pct(v: Decimal) -> str:
+    return f"{float(v) * 100:.4f}%"
+
+
+def _kurs(v: Decimal) -> str:
+    return f"{float(v):.2f}"
+
 
 def _pct_diff(actual: Decimal, expected: Decimal) -> str:
     if expected == 0:
@@ -48,78 +62,102 @@ def _pp_diff(actual: Decimal, expected: Decimal) -> str:
     return f"{diff:+.4f}pp"
 
 
-def _fmt_money(v: Decimal) -> str:
-    return f"{v:>14,.0f}"
-
-
-def _fmt_pct(v: Decimal) -> str:
-    return f"{float(v) * 100:>8.4f}%"
-
-
 def _kurs_diff(actual: Decimal, expected: Decimal) -> str:
     """Diff for kurs values already on a 0-100 scale."""
     diff = float(actual) - float(expected)
     return f"{diff:+.2f}pp"
 
 
-def report_case(case: dict) -> None:
-    """Print a single reference case's deviation table."""
+# ── Row collection ──────────────────────────────────────────────────
+
+# Each row: (case_id, metric, engine_str, ref_str, diff_str)
+Row = tuple[str, str, str, str, str]
+
+
+def _rows_for_case(case: dict) -> list[Row]:
+    """Collect all metric rows for a single reference case."""
     result = calculate(case["input"])
     alt = result.alternatives[0]
     exp = case["expected"]
     cid = case["id"]
-
-    print(f"\n{'=' * 72}")
-    print(f"  {cid}")
-    print(f"{'=' * 72}")
-
-    # ── Top-level metrics ───────────────────────────────────────────
+    rows: list[Row] = []
 
     if "hovedstol" in exp:
         actual = alt.total_hovedstol
         expected = exp["hovedstol"]
-        print(
-            f"  Hovedstol:   {_fmt_money(actual)}  ref={_fmt_money(expected)}  diff={_pct_diff(actual, expected)}"
+        rows.append(
+            (
+                cid,
+                "Hovedstol",
+                _money(actual),
+                _money(expected),
+                _pct_diff(actual, expected),
+            )
         )
 
     if "ydelse" in exp:
         actual = _monthly_equiv_ydelse(alt, case["component_ppys"])
         expected = exp["ydelse"]
-        print(
-            f"  Ydelse:      {_fmt_money(actual)}  ref={_fmt_money(expected)}  diff={_pct_diff(actual, expected)}"
+        rows.append(
+            (
+                cid,
+                "Ydelse",
+                _money(actual),
+                _money(expected),
+                _pct_diff(actual, expected),
+            )
         )
 
     if "aap" in exp:
         actual = _effective_aap(alt, case["aap_ppy"])
         expected = exp["aap"]
-        print(
-            f"  ÅOP:         {_fmt_pct(actual)}  ref={_fmt_pct(expected)}  diff={_pp_diff(actual, expected)}"
+        rows.append(
+            (cid, "ÅOP", _pct(actual), _pct(expected), _pp_diff(actual, expected))
         )
-
-    # ── Horizon (0% shock) ─────────────────────────────────────────
 
     h0 = exp.get("horizon_0pct")
     if h0:
         row = _horizon_row(result, 0, Decimal(0))
-        print("  --- Horizon (0% shock) ---")
         if "rente" in h0:
-            print(
-                f"  Rente:       {_fmt_money(row.rente_total)}  ref={_fmt_money(h0['rente'])}  diff={_pct_diff(row.rente_total, h0['rente'])}"
+            rows.append(
+                (
+                    cid,
+                    "Horizon rente",
+                    _money(row.rente_total),
+                    _money(h0["rente"]),
+                    _pct_diff(row.rente_total, h0["rente"]),
+                )
             )
         if "afdrag" in h0:
-            print(
-                f"  Afdrag:      {_fmt_money(row.afdrag_total)}  ref={_fmt_money(h0['afdrag'])}  diff={_pct_diff(row.afdrag_total, h0['afdrag'])}"
+            rows.append(
+                (
+                    cid,
+                    "Horizon afdrag",
+                    _money(row.afdrag_total),
+                    _money(h0["afdrag"]),
+                    _pct_diff(row.afdrag_total, h0["afdrag"]),
+                )
             )
         if "ydelse" in h0:
-            print(
-                f"  Ydelse:      {_fmt_money(row.ydelse_total)}  ref={_fmt_money(h0['ydelse'])}  diff={_pct_diff(row.ydelse_total, h0['ydelse'])}"
+            rows.append(
+                (
+                    cid,
+                    "Horizon ydelse",
+                    _money(row.ydelse_total),
+                    _money(h0["ydelse"]),
+                    _pct_diff(row.ydelse_total, h0["ydelse"]),
+                )
             )
         if "restgaeld" in h0:
-            print(
-                f"  Restgæld:    {_fmt_money(row.restgaeld)}  ref={_fmt_money(h0['restgaeld'])}  diff={_pct_diff(row.restgaeld, h0['restgaeld'])}"
+            rows.append(
+                (
+                    cid,
+                    "Horizon restgæld",
+                    _money(row.restgaeld),
+                    _money(h0["restgaeld"]),
+                    _pct_diff(row.restgaeld, h0["restgaeld"]),
+                )
             )
-
-    # ── Horizon gns_kurs (all shocks) ──────────────────────────────
 
     gns_refs = exp.get("horizon_gns_kurs")
     if gns_refs:
@@ -127,9 +165,42 @@ def report_case(case: dict) -> None:
             row = _horizon_row(result, 0, shock)
             actual_kurs = row.gns_kurs
             shock_label = f"{int(float(shock) * 100):+d}%"
-            print(
-                f"  Gns.kurs ({shock_label:>3}):   {float(actual_kurs):>8.2f}  ref={float(expected_kurs):>8.2f}  diff={_kurs_diff(actual_kurs, expected_kurs)}"
+            metric = f"Gns.kurs ({shock_label})"
+            rows.append(
+                (
+                    cid,
+                    metric,
+                    _kurs(actual_kurs),
+                    _kurs(expected_kurs),
+                    _kurs_diff(actual_kurs, expected_kurs),
+                )
             )
+
+    return rows
+
+
+def _print_table(rows: list[Row]) -> None:
+    """Print rows as a column-aligned table."""
+    headers = ("Case", "Metric", "Engine", "Reference", "Diff")
+    cols = list(zip(headers, *rows))
+    widths = [max(len(str(c)) for c in col) for col in cols]
+
+    def _fmt_row(values: tuple[str, ...]) -> str:
+        parts = []
+        for i, (val, w) in enumerate(zip(values, widths)):
+            # Case and Metric: left-aligned. Engine, Reference, Diff: right-aligned.
+            if i < 2:
+                parts.append(str(val).ljust(w))
+            else:
+                parts.append(str(val).rjust(w))
+        return "  ".join(parts)
+
+    sep = "  ".join("-" * w for w in widths)
+
+    print(_fmt_row(headers))
+    print(sep)
+    for row in rows:
+        print(_fmt_row(row))
 
 
 def main() -> None:
@@ -137,10 +208,13 @@ def main() -> None:
     print(f"Reference data: boligregner.dk (captured Oct 5–8, 2026)")
     print(f"Cases: {len(REFERENCE_CASES)}")
     print(f"See docs/2026-10-07-boligregner-reference-data.md for provenance.")
+    print()
 
+    all_rows: list[Row] = []
     for case in REFERENCE_CASES:
-        report_case(case)
+        all_rows.extend(_rows_for_case(case))
 
+    _print_table(all_rows)
     print()
 
 
