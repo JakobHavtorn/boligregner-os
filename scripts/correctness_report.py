@@ -80,8 +80,6 @@ SummaryRow = tuple[str, str, str, str, str, str, str]
 
 def _case_summary_rows(case: dict) -> list[SummaryRow]:
     """One descriptive row per case for the summary table."""
-    if case.get("skip"):
-        return []
     inp = case["input"]
     alt = inp.alternatives[0]
     comps = alt.components
@@ -114,7 +112,7 @@ def _case_summary_rows(case: dict) -> list[SummaryRow]:
 def _rows_for_case(case: dict) -> list[Row]:
     """Collect all metric rows for a single reference case."""
     if case.get("skip"):
-        return []
+        return [(case["id"], "SKIPPED", case["skip"], "", "", "")]
     result = calculate(case["input"])
     alt = result.alternatives[0]
     exp = case["expected"]

@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Parse a boligregner.dk result page set into structured reference data.
+"""Parse saved boligregner.dk result pages into structured reference data.
 
 Usage:
-    uv run python scripts/parse_boligregner.py <result_url_base>
-    uv run python scripts/parse_boligregner.py http://boligregner.dk/resultater/hent/4cea022e-e606-4c95-877c-1d583d27df20/
+    uv run python scripts/parse_boligregner.py <html_dir>
 
-The script fetches subpages 0..3, extracts:
+The directory must contain saved HTML files named 0.html, 1.html, 2.html, 3.html
+(Save via browser: File → Save Page As, or curl with browser cookies.)
+
+Extracts:
   - Loan overview (rente, kurs, bidragssats, hovedstol, issue costs, etc.)
   - 5-year horizon scenarios (rente+bidrag, afdrag, ydelse, restgæld)
   - Amortization schedule (quarterly breakdown)
@@ -18,9 +20,9 @@ from __future__ import annotations
 import json
 import re
 import sys
-import urllib.request
 from decimal import Decimal
 from html import unescape
+from pathlib import Path
 from typing import Any
 
 
@@ -61,13 +63,6 @@ def _parse_date(text: str) -> str | None:
         return None
     dd, mm, yyyy = m.groups()
     return f"{yyyy}-{mm}-{dd}"
-
-
-def _fetch(url: str) -> str:
-    """Fetch a URL, following redirects."""
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-    with urllib.request.urlopen(req) as resp:
-        return resp.read().decode("utf-8", errors="replace")
 
 
 def _extract_tables(html: str) -> list[list[list[str]]]:
@@ -304,9 +299,9 @@ def parse_amortization(tables: list[list[list[str]]]) -> list[dict[str, Any]]:
     return schedule
 
 
-def parse_subpage(url: str) -> dict[str, Any]:
-    """Fetch and parse a single subpage."""
-    html = _fetch(url)
+def parse_subpage(html_path: Path) -> dict[str, Any]:
+    """Parse a single saved HTML subpage."""
+    html = html_path.read_text(encoding="utf-8", errors="replace")
     tables = _extract_tables(html)
 
     return {
@@ -318,24 +313,21 @@ def parse_subpage(url: str) -> dict[str, Any]:
     }
 
 
-def parse_result_set(url_base: str) -> dict[str, Any]:
-    """Fetch and parse subpages 0..3 from a boligregner.dk result URL.
+def parse_result_set(html_dir: Path) -> dict[str, Any]:
+    """Parse saved HTML files 0..3 from a directory.
 
     Page 0: Summary (comparison of all alternatives)
     Pages 1-3: Individual loan details
     """
-    if not url_base.endswith("/"):
-        url_base += "/"
-
     result: dict[str, Any] = {
-        "source_url": url_base,
+        "source": str(html_dir),
         "pages": {},
     }
 
     for i in range(4):
-        url = f"{url_base}{i}/"
+        html_path = html_dir / f"{i}.html"
         try:
-            parsed = parse_subpage(url)
+            parsed = parse_subpage(html_path)
             result["pages"][i] = parsed
             ov = parsed.get("overview", {})
             loan_type = ov.get("loan_type", "unknown")
@@ -430,17 +422,21 @@ def _build_summary(pages: dict[int, Any]) -> list[dict[str, Any]]:
 def main():
     if len(sys.argv) < 2:
         print(
-            "Usage: parse_boligregner.py <result_url_base>\n"
-            "Example: parse_boligregner.py "
-            "http://boligregner.dk/resultater/hent/4cea022e-.../",
+            "Usage: parse_boligregner.py <html_dir>\n"
+            "The directory must contain 0.html, 1.html, 2.html, 3.html\n"
+            "saved from boligregner.dk result pages (browser → Save Page As).",
             file=sys.stderr,
         )
         sys.exit(1)
 
-    url_base = sys.argv[1]
-    print(f"Parsing boligregner.dk result set: {url_base}", file=sys.stderr)
+    html_dir = Path(sys.argv[1])
+    if not html_dir.is_dir():
+        print(f"Error: {html_dir} is not a directory", file=sys.stderr)
+        sys.exit(1)
 
-    result = parse_result_set(url_base)
+    print(f"Parsing saved HTML files from: {html_dir}", file=sys.stderr)
+
+    result = parse_result_set(html_dir)
 
     print(json.dumps(result, indent=2, ensure_ascii=False, default=str))
 
