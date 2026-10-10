@@ -1,12 +1,13 @@
-"""Engine tests — verify the math against boligregner.dk sample numbers.
+"""Engine tests — verify the math against boligregner.dk reference data.
 
-The sample numbers come from the page at /resultater/beregning with
-desired_provenu = 2.500.000, start 06-10-2026, horizon 5 years, tax 33,6%.
+Reference data sources:
+  - Oct 2026: browser-saved HTML result pages from boligregner.dk (10 Oct 2026)
+  - April 2023: printed PDF result pages (22-24 Apr 2023)
 
-Known answers (from boligregner.dk comparison table, Oct 6 2026):
-  Alt 1 (F3):  hovedstol 2.546.000, gns.kurs 100,00, ÅOP 4,48%, ydelse e.s. 13.031
-  Alt 2 (F5):  hovedstol 2.547.000, gns.kurs 100,00, ÅOP 4,67%, ydelse e.s. 13.324
-  Alt 3 (4%):  hovedstol 2.719.000, gns.kurs 93,66, ÅOP 5,57%, ydelse e.s. 14.589
+Browser session (10 Oct 2026, pure realkredit, provenu ~2.5M / 6.5M):
+  F1 oktober: provenu 2.500.643, kurs 98.26, ÅOP 4.36%, ydelse 12.665
+  F5 januar:  provenu 2.500.133, kurs 91.30, ÅOP 4.72%, ydelse 13.395
+  4% fixed:   provenu 2.500.154, kurs 93.84, ÅOP 5.56%, ydelse 14.573
 """
 
 from datetime import date
@@ -733,9 +734,9 @@ class TestCitaCiborDestr:
 
 
 # ─── Correctness checks against boligregner.dk reference ────────────
-# Reference data captured from boligregner.dk, Oct 5-6, 2026.
-# These tests verify the engine's math against known reference values
-# produced by the boligregner.dk calculator.
+# Reference data from boligregner.dk browser HTML exports (Oct 10, 2026)
+# and April 2023 PDFs. These tests verify the engine's math against
+# known reference values produced by the boligregner.dk calculator.
 
 
 class TestHovedstolDerivation:
@@ -815,33 +816,33 @@ class TestHovedstolDerivation:
         )
 
     def test_kontantlaan_f5_oct8_reference(self):
-        """F5 kontantlån: provenu=2.500.156, udst.omk=46.844, kurs=91.36.
+        """F5 kontantlån: provenu=2.500.133, udst.omk=46.867, kurs=91.30.
 
-        Reference: boligregner.dk F5, Oct 8 2026.
-        hovedstol (kontantlån) = round_up_1000(2.500.156 + 46.844) = 2.547.000
-        obligationshovedstol = round_up_1000((2.500.156 + 46.844) / 0.9136) ≈ 2.788.000
+        Reference: boligregner.dk F5 januar, Oct 10 2026 (browser HTML).
+        hovedstol (kontantlån) = round_up_1000(2.500.133 + 46.867) = 2.547.000
+        obligationshovedstol = round_up_1000((2.500.133 + 46.867) / 0.9130) ≈ 2.790.000
         """
         h, oblig, _ = _hovedstol_for_provenu(
-            Decimal(2500156),
-            Decimal("91.36"),
+            Decimal(2500133),
+            Decimal("91.30"),
             Decimal(0),
-            issue_costs_nominal=Decimal(46844),
+            issue_costs_nominal=Decimal(46867),
             kontantlaan=True,
         )
         assert h == Decimal(2547000)
-        assert abs(oblig - Decimal(2788000)) < Decimal(2000)
+        assert abs(oblig - Decimal(2790000)) < Decimal(2000)
 
     def test_kontantlaan_f1_oct8_reference(self):
-        """F1 kontantlån: provenu=2.500.637, udst.omk=44.363, kurs=98.24.
+        """F1 kontantlån: provenu=2.500.643, udst.omk=44.357, kurs=98.26.
 
-        Reference: boligregner.dk F1, Oct 8 2026.
-        hovedstol (kontantlån) = round_up_1000(2.500.637 + 44.363) = 2.545.000
+        Reference: boligregner.dk F1 oktober, Oct 10 2026 (browser HTML).
+        hovedstol (kontantlån) = round_up_1000(2.500.643 + 44.357) = 2.545.000
         """
         h, _oblig, _ = _hovedstol_for_provenu(
-            Decimal(2500637),
-            Decimal("98.24"),
+            Decimal(2500643),
+            Decimal("98.26"),
             Decimal(0),
-            issue_costs_nominal=Decimal(44363),
+            issue_costs_nominal=Decimal(44357),
             kontantlaan=True,
         )
         assert h == Decimal(2545000)
@@ -1388,24 +1389,25 @@ class TestAmortizationScheduleInvariants:
 
 
 # ─── Parameterized reference comparison tests ────────────────────────
-# Reference data captured from boligregner.dk, Oct 5-6, 2026.
-# Session A: single-component (realkredit-only), provenu=2.500.000, 06-10-2026.
-# Session B: two-component (realkredit + bank), provenu=2.500.000, 05-10-2026.
+# Reference data from boligregner.dk HTML exports and April 2023 PDFs.
+# Oct 2026 cases: browser-saved result pages (10 Oct 2026).
+# April 2023 cases: printed PDF result pages.
 #
 # Adding a new boligregner.dk reference session: append one dict to
 # REFERENCE_CASES. No other changes needed — the parametrized test
 # methods auto-generate test IDs for every (case × metric) pair.
 #
 # Tolerances (stored per-case in the "tol" dict):
-#   hovedstol: exact (==) for single-component; 1% relative for 4%+bank
-#   ydelse: 5% relative (single-component), 20% relative (with-bank)
+#   hovedstol: exact (==) or 0.1% relative (rounding)
+#   ydelse: 2% relative
 #   aap: 0.5pp absolute (as fraction 0.005)
-#   horizon rente: 2% (flexlån: bidrag non-tax-deductible in boligregner.dk),
-#                  5% (fixed: bidrag tax-deductible)
-#   horizon afdrag: 5-8% (flexlån), 20% (with-bank)
-#   horizon ydelse: 3% (flexlån), 5% (fixed)
-#   horizon restgaeld: 2%
+#   horizon rente: 2% (all-deductible bidrag), 5% (CITA: unknown margin)
+#   horizon afdrag: 2%
+#   horizon ydelse: 2%
+#   horizon restgaeld: 1%
 #   horizon gns_kurs: 5pp absolute (kurs on 0-100 scale, tolerance = 5.0)
+#   shocked scenarios: wider tolerance (flexlån shock model
+#     differs from boligregner.dk's rate-reset timing)
 
 
 def _monthly_equiv_ydelse(alt, component_ppys):
@@ -1843,7 +1845,7 @@ REFERENCE_CASES: list[dict] = [
             },
         },
         "tol": {
-            "hovedstol": None,  # exact
+            "hovedstol": Decimal("0.001"),  # ~0.1% — engine rounds to nearest 1000
             "ydelse": Decimal("0.02"),
             "aap": Decimal("0.005"),
             "horizon_rente": Decimal("0.05"),  # wider due to unknown margin split
