@@ -248,8 +248,6 @@ def _make_single_alt(
                         interest_only_years=interest_only_years,
                         fixed_ydelse=fixed_ydelse,
                         payments_per_year=12,
-                        bidrag_model="compounded",
-                        bond_price_model="simple",
                     ),
                 ],
             ),
@@ -349,14 +347,16 @@ class TestTLån:
     """Tests for the T-lån (fixed payment, variable duration) feature."""
 
     def test_fixed_ydelse(self):
-        """T-lån ydelse_before_tax equals the fixed_ydelse input."""
+        """T-lån ydelse_before_tax equals fixed_ydelse + bidrag charge."""
         inp = _make_single_alt(
             loan_type=LoanType.T,
             rate=Decimal("0.038"),
             fixed_ydelse=Decimal(9900),
         )
         result = calculate(inp)
-        assert result.alternatives[0].ydelse_before_tax == Decimal(9900)
+        hovedstol = Decimal(2546000)
+        bidrag_charge = Decimal("0.006") * hovedstol / Decimal(12)
+        assert result.alternatives[0].ydelse_before_tax == Decimal(9900) + bidrag_charge
 
     def test_duration_extends_with_rate_shock(self):
         """At +2% shock, restgæld after horizon is HIGHER than at 0% (slower amortization)."""
@@ -398,28 +398,18 @@ class TestTLån:
             fixed_ydelse=Decimal(9900),
         )
         result = calculate(inp)
-        # Before-tax ydelse in the summary should be exactly fixed_ydelse
-        assert result.alternatives[0].ydelse_before_tax == Decimal(9900)
-        # For each shock scenario, the before-tax payment is still fixed_ydelse.
-        # ydelse_slut (after tax) + interest_at_horizon * tax_rate == fixed_ydelse.
-        # Since ydelse_slut = fixed_ydelse - interest * tax_rate, and interest
-        # varies with the shock, ydelse_slut varies — but the gross payment is fixed.
-        # Verify: ydelse_slut is derived from the same fixed_ydelse.
+        hovedstol = Decimal(2546000)
+        bidrag_charge = Decimal("0.006") * hovedstol / Decimal(12)
+        ydelse_bs = Decimal(9900) + bidrag_charge
+        # Before-tax ydelse in the summary should be fixed_ydelse + bidrag
+        assert result.alternatives[0].ydelse_before_tax == ydelse_bs
         ha = result.horizon_analyses[0]
         for row in ha.scenarios:
-            # The before-tax ydelse at start and end should both be fixed_ydelse.
-            # ydelse_start = fixed_ydelse - hovedstol * r_original * tax_rate
-            # ydelse_slut  = fixed_ydelse - balance * r_shocked * tax_rate
-            # Both are derived from the same fixed_ydelse.
-            # Check the difference is entirely due to tax deduction changes.
-            tax_rate = Decimal("0.336")
-            # Reconstruct before-tax from start: start + interest_start * tax = fixed
-            # We know fixed_ydelse = 9900, so verify ydelse_start < 9900 and ydelse_slut < 9900
-            assert row.ydelse_start < Decimal(9900), (
-                f"ydelse_start {row.ydelse_start} should be < 9900 (after tax)"
+            assert row.ydelse_start < ydelse_bs, (
+                f"ydelse_start {row.ydelse_start} should be < {ydelse_bs} (after tax)"
             )
-            assert row.ydelse_slut < Decimal(9900), (
-                f"ydelse_slut {row.ydelse_slut} should be < 9900 (after tax)"
+            assert row.ydelse_slut < ydelse_bs, (
+                f"ydelse_slut {row.ydelse_slut} should be < {ydelse_bs} (after tax)"
             )
 
     def test_solve_for_n(self):
@@ -483,8 +473,6 @@ def _make_ref_alt(
                         fixed_ydelse=fixed_ydelse,
                         interest_only_years=interest_only_years,
                         payments_per_year=12,
-                        bidrag_model="compounded",
-                        bond_price_model="simple",
                     ),
                 ],
             ),
@@ -497,7 +485,7 @@ class TestCitaCiborDestr:
 
     def test_cibor_rate_path_structure(self):
         """_rate_path for CIBOR returns a constant array of length n_months
-        at the expected rate: reference + margin + bidrag."""
+        at the expected rate: reference + margin."""
         spec = LoanSpec(
             component=LoanComponent.REALKREDIT,
             loan_type=LoanType.CIBOR,
@@ -509,25 +497,21 @@ class TestCitaCiborDestr:
             reference_rate=Decimal("0.0320"),
             margin=Decimal("0.0025"),
             payments_per_year=12,
-            bidrag_model="compounded",
-            bond_price_model="simple",
         )
-        # With zero shock, the rate is constant at reference + margin + bidrag
         path = _rate_path(spec, Decimal(0), 12)
         assert len(path) == 12
-        expected = Decimal("0.0320") + Decimal("0.0025") + Decimal("0.006")
+        expected = Decimal("0.0320") + Decimal("0.0025")
         assert all(r == expected for r in path)
-        # With +2% shock, the rate is constant at (reference + shock) + margin + bidrag
         path_shocked = _rate_path(spec, Decimal("0.02"), 12)
         assert len(path_shocked) == 12
         expected_shocked = (
-            (Decimal("0.0320") + Decimal("0.02")) + Decimal("0.0025") + Decimal("0.006")
+            (Decimal("0.0320") + Decimal("0.02")) + Decimal("0.0025")
         )
         assert all(r == expected_shocked for r in path_shocked)
 
     def test_cibor_shock_applies_to_reference_not_margin(self):
-        """Rate at shock=+2% = (reference+0.02) + margin + bidrag,
-        not (reference+margin+0.02+bidrag) — shock applies to reference only."""
+        """Rate at shock=+2% = (reference+0.02) + margin,
+        not (reference+margin+0.02) — shock applies to reference only."""
         spec = LoanSpec(
             component=LoanComponent.REALKREDIT,
             loan_type=LoanType.CIBOR,
@@ -538,18 +522,15 @@ class TestCitaCiborDestr:
             bidragssats=Decimal("0.006"),
             reference_rate=Decimal("0.0320"),
             margin=Decimal("0.0025"),
-            bidrag_model="compounded",
         )
         path = _rate_path(spec, Decimal("0.02"), 6)
-        # Shock applies to reference: (0.0320 + 0.02) + 0.0025 + 0.006
         expected = (
-            (Decimal("0.0320") + Decimal("0.02")) + Decimal("0.0025") + Decimal("0.006")
+            (Decimal("0.0320") + Decimal("0.02")) + Decimal("0.0025")
         )
         assert path[0] == expected
-        # At -2% shock, reference can go negative (Danish rates were negative in 2010s)
         path_neg = _rate_path(spec, Decimal("-0.02"), 6)
         expected_neg = (
-            (Decimal("0.0320") - Decimal("0.02")) + Decimal("0.0025") + Decimal("0.006")
+            (Decimal("0.0320") - Decimal("0.02")) + Decimal("0.0025")
         )
         assert path_neg[0] == expected_neg
 
@@ -608,7 +589,6 @@ class TestCitaCiborDestr:
             bidragssats=bidrag,
             reference_rate=ref,
             margin=margin,
-            bidrag_model="compounded",
         )
         destr_spec = LoanSpec(
             component=LoanComponent.REALKREDIT,
@@ -620,33 +600,21 @@ class TestCitaCiborDestr:
             bidragssats=bidrag,
             reference_rate=ref,
             margin=margin,
-            bidrag_model="compounded",
         )
         cibor_path = _rate_path(cibor_spec, Decimal(0), 12)
         destr_path = _rate_path(destr_spec, Decimal(0), 12)
-        # DESTR annual effective rate should differ from CIBOR
-        # due to daily compounding conversion
         assert cibor_path[0] != destr_path[0], (
             f"DESTR rate {destr_path[0]} should differ from CIBOR {cibor_path[0]}"
         )
-        # DESTR rate path: (1 + ref/360)^30 * 12 - 12 + margin + bidrag
-        # vs CIBOR: ref + margin + bidrag
-        # The daily-compounded monthly equivalent annualized is:
-        #   monthly = (1 + ref/360)^30 - 1
-        #   annual_equiv = monthly * 12
-        # Compare: cibor = ref + margin + bidrag (simple)
-        #          destr = monthly * 12 + margin + bidrag
-        cibor_rate = ref + margin + bidrag
+        cibor_rate = ref + margin
         destr_monthly = _daily_to_monthly(ref)
-        destr_rate = destr_monthly * Decimal(12) + margin + bidrag
+        destr_rate = destr_monthly * Decimal(12) + margin
         assert cibor_path[0] == cibor_rate
         assert destr_path[0] == destr_rate
-        # DESTR effective rate should be slightly different from CIBOR
-        # (the compounding effect is small at ~3% rates)
         assert destr_path[0] != cibor_path[0]
 
     def test_cibor_zero_shock_matches_initial_rate(self):
-        """At 0% shock, the rate path is constant at reference+margin+bidrag."""
+        """At 0% shock, the rate path is constant at reference+margin."""
         spec = LoanSpec(
             component=LoanComponent.REALKREDIT,
             loan_type=LoanType.CIBOR,
@@ -657,10 +625,9 @@ class TestCitaCiborDestr:
             bidragssats=Decimal("0.006"),
             reference_rate=Decimal("0.0320"),
             margin=Decimal("0.0025"),
-            bidrag_model="compounded",
         )
         path = _rate_path(spec, Decimal(0), 12)
-        expected = Decimal("0.0320") + Decimal("0.0025") + Decimal("0.006")
+        expected = Decimal("0.0320") + Decimal("0.0025")
         assert all(r == expected for r in path)
 
     def test_reference_rate_required_for_cibor(self):
