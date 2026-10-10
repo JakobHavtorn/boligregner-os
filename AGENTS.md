@@ -41,14 +41,14 @@ All dynamic content inserted into HTML must go through `escapeHtml()`. This incl
 
 All realkredit loans fall into two hovedstol derivation classes:
 
-- **Kontantlån** (F1/F3/F5, T, CITA/CIBOR/DESTR): hovedstol = kursværdi at par =
+- **Kontantlån** (F1/F3/F5, T, CITA/CIBOR/DESTR, and FIXED with `coupon_rate` set): hovedstol = kursværdi at par =
   `round_up_1000(provenu + udst.omk)`. Amortization runs on this par hovedstol.
   `obligationshovedstol` (the nominal bond amount) is tracked separately for bond
   pricing and redemption. `kursvaerdi = hovedstol` (at par).
-- **Obligationslån** (FIXED): hovedstol = obligationshovedstol =
+- **Obligationslån** (FIXED without `coupon_rate`): hovedstol = obligationshovedstol =
   `round_up_1000(provenu / (kurs/100 - issue_costs_pct))`. The standard derivation.
 
-Classification is handled by `_is_kontantlaan(loan_type)` in `engine.py`.
+Classification is handled by `_is_kontantlaan(spec)` in `engine.py`.
 
 - `FIXED` — Fixed-rate obligation (fast rente). Rate shocks affect bond redemption price, not amortization.
 - `F3` / `F5` / `F1` — Rentetilpasningslån (flexlån) with 3/5/1-year rate adjustment. Rate shocks affect amortization rate, redemption at par.
@@ -136,5 +136,5 @@ This project uses `uv` with the `uv_build` backend (not hatchling/pip). The `pyp
 - Do not modify http_server.py templates path logic (uses `Path(__file__).parent`)
 - Do not use `text-transform: uppercase` on labels (sentence case only)
 - Do not hardcode alternative count or color count — both are dynamic
-- Do not derive obligationshovedstol for kontantlån (F1/F3/F5/T/CITA/CIBOR/DESTR) — use `_is_kontantlaan()` to dispatch to the par-based derivation
+- Do not derive obligationshovedstol for kontantlån (F1/F3/F5/T/CITA/CIBOR/DESTR, or FIXED with `coupon_rate`) — use `_is_kontantlaan(spec)` to dispatch to the par-based derivation
 - Do not treat bidrag as non-deductible for any realkredit loan type
