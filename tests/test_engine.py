@@ -64,12 +64,12 @@ class TestAnnuity:
 class TestHovedstol:
     def test_par_price_no_costs(self):
         # Price 100, no costs: hovedstol == provenu (rounded to 1000s)
-        h, _ = _hovedstol_for_provenu(Decimal(2500000), Decimal(100), Decimal(0))
+        h, _, _ = _hovedstol_for_provenu(Decimal(2500000), Decimal(100), Decimal(0))
         assert h == Decimal(2500000)
 
     def test_discount_obligation(self):
         # Price 94.52, ~1.71% costs: hovedstol should be ~2.694M for 2.5M provenu
-        h, _ = _hovedstol_for_provenu(
+        h, _, _ = _hovedstol_for_provenu(
             Decimal(2500000), Decimal("94.52"), Decimal("0.0171")
         )
         # Should be ~2.694M (matching boligregner Alt 3)
@@ -82,7 +82,7 @@ class TestHovedstol:
     def test_kontantlaan_at_par(self):
         # Kontantlån (flexlån): derive at par regardless of bond kurs.
         # provenu=2.500.000, nominal udst.omk=46.844 → hovedstol=2.547.000
-        h, oblig = _hovedstol_for_provenu(
+        h, oblig, _ = _hovedstol_for_provenu(
             Decimal(2500000),
             Decimal("91.36"),
             Decimal(0),
@@ -753,7 +753,7 @@ class TestHovedstolDerivation:
         Reference: boligregner.dk F3 alternative, Oct 2026.
         Exact match — the quantization to whole thousands is deterministic.
         """
-        h, _ = _hovedstol_for_provenu(
+        h, _, _ = _hovedstol_for_provenu(
             Decimal(1875578), Decimal("95.63"), Decimal("0.018511")
         )
         assert h == Decimal(2000000)
@@ -764,7 +764,7 @@ class TestHovedstolDerivation:
         Reference: boligregner.dk F5 alternative, Oct 2026.
         Exact match — the quantization to whole thousands is deterministic.
         """
-        h, _ = _hovedstol_for_provenu(
+        h, _, _ = _hovedstol_for_provenu(
             Decimal(1790372), Decimal("91.43"), Decimal("0.019114")
         )
         assert h == Decimal(2000000)
@@ -776,7 +776,7 @@ class TestHovedstolDerivation:
         Reference says 2.136.000; engine gives 2.137.000 due to quantization
         rounding up to nearest 1000. Tolerance < 2000 kr accounts for this.
         """
-        h, _ = _hovedstol_for_provenu(
+        h, _, _ = _hovedstol_for_provenu(
             Decimal(1965428), Decimal("93.76"), Decimal("0.017577")
         )
         # Reference says 2.136.000; engine rounds up to 2.137.000 (1k diff)
@@ -791,7 +791,7 @@ class TestHovedstolDerivation:
         With price=100 and issue_costs_pct=0, no discount or costs,
         so hovedstol = provenu exactly.
         """
-        h, _ = _hovedstol_for_provenu(Decimal(2500000), Decimal(100), Decimal(0))
+        h, _, _ = _hovedstol_for_provenu(Decimal(2500000), Decimal(100), Decimal(0))
         assert h == Decimal(2500000)
 
     def test_discount_price_with_costs(self):
@@ -801,7 +801,9 @@ class TestHovedstolDerivation:
         Formula: hovedstol = ceil(provenu / (price/100 - issue_pct) / 1000) * 1000
         The exact value depends on the formula; tolerance < 5000 kr for quantization.
         """
-        h, _ = _hovedstol_for_provenu(Decimal(2500000), Decimal(95), Decimal("0.015"))
+        h, _, _ = _hovedstol_for_provenu(
+            Decimal(2500000), Decimal(95), Decimal("0.015")
+        )
         # The formula gives a deterministic result; allow up to 5000 kr
         # tolerance for the quantization to nearest 1000.
         expected = Decimal(2500000) / (Decimal(95) / Decimal(100) - Decimal("0.015"))
@@ -819,7 +821,7 @@ class TestHovedstolDerivation:
         hovedstol (kontantlån) = round_up_1000(2.500.156 + 46.844) = 2.547.000
         obligationshovedstol = round_up_1000((2.500.156 + 46.844) / 0.9136) ≈ 2.788.000
         """
-        h, oblig = _hovedstol_for_provenu(
+        h, oblig, _ = _hovedstol_for_provenu(
             Decimal(2500156),
             Decimal("91.36"),
             Decimal(0),
@@ -835,7 +837,7 @@ class TestHovedstolDerivation:
         Reference: boligregner.dk F1, Oct 8 2026.
         hovedstol (kontantlån) = round_up_1000(2.500.637 + 44.363) = 2.545.000
         """
-        h, _oblig = _hovedstol_for_provenu(
+        h, _oblig, _ = _hovedstol_for_provenu(
             Decimal(2500637),
             Decimal("98.24"),
             Decimal(0),
