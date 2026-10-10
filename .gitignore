@@ -8,3 +8,5 @@ build/
 venv/
 *.egg
 .coverage
+# Runtime market-data cache (written by boligregner.market_data at runtime)
+data/cache/

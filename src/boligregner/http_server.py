@@ -13,7 +13,15 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 
 from .engine import PRESETS, amortization_schedule, calculate
-from .models import AmortizationSchedule, CalculatorInput, CalculatorResult
+from .market_data import (
+    get_bidragssatser,
+    get_bond_prices,
+    get_market_rates,
+    get_nominal_rate,
+    get_reference_rate,
+    refresh_market_rates,
+)
+from .models import AmortizationSchedule, CalculatorInput, CalculatorResult, LoanType
 
 app = FastAPI(
     title="boligregner-os",
@@ -83,3 +91,56 @@ def resultater_alternativ(request: Request, alt_index: int) -> HTMLResponse:
     return templates.TemplateResponse(
         request, "alternative.html", {"alt_index": alt_index}
     )
+
+
+@app.get("/api/market-rates/{loan_type}")
+def api_market_rates(loan_type: LoanType) -> dict:
+    """Current nominal rate for a specific loan type (F1, F3, F5, FIXED).
+
+    Returns {"loan_type": "f3", "rate": "0.0239", "fetched_at": ...}.
+    FIXED returns rate=None (use /api/bond-prices for fixed-rate data).
+    """
+    rate = get_nominal_rate(loan_type)
+    rates = get_market_rates()
+    return {
+        "loan_type": loan_type.value,
+        "rate": str(rate) if rate is not None else None,
+        "fetched_at": rates.fetched_at.isoformat(),
+    }
+
+
+@app.get("/api/bidragssatser")
+def api_bidragssatser(
+    institute: str | None = None, loan_type: str | None = None
+) -> dict:
+    """Bidragssatser by institute x LTV x loan type x afdragsfrihed.
+
+    Returns flat list of BidragssatsEntry dicts, optionally filtered.
+    """
+    entries = get_bidragssatser(institute=institute, loan_type=loan_type)
+    return {
+        "bidragssatser": [e.model_dump(mode="json") for e in entries],
+    }
+
+
+@app.get("/api/bond-prices")
+def api_bond_prices() -> dict:
+    """Current fixed-rate bond prices (kurs). Flexlan always 100 (par)."""
+    return get_bond_prices()
+
+
+@app.get("/api/reference-rates/{rate_type}")
+def api_reference_rates(rate_type: str) -> dict:
+    """Reference rate (CIBOR 3M/6M, CITA 3M, DESTR). Cached per source."""
+    rate = get_reference_rate(rate_type)
+    return {
+        "rate_type": rate_type,
+        "rate": str(rate) if rate is not None else None,
+    }
+
+
+@app.post("/api/market-rates/refresh")
+def api_market_rates_refresh() -> dict:
+    """Force refresh all sources. Returns fresh snapshot."""
+    rates = refresh_market_rates()
+    return rates.model_dump(mode="json")
