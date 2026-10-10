@@ -80,9 +80,10 @@ def _rel_diff(actual: Decimal, expected: Decimal) -> str:
 
 # Each row: (case_id, metric, engine_str, ref_str, abs_diff_str, rel_diff_str)
 Row = tuple[str, str, str, str, str, str]
+SummaryRow = tuple[str, str, str, str, str, str, str]
 
 
-def _case_summary_rows(case: dict) -> list[Row]:
+def _case_summary_rows(case: dict) -> list[SummaryRow]:
     """One descriptive row per case for the summary table."""
     inp = case["input"]
     alt = inp.alternatives[0]
@@ -98,6 +99,7 @@ def _case_summary_rows(case: dict) -> list[Row]:
     price_str = f"{float(comps[0].price):.2f}" if comps[0].price != 100 else "par"
     provenu_str = f"{int(inp.desired_provenu):,}"
     maturity_str = f"{comps[0].maturity_years}y"
+    date_str = inp.start_date.strftime("%Y-%m-%d")
 
     return [
         (
@@ -107,6 +109,7 @@ def _case_summary_rows(case: dict) -> list[Row]:
             price_str,
             provenu_str,
             maturity_str,
+            date_str,
         )
     ]
 
@@ -258,9 +261,9 @@ def _print_table(rows: list[Row]) -> None:
         prev_case = row[0]
 
 
-def _print_summary_table(rows: list[Row]) -> None:
+def _print_summary_table(rows: list[SummaryRow]) -> None:
     """Print a simple aligned table with all columns left-aligned."""
-    headers = ("Case", "Type", "Rate", "Price", "Provenu", "Maturity")
+    headers = ("Case", "Type", "Rate", "Price", "Provenu", "Maturity", "Date")
     cols = list(zip(headers, *rows))
     widths = [max(len(str(c)) for c in col) for col in cols]
 
@@ -282,7 +285,7 @@ def main() -> None:
     print(f"See docs/2026-10-07-boligregner-reference-data.md for provenance.")
     print()
 
-    summary_rows: list[Row] = []
+    summary_rows: list[SummaryRow] = []
     for case in REFERENCE_CASES:
         summary_rows.extend(_case_summary_rows(case))
 
