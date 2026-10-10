@@ -1589,10 +1589,8 @@ REFERENCE_CASES: list[dict] = [
         },
     },
     # ── 1% deep-discount bond, 30-yr, 6.5M ──────────────────────────
-    # Skip: needs coupon_rate field (PR #22) to separate coupon (1%) from yield (4.43%).
     {
         "id": "fixed_1pct_6m",
-        "skip": ("Deep-discount bond requires coupon_rate field (PR #22)."),
         "input": CalculatorInput(
             desired_provenu=Decimal(6500818),
             start_date=date(2026, 10, 10),
@@ -1605,7 +1603,8 @@ REFERENCE_CASES: list[dict] = [
                         LoanSpec(
                             component=LoanComponent.REALKREDIT,
                             loan_type=LoanType.FIXED,
-                            rate=Decimal("0.0443"),  # effective yield
+                            coupon_rate=Decimal("0.01"),
+                            rate=Decimal("0.0443"),  # market yield
                             price=Decimal("64.03"),
                             maturity_years=30,
                             issue_costs_nominal=Decimal(150182),
