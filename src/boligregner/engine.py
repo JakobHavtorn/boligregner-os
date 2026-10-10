@@ -19,7 +19,7 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from datetime import date, timedelta
-from decimal import ROUND_CEILING, Decimal, getcontext
+from decimal import ROUND_CEILING, ROUND_HALF_UP, Decimal, getcontext
 
 from .models import (
     LTV_BRACKETS,
@@ -493,13 +493,21 @@ def _hovedstol_for_provenu(
         return hovedstol, obligationshovedstol, raw_hoved
 
     # Obligationslån: hovedstol = obligationshovedstol (bond face value).
+    # boligregner.dk applies a kurtage (bond issuance discount) of 0.1% (0.001)
+    # to the effective price when issue costs are specified as a nominal amount.
+    # provenu = hovedstol * (P/100 − kurtage) − nominal_omkostninger
+    # In percentage mode, kurtage is not applied (matches existing behavior).
     if issue_costs_nominal is not None and issue_costs_nominal > _ZERO:
-        price_factor = price / _HUNDRED
+        kurtage = Decimal("0.001")
+        price_factor = price / _HUNDRED - kurtage
         if price_factor <= _ZERO:
             raise ValueError(
                 f"Price {price} must be positive to derive hovedstol with nominal issue costs"
             )
         raw = (desired_provenu + issue_costs_nominal) / price_factor
+        hovedstol = (raw / Decimal(1000)).to_integral_value(
+            rounding=ROUND_HALF_UP
+        ) * Decimal(1000)
     else:
         net_factor = price / _HUNDRED - issue_costs_pct
         if net_factor <= _ZERO:
@@ -508,7 +516,7 @@ def _hovedstol_for_provenu(
                 "cannot derive hovedstol"
             )
         raw = desired_provenu / net_factor
-    hovedstol = _qceil(raw / Decimal(1000)) * Decimal(1000)
+        hovedstol = _qceil(raw / Decimal(1000)) * Decimal(1000)
     return hovedstol, hovedstol, raw
 
 
@@ -662,7 +670,9 @@ def _compute_component(
         annuity_rate = _effective_rate(spec)
         bidrag_charge = _ZERO
     r = _periodic_rate(annuity_rate, ppy)
-    n = spec.maturity_years * ppy
+    n = int(
+        (spec.maturity_years * Decimal(ppy)).to_integral_value(rounding=ROUND_CEILING)
+    )
     io_months = spec.interest_only_years * ppy
 
     # Build the rate path for amortization (split: nominal only; compounded: rate+bidrag)
@@ -694,6 +704,11 @@ def _compute_component(
             payment=spec.fixed_ydelse,
             ppy=ppy,
         )
+        # T-lån payments are fixed at the nominal rate, so IRR captures only
+        # the premium/discount on the issue price.  Add bidragssats
+        # additively to get the full ÅOP (matches boligregner.dk).
+        if spec.bidrag_model == "split" and spec.bidragssats > _ZERO:
+            aap = aap + spec.bidragssats
     elif io_months > 0:
         # Afdragsfrihed: report the annuity payment over the remaining term
         amort_months = n - io_months
@@ -866,7 +881,11 @@ def _horizon_scenarios(
         for spec, comp in components:
             ppy = spec.payments_per_year
             horizon_n = horizon_years * ppy
-            n = spec.maturity_years * ppy
+            n = int(
+                (spec.maturity_years * Decimal(ppy)).to_integral_value(
+                    rounding=ROUND_CEILING
+                )
+            )
             io_months = spec.interest_only_years * ppy
             path = _rate_path(spec, shock, n, ppy)
 
@@ -1090,7 +1109,11 @@ def _monthly_payment_after_tax(
             annuity_rate = _effective_rate(spec)
             bidrag_charge = _ZERO
         r = _periodic_rate(annuity_rate, ppy)
-        n = spec.maturity_years * ppy
+        n = int(
+            (spec.maturity_years * Decimal(ppy)).to_integral_value(
+                rounding=ROUND_CEILING
+            )
+        )
         io_months = spec.interest_only_years * ppy
         if spec.loan_type == LoanType.T and spec.fixed_ydelse is not None:
             ydelse = spec.fixed_ydelse + bidrag_charge
@@ -1305,7 +1328,11 @@ def amortization_schedule(
         share = ltv_shares[i] if ltv_shares is not None else spec.provenu_share
         comp_provenu = input.desired_provenu * share
         comp = _compute_component(spec, comp_provenu, input.tax_rate)
-        n = spec.maturity_years * ppy
+        n = int(
+            (spec.maturity_years * Decimal(ppy)).to_integral_value(
+                rounding=ROUND_CEILING
+            )
+        )
         io_months = spec.interest_only_years * ppy
 
         # Build rate path for the full term (no shock)
@@ -1352,7 +1379,7 @@ def amortization_schedule(
 
     # n_years: max of nominal maturity and actual T-lån term (ceil to years)
     n_years = max(
-        max(spec.maturity_years for spec in alt.components),
+        int(max(spec.maturity_years for spec in alt.components)),
         max((len(m) + p - 1) // p for m, p, _ in comp_monthly),
     )
 

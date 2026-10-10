@@ -76,7 +76,13 @@ class LoanSpec(BaseModel):
         description="Current price/kurs of the obligation. "
         "100 for flexlån (par); e.g. 94.52 for a discounted 4% obligation.",
     )
-    maturity_years: int = Field(..., ge=1, le=40, description="Loan term in years.")
+    maturity_years: Decimal = Field(
+        ...,
+        ge=Decimal(1),
+        le=Decimal(40),
+        description="Loan term in years. Supports fractional terms, e.g. Decimal('20.4167') "
+        "for 20 år 5 mdr. Integer values (e.g. 20) are accepted and treated as Decimal.",
+    )
     issue_costs_pct: Decimal = Field(
         default=Decimal(0),
         description="Udstedelsesomkostninger as a fraction of hovedstol, e.g. 0.0177. "
@@ -173,7 +179,7 @@ class LoanSpec(BaseModel):
     @model_validator(mode="after")
     def validate_loan_constraints(self) -> LoanSpec:
         # Afdragsfrihed: interest_only_years must be < maturity_years
-        if self.interest_only_years >= self.maturity_years:
+        if Decimal(self.interest_only_years) >= self.maturity_years:
             raise ValueError("interest_only_years must be less than maturity_years")
         # T-lån: requires fixed_ydelse; fixed_ydelse only for T-lån
         if self.loan_type == LoanType.T and self.fixed_ydelse is None:
