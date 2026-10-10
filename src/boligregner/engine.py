@@ -194,13 +194,24 @@ def _monthly_rate(annual_rate: Decimal) -> Decimal:
     return _periodic_rate(annual_rate, 12)
 
 
-def _effective_rate(spec: LoanSpec) -> Decimal:
-    """Effective annual rate for amortization/ÅOP: rate + bidragssats.
+def _amortization_rate(spec: LoanSpec) -> Decimal:
+    """The rate used for annuity payment and amortization schedule.
 
+    When coupon_rate is set (deep-discount bond), the annuity payment is
+    determined by the bond's fixed coupon, not the current market rate.
+    Otherwise, spec.rate is used (existing behavior).
+    """
+    return spec.coupon_rate if spec.coupon_rate is not None else spec.rate
+
+
+def _effective_rate(spec: LoanSpec) -> Decimal:
+    """Effective annual rate for amortization/ÅOP: amortization_rate + bidragssats.
+
+    When coupon_rate is set, the amortization rate is the bond's coupon.
     For CITA/CIBOR/DESTR the rate field is auto-computed as reference_rate + margin
     by the model validator, so this is always consistent with _rate_path().
     """
-    return spec.rate + spec.bidragssats
+    return _amortization_rate(spec) + spec.bidragssats
 
 
 # ─── Rate-path abstraction: universal per-month rate array ──────────
@@ -239,10 +250,13 @@ def _rate_path(
     if spec.loan_type not in ref_types:
         # FIXED: shock doesn't affect amortization rate
         # F1/F3/F5/T: shock applies to the full effective rate
+        # When coupon_rate is set (deep-discount bond), the amortization uses
+        # the coupon rate; shocks still apply to market rate for flexlån.
+        amort_rate = _amortization_rate(spec)
         if spec.loan_type == LoanType.FIXED:
-            rate = spec.rate + bidrag
+            rate = amort_rate + bidrag
         else:
-            rate = spec.rate + bidrag + shock
+            rate = amort_rate + bidrag + shock
         return [rate] * n_months
 
     # CITA/CIBOR/DESTR: rate = (reference + shock) + margin + bidrag
@@ -653,8 +667,10 @@ def _compute_component(
     # In split mode, the rate path excludes bidrag (nominal rate only);
     # the annuity is computed at the nominal rate and bidrag is a separate charge.
     # In compounded mode, the rate path includes bidrag (existing behavior).
+    # When coupon_rate is set (deep-discount bond), the annuity uses the coupon
+    # rate; spec.rate remains the market rate for pricing and rate paths.
     if spec.bidrag_model == "split":
-        annuity_rate = spec.rate
+        annuity_rate = _amortization_rate(spec)
         bidrag_charge = spec.bidragssats * hovedstol / Decimal(ppy)
     else:
         annuity_rate = _effective_rate(spec)
@@ -938,11 +954,16 @@ def _horizon_scenarios(
             restgaeld_total += balance
 
             if spec.loan_type == LoanType.FIXED:
+                # The bond's coupon rate: coupon_rate when set (deep-discount bond),
+                # else spec.rate (standard behavior).
+                bond_coupon = (
+                    spec.coupon_rate if spec.coupon_rate is not None else spec.rate
+                )
                 # Pull-to-par: at 0% shock, use issue yield (from issue price)
                 # so discount bonds price below par. At nonzero shocks, use
-                # coupon rate as base (market yield = coupon + shock).
+                # market rate as base (market yield = rate + shock).
                 base_yield = (
-                    _issue_yield(spec.rate, spec.price, n, ppy)
+                    _issue_yield(bond_coupon, spec.price, n, ppy)
                     if shock == _ZERO
                     else spec.rate
                 )
@@ -959,11 +980,11 @@ def _horizon_scenarios(
                 remaining_periods = n - horizon_n
                 if spec.bond_price_model == "finite":
                     shocked_price = _bond_price(
-                        spec.rate, shocked_yield, balance, remaining_periods, ppy
+                        bond_coupon, shocked_yield, balance, remaining_periods, ppy
                     )
                 elif spec.bond_price_model == "finite_option":
                     shocked_price = _bond_price_with_option(
-                        spec.rate,
+                        bond_coupon,
                         shocked_yield,
                         balance,
                         remaining_periods,
@@ -972,7 +993,7 @@ def _horizon_scenarios(
                     )
                 else:  # "simple" — existing perpetuity formula
                     shocked_price = (
-                        _HUNDRED * spec.rate / shocked_yield
+                        _HUNDRED * bond_coupon / shocked_yield
                         if shocked_yield != _ZERO
                         else _HUNDRED
                     )

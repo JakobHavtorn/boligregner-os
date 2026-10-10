@@ -155,6 +155,15 @@ class LoanSpec(BaseModel):
         "boligregner.dk caps the realkredit at par and gives the bank "
         "the residual. Default False preserves existing behavior.",
     )
+    coupon_rate: Decimal | None = Field(
+        default=None,
+        description="Original coupon rate of an existing bond, as an annual fraction. "
+        "When set, the annuity payment uses this rate (the bond's fixed coupon), "
+        "while `rate` is the current market rate used for pricing/kurs and "
+        "rate-path scenarios. When None (default), `rate` is used for both — "
+        "preserving existing behavior. Used for modeling deep-discount bonds "
+        "where the coupon differs from the current market yield.",
+    )
 
     @field_validator("rate")
     @classmethod
@@ -168,6 +177,13 @@ class LoanSpec(BaseModel):
     def price_range(cls, v: Decimal) -> Decimal:
         if not (0 < v <= Decimal(200)):
             raise ValueError("price must be in (0, 200]")
+        return v
+
+    @field_validator("coupon_rate")
+    @classmethod
+    def coupon_rate_non_negative(cls, v: Decimal | None) -> Decimal | None:
+        if v is not None and v < 0:
+            raise ValueError("coupon_rate must be >= 0")
         return v
 
     @model_validator(mode="after")
