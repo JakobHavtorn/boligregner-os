@@ -199,8 +199,12 @@ def _print_table(rows: list[Row]) -> None:
 
     print(_fmt_row(headers))
     print(sep)
+    prev_case = None
     for row in rows:
+        if prev_case is not None and row[0] != prev_case:
+            print(sep)
         print(_fmt_row(row))
+        prev_case = row[0]
 
 
 def main() -> None:
