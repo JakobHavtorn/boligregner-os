@@ -137,4 +137,4 @@ This project uses `uv` with the `uv_build` backend (not hatchling/pip). The `pyp
 - Do not use `text-transform: uppercase` on labels (sentence case only)
 - Do not hardcode alternative count or color count — both are dynamic
 - Do not derive obligationshovedstol for kontantlån (F1/F3/F5/T/CITA/CIBOR/DESTR) — use `_is_kontantlaan()` to dispatch to the par-based derivation
-- Do not treat bidrag as non-deductible for any realkredit loan type (SL § 6 stk. 1 e, UfR 1947.725 HRD)
+- Do not treat bidrag as non-deductible for any realkredit loan type
