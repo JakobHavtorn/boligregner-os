@@ -1,18 +1,13 @@
 #!/usr/bin/env python3
-"""Correctness report: engine output vs boligregner.dk reference data.
+"""Correctness report: engine output vs reference data.
 
 Produces an aligned deviation table across all reference cases. Complements
-the unit tests (which assert pass/fail within tolerances) by showing the
-magnitude of each deviation — useful when iterating on correctness gaps.
+the unit tests by showing the magnitude of each deviation.
 
 Usage:
     uv run python scripts/correctness_report.py
 
-The script imports REFERENCE_CASES from tests/test_engine.py, so new reference
-sessions added there are automatically included in the report.
-
-Reference data was captured from boligregner.dk on Oct 5–8, 2026.
-See docs/2026-10-07-boligregner-reference-data.md for provenance.
+Imports REFERENCE_CASES from tests/test_engine.py.
 """
 
 from __future__ import annotations
@@ -116,6 +111,8 @@ def _case_summary_rows(case: dict) -> list[SummaryRow]:
 
 def _rows_for_case(case: dict) -> list[Row]:
     """Collect all metric rows for a single reference case."""
+    if case.get("skip"):
+        return [(case["id"], "SKIPPED", case["skip"], "", "", "")]
     result = calculate(case["input"])
     alt = result.alternatives[0]
     exp = case["expected"]
@@ -280,9 +277,7 @@ def _print_summary_table(rows: list[SummaryRow]) -> None:
 
 def main() -> None:
     print("boligregner-os correctness report")
-    print(f"Reference data: boligregner.dk (captured Oct 5–8, 2026)")
     print(f"Cases: {len(REFERENCE_CASES)}")
-    print(f"See docs/2026-10-07-boligregner-reference-data.md for provenance.")
     print()
 
     summary_rows: list[SummaryRow] = []

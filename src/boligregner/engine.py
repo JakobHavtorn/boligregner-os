@@ -195,22 +195,12 @@ def _monthly_rate(annual_rate: Decimal) -> Decimal:
 
 
 def _amortization_rate(spec: LoanSpec) -> Decimal:
-    """The rate used for annuity payment and amortization schedule.
-
-    When coupon_rate is set (deep-discount bond), the annuity payment is
-    determined by the bond's fixed coupon, not the current market rate.
-    Otherwise, spec.rate is used (existing behavior).
-    """
-    return spec.coupon_rate if spec.coupon_rate is not None else spec.rate
+    """The rate used for annuity payment and amortization schedule."""
+    return spec.rate
 
 
 def _effective_rate(spec: LoanSpec) -> Decimal:
-    """Effective annual rate for amortization/ÅOP: amortization_rate + bidragssats.
-
-    When coupon_rate is set, the amortization rate is the bond's coupon.
-    For CITA/CIBOR/DESTR the rate field is auto-computed as reference_rate + margin
-    by the model validator, so this is always consistent with _rate_path().
-    """
+    """Effective annual rate: amortization_rate + bidragssats."""
     return _amortization_rate(spec) + spec.bidragssats
 
 
@@ -250,8 +240,6 @@ def _rate_path(
     if spec.loan_type not in ref_types:
         # FIXED: shock doesn't affect amortization rate
         # F1/F3/F5/T: shock applies to the full effective rate
-        # When coupon_rate is set (deep-discount bond), the amortization uses
-        # the coupon rate; shocks still apply to market rate for flexlån.
         amort_rate = _amortization_rate(spec)
         if spec.loan_type == LoanType.FIXED:
             rate = amort_rate + bidrag
@@ -434,17 +422,15 @@ def _amortize(
 # ─── Hovedstol derivation: invert price + costs to hit desired provenu ─
 
 
-def _is_kontantlaan(loan_type: LoanType) -> bool:
-    """True for loan types that amortize on kontantlånshovedstol (at par).
-
-    boligregner.dk's help text: "Hovedstol: For kontantlån angives
-    kontantlånshovedstolen, for obligationslån obligationshovedstolen."
+def _is_kontantlaan(spec: LoanSpec) -> bool:
+    """True when amortization runs on kontantlånshovedstol (at par).
 
     Kontantlån (flexlån, reference-rate, T-lån) amortize on the mortgage
-    amount (kursværdi = provenu + udst.omk), not the bond face value.
-    Obligationslån (FIXED) amortize on the bond face value.
+    amount (provenu + udst.omk). A FIXED bond with coupon_rate set (deep-discount
+    refinance) also uses the kontantlån path — the borrower amortizes on the cash
+    received, not the bond face value.
     """
-    return loan_type in (
+    if spec.loan_type in (
         LoanType.F1,
         LoanType.F3,
         LoanType.F5,
@@ -452,7 +438,9 @@ def _is_kontantlaan(loan_type: LoanType) -> bool:
         LoanType.CITA,
         LoanType.CIBOR,
         LoanType.DESTR,
-    )
+    ):
+        return True
+    return spec.loan_type == LoanType.FIXED and spec.coupon_rate is not None
 
 
 def _hovedstol_for_provenu(
@@ -504,7 +492,7 @@ def _hovedstol_for_provenu(
             obligationshovedstol = _qceil(raw_oblig / Decimal(1000)) * Decimal(1000)
         else:
             obligationshovedstol = hovedstol  # at par when price=0 (shouldn't happen)
-        return hovedstol, obligationshovedstol
+        return hovedstol, obligationshovedstol, raw_hoved
 
     # Obligationslån: hovedstol = obligationshovedstol (bond face value).
     if issue_costs_nominal is not None and issue_costs_nominal > _ZERO:
@@ -523,7 +511,7 @@ def _hovedstol_for_provenu(
             )
         raw = desired_provenu / net_factor
     hovedstol = _qceil(raw / Decimal(1000)) * Decimal(1000)
-    return hovedstol, hovedstol
+    return hovedstol, hovedstol, raw
 
 
 def _qceil(x: Decimal) -> Decimal:
@@ -636,8 +624,8 @@ def _compute_component(
     tax_rate: Decimal,
 ) -> LoanComponentResult:
     """Compute all per-component numbers from a LoanSpec + the provenu slice."""
-    kontantlaan = _is_kontantlaan(spec.loan_type)
-    hovedstol, obligationshovedstol = _hovedstol_for_provenu(
+    kontantlaan = _is_kontantlaan(spec)
+    hovedstol, obligationshovedstol, raw_hovedstol = _hovedstol_for_provenu(
         component_provenu,
         spec.price,
         spec.issue_costs_pct,
@@ -655,8 +643,10 @@ def _compute_component(
         # Kontantlån: kursværdi = hovedstol (at par)
         kursvaerdi = hovedstol
     else:
-        # Obligationslån: kursværdi = obligationshovedstol × kurs / 100
-        kursvaerdi = hovedstol * spec.price / _HUNDRED
+        # Obligationslån: kursværdi = unrounded hovedstol × kurs / 100
+        # boligregner.dk computes kursværdi from the unrounded hovedstol,
+        # not the rounded-to-1000 hovedstol, so kursværdi = provenu + udstedelse exactly.
+        kursvaerdi = raw_hovedstol * spec.price / _HUNDRED
     if spec.issue_costs_nominal is not None and spec.issue_costs_nominal > _ZERO:
         udstedelse = spec.issue_costs_nominal
     else:
@@ -664,11 +654,8 @@ def _compute_component(
     kontant = kursvaerdi - udstedelse
 
     ppy = spec.payments_per_year
-    # In split mode, the rate path excludes bidrag (nominal rate only);
-    # the annuity is computed at the nominal rate and bidrag is a separate charge.
-    # In compounded mode, the rate path includes bidrag (existing behavior).
-    # When coupon_rate is set (deep-discount bond), the annuity uses the coupon
-    # rate; spec.rate remains the market rate for pricing and rate paths.
+    # Split mode: annuity at nominal rate, bidrag charged separately.
+    # Compounded mode: rate + bidrag in a single effective rate.
     if spec.bidrag_model == "split":
         annuity_rate = _amortization_rate(spec)
         bidrag_charge = spec.bidragssats * hovedstol / Decimal(ppy)
@@ -945,10 +932,6 @@ def _horizon_scenarios(
                 else _ZERO
             )
             bidrag_total = bidrag_charge * Decimal(horizon_n)
-            # Bidrag is tax-deductible like interest (SL § 6 stk. 1 e / UfR
-            # 1947.725 HRD) for all realkredit loan types; boligregner.dk
-            # documents the same (1-skattesats) treatment for renter and
-            # bidrag alike.
             rente_total += (comp_interest + bidrag_total) * (_ONE - tax_rate)
             afdrag_total += comp_principal
             restgaeld_total += balance
