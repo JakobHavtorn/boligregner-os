@@ -49,29 +49,36 @@ def _kurs(v: Decimal) -> str:
     return f"{float(v):.2f}"
 
 
-def _pct_diff(actual: Decimal, expected: Decimal) -> str:
+def _abs_money(actual: Decimal, expected: Decimal) -> str:
+    """Absolute diff in DKK."""
+    diff = int(actual - expected)
+    return f"{diff:+,}"
+
+
+def _abs_pp(actual: Decimal, expected: Decimal) -> str:
+    """Absolute diff in pp. Inputs are fractions (0.0448 = 4.48%)."""
+    diff = (float(actual) - float(expected)) * 100
+    return f"{diff:+.4f}pp"
+
+
+def _abs_kurs(actual: Decimal, expected: Decimal) -> str:
+    """Absolute diff in pp for kurs values already on a 0-100 scale."""
+    diff = float(actual) - float(expected)
+    return f"{diff:+.2f}pp"
+
+
+def _rel_diff(actual: Decimal, expected: Decimal) -> str:
+    """Relative diff in percent, always."""
     if expected == 0:
         return "n/a"
     diff = (float(actual) - float(expected)) / float(expected) * 100
     return f"{diff:+.2f}%"
 
 
-def _pp_diff(actual: Decimal, expected: Decimal) -> str:
-    """Diff in percentage points. Inputs are fractions (0.0448 = 4.48%)."""
-    diff = (float(actual) - float(expected)) * 100
-    return f"{diff:+.4f}pp"
-
-
-def _kurs_diff(actual: Decimal, expected: Decimal) -> str:
-    """Diff for kurs values already on a 0-100 scale."""
-    diff = float(actual) - float(expected)
-    return f"{diff:+.2f}pp"
-
-
 # ── Row collection ──────────────────────────────────────────────────
 
-# Each row: (case_id, metric, engine_str, ref_str, diff_str)
-Row = tuple[str, str, str, str, str]
+# Each row: (case_id, metric, engine_str, ref_str, abs_diff_str, rel_diff_str)
+Row = tuple[str, str, str, str, str, str]
 
 
 def _rows_for_case(case: dict) -> list[Row]:
@@ -91,7 +98,8 @@ def _rows_for_case(case: dict) -> list[Row]:
                 "Hovedstol",
                 _money(actual),
                 _money(expected),
-                _pct_diff(actual, expected),
+                _abs_money(actual, expected),
+                _rel_diff(actual, expected),
             )
         )
 
@@ -104,7 +112,8 @@ def _rows_for_case(case: dict) -> list[Row]:
                 "Ydelse",
                 _money(actual),
                 _money(expected),
-                _pct_diff(actual, expected),
+                _abs_money(actual, expected),
+                _rel_diff(actual, expected),
             )
         )
 
@@ -112,7 +121,14 @@ def _rows_for_case(case: dict) -> list[Row]:
         actual = _effective_aap(alt, case["aap_ppy"])
         expected = exp["aap"]
         rows.append(
-            (cid, "ÅOP", _pct(actual), _pct(expected), _pp_diff(actual, expected))
+            (
+                cid,
+                "ÅOP",
+                _pct(actual),
+                _pct(expected),
+                _abs_pp(actual, expected),
+                _rel_diff(actual, expected),
+            )
         )
 
     h0 = exp.get("horizon_0pct")
@@ -125,7 +141,8 @@ def _rows_for_case(case: dict) -> list[Row]:
                     "Horizon rente",
                     _money(row.rente_total),
                     _money(h0["rente"]),
-                    _pct_diff(row.rente_total, h0["rente"]),
+                    _abs_money(row.rente_total, h0["rente"]),
+                    _rel_diff(row.rente_total, h0["rente"]),
                 )
             )
         if "afdrag" in h0:
@@ -135,7 +152,8 @@ def _rows_for_case(case: dict) -> list[Row]:
                     "Horizon afdrag",
                     _money(row.afdrag_total),
                     _money(h0["afdrag"]),
-                    _pct_diff(row.afdrag_total, h0["afdrag"]),
+                    _abs_money(row.afdrag_total, h0["afdrag"]),
+                    _rel_diff(row.afdrag_total, h0["afdrag"]),
                 )
             )
         if "ydelse" in h0:
@@ -145,7 +163,8 @@ def _rows_for_case(case: dict) -> list[Row]:
                     "Horizon ydelse",
                     _money(row.ydelse_total),
                     _money(h0["ydelse"]),
-                    _pct_diff(row.ydelse_total, h0["ydelse"]),
+                    _abs_money(row.ydelse_total, h0["ydelse"]),
+                    _rel_diff(row.ydelse_total, h0["ydelse"]),
                 )
             )
         if "restgaeld" in h0:
@@ -155,7 +174,8 @@ def _rows_for_case(case: dict) -> list[Row]:
                     "Horizon restgæld",
                     _money(row.restgaeld),
                     _money(h0["restgaeld"]),
-                    _pct_diff(row.restgaeld, h0["restgaeld"]),
+                    _abs_money(row.restgaeld, h0["restgaeld"]),
+                    _rel_diff(row.restgaeld, h0["restgaeld"]),
                 )
             )
 
@@ -172,7 +192,8 @@ def _rows_for_case(case: dict) -> list[Row]:
                     metric,
                     _kurs(actual_kurs),
                     _kurs(expected_kurs),
-                    _kurs_diff(actual_kurs, expected_kurs),
+                    _abs_kurs(actual_kurs, expected_kurs),
+                    _rel_diff(actual_kurs, expected_kurs),
                 )
             )
 
@@ -181,7 +202,7 @@ def _rows_for_case(case: dict) -> list[Row]:
 
 def _print_table(rows: list[Row]) -> None:
     """Print rows as a column-aligned table."""
-    headers = ("Case", "Metric", "Engine", "Reference", "Diff")
+    headers = ("Case", "Metric", "Engine", "Reference", "Abs. diff", "Rel. diff")
     cols = list(zip(headers, *rows))
     widths = [max(len(str(c)) for c in col) for col in cols]
 
