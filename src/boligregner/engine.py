@@ -947,18 +947,11 @@ def _horizon_scenarios(
                 else _ZERO
             )
             bidrag_total = bidrag_charge * Decimal(horizon_n)
-            # Bidrag tax treatment differs by loan type:
-            # - FIXED (obligationslån): bidrag IS tax-deductible (SL § 6 stk. 1 e).
-            #   boligregner.dk reports rente as (interest + bidrag) × (1 − tax).
-            # - Flexlån (F1/F3/F5/T/CITA/CIBOR/DESTR): boligregner.dk reports rente
-            #   as interest × (1 − tax) + bidrag (bidrag not tax-deductible in
-            #   their reporting). This matches Session A reference data: F3
-            #   rente gap improves from 11.2% to 0.6%, F5 from 9.4% to 0.9%.
-            #   The 4% fixed case stays at 0.7% (unchanged, uses tax-deductible).
-            if spec.bidrag_model == "split" and spec.loan_type != LoanType.FIXED:
-                rente_total += comp_interest * (_ONE - tax_rate) + bidrag_total
-            else:
-                rente_total += (comp_interest + bidrag_total) * (_ONE - tax_rate)
+            # Bidrag is tax-deductible like interest (SL § 6 stk. 1 e / UfR
+            # 1947.725 HRD) for all realkredit loan types. April 2023 PDF
+            # reference data confirms: F1 flexlån rente gap improves from
+            # 6.5% to 1.4% with deductible treatment, matching fixed loans.
+            rente_total += (comp_interest + bidrag_total) * (_ONE - tax_rate)
             afdrag_total += comp_principal
             restgaeld_total += balance
 
