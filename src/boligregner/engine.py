@@ -504,7 +504,7 @@ def _hovedstol_for_provenu(
             obligationshovedstol = _qceil(raw_oblig / Decimal(1000)) * Decimal(1000)
         else:
             obligationshovedstol = hovedstol  # at par when price=0 (shouldn't happen)
-        return hovedstol, obligationshovedstol
+        return hovedstol, obligationshovedstol, raw_hoved
 
     # Obligationslån: hovedstol = obligationshovedstol (bond face value).
     if issue_costs_nominal is not None and issue_costs_nominal > _ZERO:
@@ -523,7 +523,7 @@ def _hovedstol_for_provenu(
             )
         raw = desired_provenu / net_factor
     hovedstol = _qceil(raw / Decimal(1000)) * Decimal(1000)
-    return hovedstol, hovedstol
+    return hovedstol, hovedstol, raw
 
 
 def _qceil(x: Decimal) -> Decimal:
@@ -637,7 +637,7 @@ def _compute_component(
 ) -> LoanComponentResult:
     """Compute all per-component numbers from a LoanSpec + the provenu slice."""
     kontantlaan = _is_kontantlaan(spec.loan_type)
-    hovedstol, obligationshovedstol = _hovedstol_for_provenu(
+    hovedstol, obligationshovedstol, raw_hovedstol = _hovedstol_for_provenu(
         component_provenu,
         spec.price,
         spec.issue_costs_pct,
@@ -655,8 +655,10 @@ def _compute_component(
         # Kontantlån: kursværdi = hovedstol (at par)
         kursvaerdi = hovedstol
     else:
-        # Obligationslån: kursværdi = obligationshovedstol × kurs / 100
-        kursvaerdi = hovedstol * spec.price / _HUNDRED
+        # Obligationslån: kursværdi = unrounded hovedstol × kurs / 100
+        # boligregner.dk computes kursværdi from the unrounded hovedstol,
+        # not the rounded-to-1000 hovedstol, so kursværdi = provenu + udstedelse exactly.
+        kursvaerdi = raw_hovedstol * spec.price / _HUNDRED
     if spec.issue_costs_nominal is not None and spec.issue_costs_nominal > _ZERO:
         udstedelse = spec.issue_costs_nominal
     else:
