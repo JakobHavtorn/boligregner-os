@@ -17,7 +17,8 @@ boligregner-os is an open-source Danish realkredit (mortgage) calculator. It com
 - `templates/results.html` — Single-page frontend (inline CSS/JS, no build step)
 - `templates/alternative.html` — Per-alternative subpage with ydelsestabel and CSV export
 - `mcp_server.py` / `mcp_cli.py` — MCP tool adapter for AI agents
-- `tests/test_engine.py` — Engine tests
+- `tests/test_engine.py` — Engine tests and `REFERENCE_CASES` (boligregner.dk reference data)
+- `scripts/correctness_report.py` — Diagnostic report comparing engine output to boligregner.dk reference data (run via `make report`)
 
 ## Key constraints
 
@@ -71,6 +72,16 @@ uv run pytest tests/ -q
 Or: `make test`.
 
 Tests verify annuity math, IRR, hovedstol derivation, ÅOP ordering, horizon scenarios, rate shock effects, fixed-obligation price sensitivity, afdragsfrihed, T-lån, CITA/CIBOR/DESTR rate paths, and preset smoke tests.
+
+### Correctness report
+
+```bash
+uv run python scripts/correctness_report.py
+```
+
+Or: `make report`.
+
+Prints a table comparing engine output to the boligregner.dk reference cases defined in `REFERENCE_CASES` (in `tests/test_engine.py`). Shows absolute and relative deviation per metric. Complements the unit tests, which assert pass/fail within tolerances — the report shows the magnitude of each gap, useful when iterating on correctness.
 
 ## Commit conventions
 
