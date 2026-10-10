@@ -19,6 +19,10 @@ test:  ## Run the tests with pytest.
 pre-commit:  ## Run the pre-commit hooks on all files.
 	pre-commit run --all-files --verbose
 
+.PHONY: report
+report:  ## Print correctness report vs boligregner.dk reference data.
+	uv run python scripts/correctness_report.py
+
 .PHONY: server
 server:  ## Start the development server on port 8000.
 	uv run boligregner --port 8000
