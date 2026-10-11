@@ -1,5 +1,12 @@
 # Implementation Plan: Live Market Data Integration
 
+## Status
+
+**Not yet implemented.** This is a design plan. `src/boligregner/market_data.py` does not
+exist yet. The hardcoded values described here are in `engine.py` PRESETS. The file
+`http_server.py` (referred to as `server.py` in earlier drafts — it was renamed in PR #3)
+would host the new endpoints.
+
 ## Overview
 
 Replace hardcoded values in `engine.py` PRESETS with live-sourced market data. Add a data layer
@@ -296,7 +303,7 @@ _LOAN_TYPE_TO_BIDRAGSSATS_COLUMN = {
 column is a bidragssats bracket covering both F3 and F4 — it is not itself a product range.
 The normalization maps the column to the `LoanType`(s) it covers, not the reverse.
 
-## New API endpoints (in `server.py`)
+## New API endpoints (in `http_server.py`)
 
 Existing endpoints are `def` (sync). New endpoints match — sync `def`, not `async def`.
 
@@ -369,7 +376,7 @@ def build_preset_from_market(
 
 No new models added to `models.py`. Market-data schemas live in `market_data.py`.
 
-### `server.py` — New endpoints
+### `http_server.py` — New endpoints
 
 Five new sync endpoints (described above). No changes to existing endpoints.
 
@@ -454,7 +461,7 @@ uv run python -c "from boligregner.market_data import get_market_rates; print(ge
 
 ### Existing tests stay unchanged
 
-All 32 existing engine tests pass unchanged — they use hardcoded PRESETS, not market data.
+All existing engine tests pass unchanged — they use hardcoded PRESETS, not market data.
 The `build_preset_from_market()` function is opt-in.
 
 ## Implementation order
@@ -466,7 +473,7 @@ The `build_preset_from_market()` function is opt-in.
    `get_nominal_rate()`, `get_reference_rate()`, `get_bidragssatser()`,
    `get_bond_prices()`) + `lookup_bidragssats()`.
 4. **`market_data.py`**: `build_preset_from_market()` (adapter, not in engine.py).
-5. **`server.py`**: Add 5 new sync endpoints (per-loan-type rates, bidragssatser, bond-prices, reference-rates, refresh).
+5. **`http_server.py`**: Add 5 new sync endpoints (per-loan-type rates, bidragssatser, bond-prices, reference-rates, refresh).
 6. **`mcp_server.py`**: Add `get_market_rates` sync tool.
 7. **`tests/test_market_data.py`**: Parser tests with fixtures.
 8. **`docs/2026-10-05-market-data-sources.md`**: Already written.

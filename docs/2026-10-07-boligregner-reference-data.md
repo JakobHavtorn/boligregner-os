@@ -2,10 +2,11 @@
 
 ## Current reference cases (21 cases, Apr 2023 + Oct 2026 captures)
 
-All reference data is captured from boligregner.dk browser HTML files saved
-in `tests/fixtures/`. The parser (`scripts/parse_boligregner.py`) reads saved
-HTML only — boligregner.dk returns different data to `urllib` vs a real
-browser.
+All reference data is captured from boligregner.dk browser HTML files. The parser
+(`scripts/parse_boligregner.py`) reads saved HTML from a local directory —
+boligregner.dk returns different data to `urllib` vs a real browser, so the HTML
+must be saved manually. The parsed values are stored as `REFERENCE_CASES` dicts
+in `tests/test_engine.py`.
 
 ### Single-component, 2.5M DKK provenu (Oct 2026)
 
