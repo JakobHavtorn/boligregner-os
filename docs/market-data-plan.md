@@ -1,9 +1,13 @@
+---
+status: planning
+created_at: 2026-10-05
+last_updated: 2026-10-11
+---
+
 # Implementation Plan: Live Market Data Integration
 
-## Status
-
-**Not yet implemented.** This is a design plan. `src/boligregner/market_data.py` does not
-exist yet. The hardcoded values described here are in `engine.py` PRESETS. The file
+**Not yet implemented.** `src/boligregner/market_data.py` does not exist yet.
+The hardcoded values described here are in `engine.py` PRESETS. The file
 `http_server.py` (referred to as `server.py` in earlier drafts — it was renamed in PR #3)
 would host the new endpoints.
 
@@ -476,7 +480,7 @@ The `build_preset_from_market()` function is opt-in.
 5. **`http_server.py`**: Add 5 new sync endpoints (per-loan-type rates, bidragssatser, bond-prices, reference-rates, refresh).
 6. **`mcp_server.py`**: Add `get_market_rates` sync tool.
 7. **`tests/test_market_data.py`**: Parser tests with fixtures.
-8. **`docs/2026-10-05-market-data-sources.md`**: Already written.
+8. **`docs/market-data-sources.md`**: Already written.
 
 ## Risks
 

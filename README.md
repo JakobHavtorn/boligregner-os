@@ -166,7 +166,8 @@ uv run pytest tests/ -v
 - **Omlægning**: Refinancing — replacing an existing loan with new alternatives.
 - **Kursskæring**: Rate-cut fee applied at each refinancing of variable-rate loans.
 
-See `docs/danish-mortgage-concepts.md` for a detailed guide to these concepts.
+See `docs/danish-mortgage-concepts.md` for a detailed guide to these concepts
+and `docs/engine-coverage.md` for which concepts the engine implements.
 
 ## License
 

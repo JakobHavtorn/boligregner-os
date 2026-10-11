@@ -1,3 +1,9 @@
+---
+status: active
+created_at: 2026-10-07
+last_updated: 2026-10-11
+---
+
 # Remaining Correctness Gaps vs boligregner.dk
 
 ## Current state (main, post-PR #25)

@@ -20,6 +20,36 @@ boligregner-os is an open-source Danish realkredit (mortgage) calculator. It com
 - `tests/test_engine.py` — Engine tests and `REFERENCE_CASES` (boligregner.dk reference data)
 - `scripts/correctness_report.py` — Diagnostic report comparing engine output to boligregner.dk reference data (run via `make report`)
 
+## Loan types and features
+
+### Hovedstol derivation
+
+All realkredit loans fall into two classes:
+
+- **Kontantlån** (F1/F3/F5, T, CITA/CIBOR/DESTR, and FIXED with `coupon_rate` set): hovedstol = kursværdi at par =
+  `round_up_1000(provenu + udst.omk)`. Amortization runs on this par hovedstol.
+  `obligationshovedstol` (the nominal bond amount) is tracked separately for bond
+  pricing and redemption. `kursvaerdi = hovedstol` (at par).
+- **Obligationslån** (FIXED without `coupon_rate`): hovedstol = obligationshovedstol =
+  `round_up_1000(provenu / (kurs/100 - issue_costs_pct))`. The standard derivation.
+
+Classification is handled by `_is_kontantlaan(spec)` in `engine.py`.
+
+### Loan types
+
+- `FIXED` — Fixed-rate obligation (fast rente). Rate shocks affect bond redemption price, not amortization.
+- `F3` / `F5` / `F1` — Rentetilpasningslån (flexlån) with 3/5/1-year rate adjustment. Rate shocks affect amortization rate, redemption at par.
+- `T` — T-lån: fixed monthly ydelse, variable duration. Rate shocks change duration, not payment. Negative amortization when payment < interest (balance grows).
+- `CITA` — CITA-referencerente: short-period variable rate loan. Rate = reference_rate + margin.
+- `CIBOR` — CIBOR-referencerente: same structure as CITA, being phased out in favor of DESTR.
+- `DESTR` — Compounded overnight rate replacing CIBOR. Uses daily compounding converted to monthly equivalent.
+
+### Special features
+
+- **Afdragsfrihed** (`interest_only_years`): Interest-only period at loan start. Principal=0 during IO, then annuity over remaining term. `ydelse_before_tax` reports the post-IO annuity payment.
+- **T-lån** (`fixed_ydelse`): `_solve_for_n()` computes duration from fixed payment. If payment doesn't cover interest, balance grows (negative amortization).
+- **CITA/CIBOR/DESTR** (`reference_rate`, `margin`): Rate = reference_rate + margin + bidragssats. Rate shocks apply to the reference rate, not the margin. Uses a constant-rate-per-scenario model (same as flexlån). DESTR uses daily compounding via `_daily_to_monthly()`.
+
 ## Key constraints
 
 ### Monetary values
@@ -37,31 +67,35 @@ All user-facing text is in Danish. Number formatting uses `da-DK` locale. API en
 ### XSS prevention
 All dynamic content inserted into HTML must go through `escapeHtml()`. This includes labels, dates, and numeric values in attribute contexts.
 
-## Loan types
+### Do not
+- Do not add external dependencies to the frontend (no CDN, no npm)
+- Do not use `float` for monetary calculations in the engine
+- Do not change the `calculate()` interface signature
+- Do not modify http_server.py templates path logic (uses `Path(__file__).parent`)
+- Do not use `text-transform: uppercase` on labels (sentence case only)
+- Do not hardcode alternative count or color count — both are dynamic
+- Do not derive obligationshovedstol for kontantlån (F1/F3/F5/T/CITA/CIBOR/DESTR, or FIXED with `coupon_rate`) — use `_is_kontantlaan(spec)` to dispatch to the par-based derivation
+- Do not treat bidrag as non-deductible for any realkredit loan type
 
-All realkredit loans fall into two hovedstol derivation classes:
+## Getting started
 
-- **Kontantlån** (F1/F3/F5, T, CITA/CIBOR/DESTR, and FIXED with `coupon_rate` set): hovedstol = kursværdi at par =
-  `round_up_1000(provenu + udst.omk)`. Amortization runs on this par hovedstol.
-  `obligationshovedstol` (the nominal bond amount) is tracked separately for bond
-  pricing and redemption. `kursvaerdi = hovedstol` (at par).
-- **Obligationslån** (FIXED without `coupon_rate`): hovedstol = obligationshovedstol =
-  `round_up_1000(provenu / (kurs/100 - issue_costs_pct))`. The standard derivation.
+### Package management
 
-Classification is handled by `_is_kontantlaan(spec)` in `engine.py`.
+This project uses `uv` with the `uv_build` backend (not hatchling/pip). The `pyproject.toml` has `[tool.uv.build-backend]` with `module-name = "boligregner"` and `module-root = "src"`. Run `make install` to set up the dev environment and pre-commit hooks.
 
-- `FIXED` — Fixed-rate obligation (fast rente). Rate shocks affect bond redemption price, not amortization.
-- `F3` / `F5` / `F1` — Rentetilpasningslån (flexlån) with 3/5/1-year rate adjustment. Rate shocks affect amortization rate, redemption at par.
-- `T` — T-lån: fixed monthly ydelse, variable duration. Rate shocks change duration, not payment. Negative amortization when payment < interest (balance grows).
-- `CITA` — CITA-referencerente: short-period variable rate loan. Rate = reference_rate + margin.
-- `CIBOR` — CIBOR-referencerente: same structure as CITA, being phased out in favor of DESTR.
-- `DESTR` — Compounded overnight rate replacing CIBOR. Uses daily compounding converted to monthly equivalent.
+### Running the server
 
-## Special features
+```bash
+uv sync --extra dev --reinstall
+uv run boligregner --port 8000
+```
 
-- **Afdragsfrihed** (`interest_only_years`): Interest-only period at loan start. Principal=0 during IO, then annuity over remaining term. `ydelse_before_tax` reports the post-IO annuity payment.
-- **T-lån** (`fixed_ydelse`): `_solve_for_n()` computes duration from fixed payment. If payment doesn't cover interest, balance grows (negative amortization).
-- **CITA/CIBOR/DESTR** (`reference_rate`, `margin`): Rate = reference_rate + margin + bidragssats. Rate shocks apply to the reference rate, not the margin. Uses a constant-rate-per-scenario model (same as flexlån). DESTR uses daily compounding via `_daily_to_monthly()`.
+Or: `make server`.
+
+If `uv run boligregner` fails with ModuleNotFoundError, use:
+```bash
+PYTHONPATH=src uv run python -m boligregner.http_cli --port 8000
+```
 
 ## Testing
 
@@ -83,7 +117,35 @@ Or: `make report`.
 
 Prints a table comparing engine output to the boligregner.dk reference cases defined in `REFERENCE_CASES` (in `tests/test_engine.py`). Shows absolute and relative deviation per metric. Complements the unit tests, which assert pass/fail within tolerances — the report shows the magnitude of each gap, useful when iterating on correctness.
 
-## Commit conventions
+## Documentation
+
+The `docs/` directory contains the following markdown documents. All have YAML
+frontmatter (`status`, `created_at`, `last_updated`) — update `last_updated` when
+making material changes.
+
+| File | Status | Purpose |
+|------|--------|---------|
+| `danish-mortgage-concepts.md` | reference | Domain knowledge about the Danish mortgage system. **Not an engine reference** — describes concepts the engine may not implement. |
+| `engine-coverage.md` | active | Maps concepts from the guide to what the engine implements (✅) and does not (❌). |
+| `market-data-sources.md` | research | Open-access data sources for live rates, bond prices, and bidragssatser. |
+| `market-data-plan.md` | planning | Design plan for live market data integration. Not yet implemented. |
+| `correctness-gaps.md` | active | Remaining deviations from boligregner.dk reference cases. |
+
+### When to update docs
+
+- **Add or change a `LoanType` or loan feature**: update `engine-coverage.md` and `AGENTS.md`. If the concept is in the guide, verify the guide still describes the domain accurately.
+- **Change reference data or correctness tolerances**: update `correctness-gaps.md`. Reference cases themselves live in `tests/test_engine.py` as `REFERENCE_CASES` dicts.
+- **Add or change a market data source**: update `market-data-sources.md` and `market-data-plan.md`.
+- **Rename or restructure `docs/`**: update cross-references in `README.md`, `AGENTS.md`, and other docs that link by filename.
+
+### What NOT to do with docs
+
+- Do not edit `danish-mortgage-concepts.md` to match engine behavior — it is a domain knowledge source, not an engine reference.
+- Do not create a new doc without YAML frontmatter.
+
+## Conventions
+
+### Commit conventions
 
 Use [Conventional Commits](https://www.conventionalcommits.org/) for all commit messages and PR titles:
 
@@ -104,37 +166,7 @@ Rules:
 - PR title matches the commit convention (same format)
 - Squash-merge commits get the PR title as their message
 
-
-## Running the server
-
-```bash
-uv sync --extra dev --reinstall
-uv run boligregner --port 8000
-```
-
-Or: `make server`.
-
-If `uv run boligregner` fails with ModuleNotFoundError, use:
-```bash
-PYTHONPATH=src uv run python -m boligregner.http_cli --port 8000
-```
-
-## Diagrams
+### Diagrams
 
 Prefer `mermaid` code blocks for diagrams over ASCII art. Mermaid renders on GitHub
 and in most Markdown viewers; ASCII art breaks alignment across fonts and is hard to maintain.
-
-## Package management
-
-This project uses `uv` with the `uv_build` backend (not hatchling/pip). The `pyproject.toml` has `[tool.uv.build-backend]` with `module-name = "boligregner"` and `module-root = "src"`. Run `make install` to set up the dev environment and pre-commit hooks.
-
-## What NOT to do
-
-- Do not add external dependencies to the frontend (no CDN, no npm)
-- Do not use `float` for monetary calculations in the engine
-- Do not change the `calculate()` interface signature
-- Do not modify http_server.py templates path logic (uses `Path(__file__).parent`)
-- Do not use `text-transform: uppercase` on labels (sentence case only)
-- Do not hardcode alternative count or color count — both are dynamic
-- Do not derive obligationshovedstol for kontantlån (F1/F3/F5/T/CITA/CIBOR/DESTR, or FIXED with `coupon_rate`) — use `_is_kontantlaan(spec)` to dispatch to the par-based derivation
-- Do not treat bidrag as non-deductible for any realkredit loan type
