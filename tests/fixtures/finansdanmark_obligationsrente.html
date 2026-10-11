@@ -1,0 +1,920 @@
+
+<!doctype html>
+<html lang="da-DK" xmlns="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <link rel="apple-touch-icon" sizes="120x120" href="/static/favicon/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon/favicon-16x16.png">
+    <link rel="manifest" href="/static/favicon/site.webmanifest">
+    <link rel="mask-icon" href="/static/favicon/safari-pinned-tab.svg" color="#ffffff">
+    <link rel="shortcut icon" href="/static/favicon/favicon.ico">
+    <meta name="msapplication-TileColor" content="#ffffff">
+    <meta name="msapplication-config" content="/static/favicon/browserconfig.xml">
+    <meta name="theme-color" content="#ffffff">
+
+    <!-- fonts -->
+
+
+
+  <!-- MapLibre GL JS -->
+  <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+  <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+
+
+
+    <link rel="stylesheet" href="/frontend/styles/main.css" />
+
+        <title>Obligationsrenter</title>
+        <meta name="description" content="">
+            <meta name="keywords" content="">
+        <meta property="og:title" content="Obligationsrenter" />
+        <meta property="og:url" content="https://finansdanmark.dk/tal-og-data/boligstatistik/obligationsrenter/" />
+
+
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script id="Cookiebot" src="https://consent.cookiebot.com/uc.js" data-cbid="9f269a5d-f3e5-4d79-89f2-ee6a90cbc9fc" data-blockingmode="auto" type="text/javascript"></script>
+
+<!-- Google Tag Manager -->
+<script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-TB8K8D6');</script>
+<!-- End Google Tag Manager -->
+
+<!-- Load Cludo’s JS files with defer -->
+  <script type="text/javascript" src="https://customer.cludo.com/assets/2035/11928/cludo-search.js" defer></script>
+  <script type="text/javascript" src="https://customer.cludo.com/scripts/bundles/search-script.min.js" defer></script>
+
+  <!-- Initialize Cludo AFTER DOM is ready -->
+  <script type="text/javascript" defer>
+    var CludoSearch;
+    function initCludo() {
+      var cludoSettings = {
+        customerId: 2035,
+        engineId: 11928,
+        searchUrl: '/find',
+        language: 'da',
+        searchInputs: ['cludo-search-form'],
+        focusOnResultsAfterSearch: true,
+      };
+      CludoSearch = new Cludo(cludoSettings);
+      CludoSearch.init();
+    }
+
+    document.addEventListener("DOMContentLoaded", initCludo);
+  </script>
+
+  <!--[if lte IE 9]>
+  <script src="https://api.cludo.com/scripts/xdomain.js"
+          slave="https://api.cludo.com/proxy.html"
+          type="text/javascript"></script>
+  <![endif]-->
+</head>
+<body class="">
+    <!-- Google Tag Manager (noscript) -->
+<noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-TB8K8D6"
+height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+<!-- End Google Tag Manager (noscript) -->
+
+<header class="header" data-component="top-navigation">
+    <div class="header__container">
+        <div class="header__container__top-content">
+            <!--Service Menu-->
+                <div class="service-navigation">
+                    <a href= "/nyheder/">
+                        Nyheder
+                    </a>
+                    <a href= "/analyser/">
+                        Analyser
+                    </a>
+                    <a href= "https://finansdanmark.dk/nyheder/?year=&amp;subject=&amp;type=H%C3%B8ringssvar">
+                        H&#xF8;ringssvar
+                    </a>
+                    <a href= "/presse/">
+                        Presse
+                    </a>
+                    <a href= "/om-os/aktiviteter/">
+                        Aktiviteter
+                    </a>
+                    <a href= "/om-os/">
+                        Om os
+                    </a>
+                    <a href= "/om-os/medlemmer/extranet/">
+                        Extranet
+                    </a>
+                </div>
+
+                        <div class="header-culture">
+                            <a href="/en/">English</a>
+                        </div>
+
+            <div class="header-search" data-header-search>
+                <svg class="header-search__icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+                    <path d="M21.2653 20.7347L16.3247 15.7941C17.7094 14.2708 18.4434 12.2664 18.37 10.2091C18.2965 8.15189 17.4213 6.20496 15.9314 4.78439C14.4416 3.36382 12.4552 2.58228 10.3968 2.60678C8.33835 2.63128 6.37114 3.45987 4.91551 4.9155C3.45988 6.37113 2.63129 8.33834 2.60679 10.3968C2.58229 12.4552 3.36383 14.4416 4.7844 15.9314C6.20497 17.4213 8.1519 18.2965 10.2092 18.3699C12.2664 18.4434 14.2708 17.7094 15.7941 16.3247L20.7347 21.2653C20.8051 21.3357 20.9005 21.3752 21 21.3752C21.0995 21.3752 21.195 21.3357 21.2653 21.2653C21.3357 21.1949 21.3752 21.0995 21.3752 21C21.3752 20.9005 21.3357 20.8051 21.2653 20.7347ZM3.37501 10.5C3.37501 9.09081 3.79288 7.71326 4.57579 6.54156C5.3587 5.36986 6.47147 4.45663 7.77339 3.91736C9.07532 3.37808 10.5079 3.23698 11.89 3.5119C13.2721 3.78682 14.5417 4.46541 15.5381 5.46186C16.5346 6.45831 17.2132 7.72787 17.4881 9.10998C17.763 10.4921 17.6219 11.9247 17.0827 13.2266C16.5434 14.5285 15.6302 15.6413 14.4585 16.4242C13.2867 17.2071 11.9092 17.625 10.5 17.625C8.61095 17.623 6.79983 16.8717 5.46407 15.5359C4.1283 14.2002 3.377 12.3891 3.37501 10.5Z" fill="currentColor" />
+                </svg>
+            </div>
+        </div>
+
+            <div class="header__logo">
+                <a href="/">
+                    <picture>
+                        <img src="/media/1j4ppz1l/fd_cmyk_logo.png" alt="Logo" />
+                    </picture>
+                </a>
+            </div>
+
+            <nav class="header__navigation navbar navbar-expand-lg" role="navigation">
+                <ul class="navbar-nav" data-responsive-menu="accordion large-dropdown">
+                        <li class="nav-item red dropdown" data-nav-item>
+                            <a class="nav-link dropdown-toggle" aria-haspopup=true aria-expanded=false role=button data-toggle=dropdown id= navbarDropdown href="/aktuelle-emner/">
+                                Aktuelt
+                            </a>
+                                <div class="dropdown-arrow" data-open-dropdown-menu>
+                                    <i class="icon-arrow"></i>
+                                </div>
+                                <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                                    <div class="dropdown-menu-container">
+                                        <div class="dropdown-menu__submenu">
+                                            <div class="dropdown-menu__submenu__headline">
+                                                AKTUELLE EMNER
+                                            </div>
+                                            <div class="dropdown-menu__submenu__items">
+                                                <a class="dropdown-item" href="/aktuelle-emner/bekaempelse-af-svindel/" target="" >Bek&#xE6;mpelse af svindel</a>
+                                                <a class="dropdown-item" href="/aktuelle-emner/baeredygtig-finans/" target="" >B&#xE6;redygtig finans</a>
+                                            </div>
+                                        </div>
+                                        <div class="dropdown-menu__submenu">
+                                            <div class="dropdown-menu__submenu__headline">
+
+                                            </div>
+                                            <div class="dropdown-menu__submenu__items">
+                                                <a class="dropdown-item" href="/aktuelle-emner/det-digitale-samfund/" target="" >Det digitale samfund</a>
+                                                <a class="dropdown-item" href="/aktuelle-emner/forebyggelse-af-hvidvask-og-terrorfinansiering/" target="" >Forebyggelse af hvidvask</a>
+                                            </div>
+                                        </div>
+                                        <div class="dropdown-menu__submenu">
+                                            <div class="dropdown-menu__submenu__headline">
+
+                                            </div>
+                                            <div class="dropdown-menu__submenu__items">
+                                                <a class="dropdown-item" href="/aktuelle-emner/konkurrence/" target="" >Konkurrence</a>
+                                                <a class="dropdown-item" href="/aktuelle-emner/kriminalitet/" target="" >Kriminalitet</a>
+                                            </div>
+                                        </div>
+                                        <div class="dropdown-menu__submenu">
+                                            <div class="dropdown-menu__submenu__headline">
+                                                NYHEDER
+                                            </div>
+                                            <div class="dropdown-menu__submenu__items">
+                                                <a class="dropdown-item" href="/nyheder/" target="" >Nyheder</a>
+                                                <a class="dropdown-item" href="/analyser/" target="" >Analyser</a>
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                    <div class="dropdown-menu-bottom">
+                                        <a class="dropdown-item" href="/aktuelle-emner/" target="" >Se alle emner</a>
+                                    </div>
+
+                                </div>
+                        </li>
+                        <li class="nav-item  dropdown" data-nav-item>
+                            <a class="nav-link dropdown-toggle" aria-haspopup=true aria-expanded=false role=button data-toggle=dropdown id= navbarDropdown href="/gode-raad/">
+                                Gode r&#xE5;d
+                            </a>
+                                <div class="dropdown-arrow" data-open-dropdown-menu>
+                                    <i class="icon-arrow"></i>
+                                </div>
+                                <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                                    <div class="dropdown-menu-container">
+                                        <div class="dropdown-menu__submenu">
+                                            <div class="dropdown-menu__submenu__headline">
+                                                Bolig &amp; Realkredit
+                                            </div>
+                                            <div class="dropdown-menu__submenu__items">
+                                                <a class="dropdown-item" href="/gode-raad/forstaa-dit-realkreditlaan/" target="" >Forst&#xE5; dit realkreditl&#xE5;n</a>
+                                                <a class="dropdown-item" href="/gode-raad/koeb-af-bolig/" target="" >K&#xF8;b af bolig</a>
+                                                <a class="dropdown-item" href="/gode-raad/forstaa-dit-realkreditlaan/saadan-klager-du-over-dit-realkreditinstitut/" target="" >S&#xE5;dan klager du over dit realkreditinstitut</a>
+                                                <a class="dropdown-item" href="/realkredit/dansk-realkredit/den-danske-realkreditmodel/#" target="" >Den danske realkreditmodel</a>
+                                            </div>
+                                        </div>
+                                        <div class="dropdown-menu__submenu">
+                                            <div class="dropdown-menu__submenu__headline">
+                                                Bank &amp; privat&#xF8;konomi
+                                            </div>
+                                            <div class="dropdown-menu__submenu__items">
+                                                <a class="dropdown-item" href="/gode-raad/laan-i-banken/" target="" >L&#xE5;n i banken</a>
+                                                <a class="dropdown-item" href="/gode-raad/forbered-din-finansielle-fremtid/" target="" >Forbered din finansielle fremtid</a>
+                                                <a class="dropdown-item" href="/gode-raad/adgang-til-kontanter/" target="" >Adgang til kontanter</a>
+                                                <a class="dropdown-item" href="/gode-raad/indsigelse-ved-brug-af-betalingskort/" target="" >Indsigelse ved brug af betalingskort</a>
+                                                <a class="dropdown-item" href="/gode-raad/saadan-skifter-du-bank/" target="" >S&#xE5;dan skifter du bank</a>
+                                                <a class="dropdown-item" href="/gode-raad/erhvervskonto/" target="" >S&#xE5;dan opretter du en erhvervskonto</a>
+                                                <a class="dropdown-item" href="/gode-raad/saadan-klager-du-over-din-bank/" target="" >S&#xE5;dan klager du over din bank</a>
+                                                <a class="dropdown-item" href="/gode-raad/sammenlign-bankernes-priser/" target="" >Sammenlign bankernes priser</a>
+                                                <a class="dropdown-item" href="/gode-raad/gaeldsraadgivning/" target="" >G&#xE6;ldsr&#xE5;dgivning</a>
+                                                <a class="dropdown-item" href="/gode-raad/derfor-spoerger-banken-om-id/" target="" >Derfor sp&#xF8;rger banken om ID</a>
+                                            </div>
+                                        </div>
+                                        <div class="dropdown-menu__submenu">
+                                            <div class="dropdown-menu__submenu__headline">
+                                                Investering
+                                            </div>
+                                            <div class="dropdown-menu__submenu__items">
+                                                <a class="dropdown-item" href="/gode-raad/investering-om-at-investere/" target="" >Investering - om at investere</a>
+                                                <a class="dropdown-item" href="/gode-raad/investering-om-at-investere/investeringsfonde/" target="" >Investeringsfonde</a>
+                                                <a class="dropdown-item" href="/gode-raad/investering-om-at-investere/investeringsfonde/saadan-klager-du-over-din-investeringsfond/" target="" >S&#xE5;dan klager du over din investeringsfond</a>
+                                                <a class="dropdown-item" href="/gode-raad/investering-om-at-investere/naar-jeg-investerer-selv/investering-i-aktier-og-obligationer/" target="" >Investering i aktier og obligationer</a>
+                                                <a class="dropdown-item" href="/gode-raad/investering-om-at-investere/investeringsfonde/skat-og-investering/" target="" >Skat og investering</a>
+                                            </div>
+                                        </div>
+                                        <div class="dropdown-menu__submenu">
+                                            <div class="dropdown-menu__submenu__headline">
+                                                Det digitale samfund
+                                            </div>
+                                            <div class="dropdown-menu__submenu__items">
+                                                <a class="dropdown-item" href="/gode-raad/sikkerhed-paa-nettet/" target="" >Sikkerhed p&#xE5; nettet</a>
+                                                <a class="dropdown-item" href="/gode-raad/stop-bankroeveriet-i-din-egen-stue/" target="" _blank>Stop bankr&#xF8;veriet i din egen stue</a>
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                    <div class="dropdown-menu-bottom">
+                                        <a class="dropdown-item" href="/gode-raad/" target="" >Se alle gode r&#xE5;d</a>
+                                    </div>
+
+                                </div>
+                        </li>
+                        <li class="nav-item  dropdown" data-nav-item>
+                            <a class="nav-link dropdown-toggle" aria-haspopup=true aria-expanded=false role=button data-toggle=dropdown id= navbarDropdown href="/tal-og-data/#">
+                                Tal &amp; data
+                            </a>
+                                <div class="dropdown-arrow" data-open-dropdown-menu>
+                                    <i class="icon-arrow"></i>
+                                </div>
+                                <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                                    <div class="dropdown-menu-container">
+                                        <div class="dropdown-menu__submenu">
+                                            <div class="dropdown-menu__submenu__headline">
+                                                Bolig &amp; Realkredit
+                                            </div>
+                                            <div class="dropdown-menu__submenu__items">
+                                                <a class="dropdown-item" href="/tal-og-data/boligstatistik/boligmarkedsstatistikken/" target="" >Boligmarkedsstatistikken</a>
+                                                <a class="dropdown-item" href="/tal-og-data/boligstatistik/boligudbudsstatistik/" target="" >Boligudbudsstatistik</a>
+                                                <a class="dropdown-item" href="/tal-og-data/boligstatistik/udlaansstatistik/" target="" >Udl&#xE5;nsstatistik</a>
+                                                <a class="dropdown-item" href="/tal-og-data/boligstatistik/restancer/" target="" >Restancer</a>
+                                                <a class="dropdown-item" href="/tal-og-data/boligstatistik/" target="" >Flere tal om realkredit</a>
+                                                <a class="dropdown-item" href="/tal-og-data/boligstatistik/udgivelseskalender-for-statistikker/" target="" >Udgivelseskalender for statistikker</a>
+                                            </div>
+                                        </div>
+                                        <div class="dropdown-menu__submenu">
+                                            <div class="dropdown-menu__submenu__headline">
+                                                Bank &amp; &#xF8;konomi
+                                            </div>
+                                            <div class="dropdown-menu__submenu__items">
+                                                <a class="dropdown-item" href="/tal-og-data/institutter-filialer-ansatte/finanssektorens-bidrag-til-samfundet/" target="" >Finanssektorens bidrag til samfundet</a>
+                                                <a class="dropdown-item" href="/tal-og-data/institutter-filialer-ansatte/kriminalitet/svindel-med-netbank-og-betalinger/" target="" >Svindel med netbank og betalinger</a>
+                                                <a class="dropdown-item" href="/tal-og-data/regnskabs-og-noegletal/" target="" >Regnskabs- og n&#xF8;gletal</a>
+                                                <a class="dropdown-item" href="/tal-og-data/institutter-filialer-ansatte/kriminalitet/" target="" >Kriminalitet og hvidvask</a>
+                                                <a class="dropdown-item" href="/tal-og-data/institutter-filialer-ansatte/" target="" >Institutter, filialer &amp; ansatte</a>
+                                                <a class="dropdown-item" href="/aktuelle-emner/baeredygtig-finans/esg-dataunivers/" target="" >ESG Dataunivers</a>
+                                            </div>
+                                        </div>
+                                        <div class="dropdown-menu__submenu">
+                                            <div class="dropdown-menu__submenu__headline">
+                                                Renter
+                                            </div>
+                                            <div class="dropdown-menu__submenu__items">
+                                                <a class="dropdown-item" href="/tal-og-data/renter/aktuel-rente-ved-udbetaling-af-ratepension/" target="" >Aktuel rente ved udbetaling af ratepension</a>
+                                                <a class="dropdown-item" href="/tal-og-data/renter/de-danske-referencerenter/" target="" >De danske referencerenter</a>
+                                                <a class="dropdown-item" href="/tal-og-data/renter/ny-risikofri-referencerente-for-det-danske-kronemarked/" target="" >Ny risikofri referencerente for det danske kronemarked</a>
+                                            </div>
+                                        </div>
+                                        <div class="dropdown-menu__submenu">
+                                            <div class="dropdown-menu__submenu__headline">
+                                                Investering
+                                            </div>
+                                            <div class="dropdown-menu__submenu__items">
+                                                <a class="dropdown-item" href="/tal-og-data/investeringsfondsstatistikker/afkast-risiko-og-omkostninger/" target="" >Afkast, risiko og omkostninger</a>
+                                                <a class="dropdown-item" href="/tal-og-data/investeringsfondsstatistikker/lukkede-fonde/" target="" >Lukkede fonde</a>
+                                                <a class="dropdown-item" href="/tal-og-data/investeringsfondsstatistikker/active-share-and-tracking-error/" target="" >Active share and tracking error</a>
+                                                <a class="dropdown-item" href="/tal-og-data/investeringsfondsstatistikker/forklaring-til-statistikker/" target="" >Forklaring til statistikker</a>
+                                                <a class="dropdown-item" href="/tal-og-data/investeringsfondsstatistikker/statistikker-i-excel/" target="" >Statistikker i Excel</a>
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                    <div class="dropdown-menu-bottom">
+                                    </div>
+
+                                </div>
+                        </li>
+                        <li class="nav-item  dropdown" data-nav-item>
+                            <a class="nav-link dropdown-toggle" aria-haspopup=true aria-expanded=false role=button data-toggle=dropdown id= navbarDropdown href="/fagomraader/">
+                                Fagomr&#xE5;der
+                            </a>
+                                <div class="dropdown-arrow" data-open-dropdown-menu>
+                                    <i class="icon-arrow"></i>
+                                </div>
+                                <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                                    <div class="dropdown-menu-container">
+                                        <div class="dropdown-menu__submenu">
+                                            <div class="dropdown-menu__submenu__headline">
+                                                Fagomr&#xE5;der
+                                            </div>
+                                            <div class="dropdown-menu__submenu__items">
+                                                <a class="dropdown-item" href="/analyser/" target="" >Analyse</a>
+                                                <a class="dropdown-item" href="/fagomraader/bank/" target="" >Bank</a>
+                                                <a class="dropdown-item" href="/om-os/kontakt-os/europapolitik/" target="" >Europapolitik</a>
+                                            </div>
+                                        </div>
+                                        <div class="dropdown-menu__submenu">
+                                            <div class="dropdown-menu__submenu__headline">
+
+                                            </div>
+                                            <div class="dropdown-menu__submenu__items">
+                                                <a class="dropdown-item" href="/investering/" target="" >Investering</a>
+                                                <a class="dropdown-item" href="/kapitalmarked/" target="" >Kapitalmarked</a>
+                                                <a class="dropdown-item" href="/realkredit/" target="" >Realkredit</a>
+                                            </div>
+                                        </div>
+
+                                    </div>
+                                    <div class="dropdown-menu-bottom">
+                                    </div>
+
+                                </div>
+                        </li>
+                    <li class="site-link-dropdown" data-open-site-link-dropdown>
+                    <!--Choose Site-->
+                        <div class="site-link">
+                            <div class="site-link__title">
+                                V&#xE6;lg Arbejdsgiver
+                            </div>
+                            <div class="site-link__arrow">
+                                <i class="icon-arrow"></i>
+                            </div>
+                        </div>
+                        <div class="site-link-dropdown-container">
+                            <div class="site-link-item">
+                                <a href="/arbejdsgiver/">
+                                    Arbejdsgiver
+                                </a>
+                            </div>
+                        </div>
+                    </li>
+                </ul>
+            </nav>
+
+        <div class="header-mobile__search" data-header-mobile-search>
+            <svg class="header-mobile__search-icon" width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+                <path d="M21.2653 20.7347L16.3247 15.7941C17.7094 14.2708 18.4434 12.2664 18.37 10.2091C18.2965 8.15189 17.4213 6.20496 15.9314 4.78439C14.4416 3.36382 12.4552 2.58228 10.3968 2.60678C8.33835 2.63128 6.37114 3.45987 4.91551 4.9155C3.45988 6.37113 2.63129 8.33834 2.60679 10.3968C2.58229 12.4552 3.36383 14.4416 4.7844 15.9314C6.20497 17.4213 8.1519 18.2965 10.2092 18.3699C12.2664 18.4434 14.2708 17.7094 15.7941 16.3247L20.7347 21.2653C20.8051 21.3357 20.9005 21.3752 21 21.3752C21.0995 21.3752 21.195 21.3357 21.2653 21.2653C21.3357 21.1949 21.3752 21.0995 21.3752 21C21.3752 20.9005 21.3357 20.8051 21.2653 20.7347ZM3.37501 10.5C3.37501 9.09081 3.79288 7.71326 4.57579 6.54156C5.3587 5.36986 6.47147 4.45663 7.77339 3.91736C9.07532 3.37808 10.5079 3.23698 11.89 3.5119C13.2721 3.78682 14.5417 4.46541 15.5381 5.46186C16.5346 6.45831 17.2132 7.72787 17.4881 9.10998C17.763 10.4921 17.6219 11.9247 17.0827 13.2266C16.5434 14.5285 15.6302 15.6413 14.4585 16.4242C13.2867 17.2071 11.9092 17.625 10.5 17.625C8.61095 17.623 6.79983 16.8717 5.46407 15.5359C4.1283 14.2002 3.377 12.3891 3.37501 10.5Z" fill="currentColor" />
+            </svg>
+        </div>
+        <div class="header__burger-menu"><span></span><span></span><span></span></div>
+    </div>
+        <div class="site-search container" id="cludo-search-form">
+            <div class="search-input">
+                <input name="searchrequest" id="cludo-search-form-input" class="search-query" type="text" placeholder="Søg" value="" title="Søg" autocomplete="off" aria-autocomplete="list" aria-haspopup="true">
+
+                <button type="submit" title="Søg" class="btn btn-default">
+                    <span>Søg</span>
+                </button>
+            </div>
+        </div>
+
+
+</header>
+<header class="header-mobile" data-component="header-mobile">
+    <nav class="header-mobile__navigation">
+        <ul class="navbar-nav" data-responsive-menu="accordion large-dropdown">
+                <li class="nav-item dropdown ">
+                    <a class="nav-link dropdown-toggle" data-component=dropdown aria-haspopup=true aria-expanded=false role=button data-toggle=dropdown id= navbarDropdown href="/aktuelle-emner/">
+                        Aktuelt
+                    </a>
+                        <div class="dropdown-arrow" data-open-dropdown-mobile-menu>
+                            <i class="icon-arrow"></i>
+                        </div>
+                        <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                                <div class="dropdown-menu__submenu">
+                                    <div class="dropdown-menu__submenu__headline">
+                                        AKTUELLE EMNER
+                                    </div>
+                                    <div class="dropdown-menu__submenu__items">
+                                        <a class="dropdown-item" href="/aktuelle-emner/bekaempelse-af-svindel/" target="" >Bek&#xE6;mpelse af svindel</a>
+                                        <a class="dropdown-item" href="/aktuelle-emner/baeredygtig-finans/" target="" >B&#xE6;redygtig finans</a>
+                                    </div>
+                                </div>
+                                <div class="dropdown-menu__submenu">
+                                    <div class="dropdown-menu__submenu__headline">
+
+                                    </div>
+                                    <div class="dropdown-menu__submenu__items">
+                                        <a class="dropdown-item" href="/aktuelle-emner/det-digitale-samfund/" target="" >Det digitale samfund</a>
+                                        <a class="dropdown-item" href="/aktuelle-emner/forebyggelse-af-hvidvask-og-terrorfinansiering/" target="" >Forebyggelse af hvidvask</a>
+                                    </div>
+                                </div>
+                                <div class="dropdown-menu__submenu">
+                                    <div class="dropdown-menu__submenu__headline">
+
+                                    </div>
+                                    <div class="dropdown-menu__submenu__items">
+                                        <a class="dropdown-item" href="/aktuelle-emner/konkurrence/" target="" >Konkurrence</a>
+                                        <a class="dropdown-item" href="/aktuelle-emner/kriminalitet/" target="" >Kriminalitet</a>
+                                    </div>
+                                </div>
+                                <div class="dropdown-menu__submenu">
+                                    <div class="dropdown-menu__submenu__headline">
+                                        NYHEDER
+                                    </div>
+                                    <div class="dropdown-menu__submenu__items">
+                                        <a class="dropdown-item" href="/nyheder/" target="" >Nyheder</a>
+                                        <a class="dropdown-item" href="/analyser/" target="" >Analyser</a>
+                                    </div>
+                                </div>
+                        </div>
+                </li>
+                <li class="nav-item dropdown ">
+                    <a class="nav-link dropdown-toggle" data-component=dropdown aria-haspopup=true aria-expanded=false role=button data-toggle=dropdown id= navbarDropdown href="/gode-raad/">
+                        Gode r&#xE5;d
+                    </a>
+                        <div class="dropdown-arrow" data-open-dropdown-mobile-menu>
+                            <i class="icon-arrow"></i>
+                        </div>
+                        <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                                <div class="dropdown-menu__submenu">
+                                    <div class="dropdown-menu__submenu__headline">
+                                        Bolig &amp; Realkredit
+                                    </div>
+                                    <div class="dropdown-menu__submenu__items">
+                                        <a class="dropdown-item" href="/gode-raad/forstaa-dit-realkreditlaan/" target="" >Forst&#xE5; dit realkreditl&#xE5;n</a>
+                                        <a class="dropdown-item" href="/gode-raad/koeb-af-bolig/" target="" >K&#xF8;b af bolig</a>
+                                        <a class="dropdown-item" href="/gode-raad/forstaa-dit-realkreditlaan/saadan-klager-du-over-dit-realkreditinstitut/" target="" >S&#xE5;dan klager du over dit realkreditinstitut</a>
+                                        <a class="dropdown-item" href="/realkredit/dansk-realkredit/den-danske-realkreditmodel/#" target="" >Den danske realkreditmodel</a>
+                                    </div>
+                                </div>
+                                <div class="dropdown-menu__submenu">
+                                    <div class="dropdown-menu__submenu__headline">
+                                        Bank &amp; privat&#xF8;konomi
+                                    </div>
+                                    <div class="dropdown-menu__submenu__items">
+                                        <a class="dropdown-item" href="/gode-raad/laan-i-banken/" target="" >L&#xE5;n i banken</a>
+                                        <a class="dropdown-item" href="/gode-raad/forbered-din-finansielle-fremtid/" target="" >Forbered din finansielle fremtid</a>
+                                        <a class="dropdown-item" href="/gode-raad/adgang-til-kontanter/" target="" >Adgang til kontanter</a>
+                                        <a class="dropdown-item" href="/gode-raad/indsigelse-ved-brug-af-betalingskort/" target="" >Indsigelse ved brug af betalingskort</a>
+                                        <a class="dropdown-item" href="/gode-raad/saadan-skifter-du-bank/" target="" >S&#xE5;dan skifter du bank</a>
+                                        <a class="dropdown-item" href="/gode-raad/erhvervskonto/" target="" >S&#xE5;dan opretter du en erhvervskonto</a>
+                                        <a class="dropdown-item" href="/gode-raad/saadan-klager-du-over-din-bank/" target="" >S&#xE5;dan klager du over din bank</a>
+                                        <a class="dropdown-item" href="/gode-raad/sammenlign-bankernes-priser/" target="" >Sammenlign bankernes priser</a>
+                                        <a class="dropdown-item" href="/gode-raad/gaeldsraadgivning/" target="" >G&#xE6;ldsr&#xE5;dgivning</a>
+                                        <a class="dropdown-item" href="/gode-raad/derfor-spoerger-banken-om-id/" target="" >Derfor sp&#xF8;rger banken om ID</a>
+                                    </div>
+                                </div>
+                                <div class="dropdown-menu__submenu">
+                                    <div class="dropdown-menu__submenu__headline">
+                                        Investering
+                                    </div>
+                                    <div class="dropdown-menu__submenu__items">
+                                        <a class="dropdown-item" href="/gode-raad/investering-om-at-investere/" target="" >Investering - om at investere</a>
+                                        <a class="dropdown-item" href="/gode-raad/investering-om-at-investere/investeringsfonde/" target="" >Investeringsfonde</a>
+                                        <a class="dropdown-item" href="/gode-raad/investering-om-at-investere/investeringsfonde/saadan-klager-du-over-din-investeringsfond/" target="" >S&#xE5;dan klager du over din investeringsfond</a>
+                                        <a class="dropdown-item" href="/gode-raad/investering-om-at-investere/naar-jeg-investerer-selv/investering-i-aktier-og-obligationer/" target="" >Investering i aktier og obligationer</a>
+                                        <a class="dropdown-item" href="/gode-raad/investering-om-at-investere/investeringsfonde/skat-og-investering/" target="" >Skat og investering</a>
+                                    </div>
+                                </div>
+                                <div class="dropdown-menu__submenu">
+                                    <div class="dropdown-menu__submenu__headline">
+                                        Det digitale samfund
+                                    </div>
+                                    <div class="dropdown-menu__submenu__items">
+                                        <a class="dropdown-item" href="/gode-raad/sikkerhed-paa-nettet/" target="" >Sikkerhed p&#xE5; nettet</a>
+                                        <a class="dropdown-item" href="/gode-raad/stop-bankroeveriet-i-din-egen-stue/" target="" _blank>Stop bankr&#xF8;veriet i din egen stue</a>
+                                    </div>
+                                </div>
+                        </div>
+                </li>
+                <li class="nav-item dropdown ">
+                    <a class="nav-link dropdown-toggle" data-component=dropdown aria-haspopup=true aria-expanded=false role=button data-toggle=dropdown id= navbarDropdown href="/tal-og-data/#">
+                        Tal &amp; data
+                    </a>
+                        <div class="dropdown-arrow" data-open-dropdown-mobile-menu>
+                            <i class="icon-arrow"></i>
+                        </div>
+                        <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                                <div class="dropdown-menu__submenu">
+                                    <div class="dropdown-menu__submenu__headline">
+                                        Bolig &amp; Realkredit
+                                    </div>
+                                    <div class="dropdown-menu__submenu__items">
+                                        <a class="dropdown-item" href="/tal-og-data/boligstatistik/boligmarkedsstatistikken/" target="" >Boligmarkedsstatistikken</a>
+                                        <a class="dropdown-item" href="/tal-og-data/boligstatistik/boligudbudsstatistik/" target="" >Boligudbudsstatistik</a>
+                                        <a class="dropdown-item" href="/tal-og-data/boligstatistik/udlaansstatistik/" target="" >Udl&#xE5;nsstatistik</a>
+                                        <a class="dropdown-item" href="/tal-og-data/boligstatistik/restancer/" target="" >Restancer</a>
+                                        <a class="dropdown-item" href="/tal-og-data/boligstatistik/" target="" >Flere tal om realkredit</a>
+                                        <a class="dropdown-item" href="/tal-og-data/boligstatistik/udgivelseskalender-for-statistikker/" target="" >Udgivelseskalender for statistikker</a>
+                                    </div>
+                                </div>
+                                <div class="dropdown-menu__submenu">
+                                    <div class="dropdown-menu__submenu__headline">
+                                        Bank &amp; &#xF8;konomi
+                                    </div>
+                                    <div class="dropdown-menu__submenu__items">
+                                        <a class="dropdown-item" href="/tal-og-data/institutter-filialer-ansatte/finanssektorens-bidrag-til-samfundet/" target="" >Finanssektorens bidrag til samfundet</a>
+                                        <a class="dropdown-item" href="/tal-og-data/institutter-filialer-ansatte/kriminalitet/svindel-med-netbank-og-betalinger/" target="" >Svindel med netbank og betalinger</a>
+                                        <a class="dropdown-item" href="/tal-og-data/regnskabs-og-noegletal/" target="" >Regnskabs- og n&#xF8;gletal</a>
+                                        <a class="dropdown-item" href="/tal-og-data/institutter-filialer-ansatte/kriminalitet/" target="" >Kriminalitet og hvidvask</a>
+                                        <a class="dropdown-item" href="/tal-og-data/institutter-filialer-ansatte/" target="" >Institutter, filialer &amp; ansatte</a>
+                                        <a class="dropdown-item" href="/aktuelle-emner/baeredygtig-finans/esg-dataunivers/" target="" >ESG Dataunivers</a>
+                                    </div>
+                                </div>
+                                <div class="dropdown-menu__submenu">
+                                    <div class="dropdown-menu__submenu__headline">
+                                        Renter
+                                    </div>
+                                    <div class="dropdown-menu__submenu__items">
+                                        <a class="dropdown-item" href="/tal-og-data/renter/aktuel-rente-ved-udbetaling-af-ratepension/" target="" >Aktuel rente ved udbetaling af ratepension</a>
+                                        <a class="dropdown-item" href="/tal-og-data/renter/de-danske-referencerenter/" target="" >De danske referencerenter</a>
+                                        <a class="dropdown-item" href="/tal-og-data/renter/ny-risikofri-referencerente-for-det-danske-kronemarked/" target="" >Ny risikofri referencerente for det danske kronemarked</a>
+                                    </div>
+                                </div>
+                                <div class="dropdown-menu__submenu">
+                                    <div class="dropdown-menu__submenu__headline">
+                                        Investering
+                                    </div>
+                                    <div class="dropdown-menu__submenu__items">
+                                        <a class="dropdown-item" href="/tal-og-data/investeringsfondsstatistikker/afkast-risiko-og-omkostninger/" target="" >Afkast, risiko og omkostninger</a>
+                                        <a class="dropdown-item" href="/tal-og-data/investeringsfondsstatistikker/lukkede-fonde/" target="" >Lukkede fonde</a>
+                                        <a class="dropdown-item" href="/tal-og-data/investeringsfondsstatistikker/active-share-and-tracking-error/" target="" >Active share and tracking error</a>
+                                        <a class="dropdown-item" href="/tal-og-data/investeringsfondsstatistikker/forklaring-til-statistikker/" target="" >Forklaring til statistikker</a>
+                                        <a class="dropdown-item" href="/tal-og-data/investeringsfondsstatistikker/statistikker-i-excel/" target="" >Statistikker i Excel</a>
+                                    </div>
+                                </div>
+                        </div>
+                </li>
+                <li class="nav-item dropdown ">
+                    <a class="nav-link dropdown-toggle" data-component=dropdown aria-haspopup=true aria-expanded=false role=button data-toggle=dropdown id= navbarDropdown href="/fagomraader/">
+                        Fagomr&#xE5;der
+                    </a>
+                        <div class="dropdown-arrow" data-open-dropdown-mobile-menu>
+                            <i class="icon-arrow"></i>
+                        </div>
+                        <div class="dropdown-menu" aria-labelledby="navbarDropdown">
+                                <div class="dropdown-menu__submenu">
+                                    <div class="dropdown-menu__submenu__headline">
+                                        Fagomr&#xE5;der
+                                    </div>
+                                    <div class="dropdown-menu__submenu__items">
+                                        <a class="dropdown-item" href="/analyser/" target="" >Analyse</a>
+                                        <a class="dropdown-item" href="/fagomraader/bank/" target="" >Bank</a>
+                                        <a class="dropdown-item" href="/om-os/kontakt-os/europapolitik/" target="" >Europapolitik</a>
+                                    </div>
+                                </div>
+                                <div class="dropdown-menu__submenu">
+                                    <div class="dropdown-menu__submenu__headline">
+
+                                    </div>
+                                    <div class="dropdown-menu__submenu__items">
+                                        <a class="dropdown-item" href="/investering/" target="" >Investering</a>
+                                        <a class="dropdown-item" href="/kapitalmarked/" target="" >Kapitalmarked</a>
+                                        <a class="dropdown-item" href="/realkredit/" target="" >Realkredit</a>
+                                    </div>
+                                </div>
+                        </div>
+                </li>
+            <!-- site links -->
+                <li class="nav-item site-link-dropdown" data-open-site-link-dropdown>
+                    <div class="site-link">
+                        <div class="site-link__title">
+                            V&#xE6;lg Arbejdsgiver
+                        </div>
+                        <div class="site-link__arrow">
+                            <i class="icon-arrow"></i>
+                        </div>
+                    </div>
+                    <div class="site-link-dropdown-container">
+                        <div class="site-link-item">
+                            <a href="/arbejdsgiver/">
+                                Arbejdsgiver
+                            </a>
+                        </div>
+                    </div>
+                </li>
+            <!--Service Menu-->
+                <li class="nav-item no-dropdown">
+                    <a href= "/nyheder/">
+                        Nyheder
+                    </a>
+                </li>
+                <li class="nav-item no-dropdown">
+                    <a href= "/analyser/">
+                        Analyser
+                    </a>
+                </li>
+                <li class="nav-item no-dropdown">
+                    <a href= "https://finansdanmark.dk/nyheder/?year=&amp;subject=&amp;type=H%C3%B8ringssvar">
+                        H&#xF8;ringssvar
+                    </a>
+                </li>
+                <li class="nav-item no-dropdown">
+                    <a href= "/presse/">
+                        Presse
+                    </a>
+                </li>
+                <li class="nav-item no-dropdown">
+                    <a href= "/om-os/aktiviteter/">
+                        Aktiviteter
+                    </a>
+                </li>
+                <li class="nav-item no-dropdown">
+                    <a href= "/om-os/">
+                        Om os
+                    </a>
+                </li>
+                <li class="nav-item no-dropdown">
+                    <a href= "/om-os/medlemmer/extranet/">
+                        Extranet
+                    </a>
+                </li>
+
+            <!--Culture-->
+
+
+        </ul>
+    </nav>
+</header>
+    <main>
+        <div class="section-page container ">
+    <!--PageHeader-->
+
+<!--PageHeader-->
+    <div class="page-header ">
+        <div class="page-header__background-image">
+        </div>
+        <div class="page-header__content">
+            <div class="container">
+                <!-- Page header section -->
+                <div class="container__top-content">
+
+<div class="breadcrumbs">
+    <nav>
+
+        <ul>
+            <li>Du er her:</li>
+                        <li><a href="/">Forside</a></li>
+                        <li><a href="/tal-og-data/">Tal og data</a></li>
+                        <li><a href="/tal-og-data/boligstatistik/">Boligstatistik</a></li>
+                        <li>Obligationsrenter</li>
+        </ul>
+    </nav>
+</div>
+
+
+                        <h1 class="page-header-headline heading heading--h1">
+                            Obligationsrenter
+                        </h1>
+
+
+
+                        <div class="intro">
+                            Finans Danmark offentligg&#xF8;r tre obligationsrenter. De tre renteserier offentligg&#xF8;res ugentligt her p&#xE5; siden.
+                        </div>
+                </div>
+                    <div class="row">
+                        <div class="col-12 col-md-8">
+                                <div class="text body-text">
+                                    <p>Finans Danmark offentliggør tre obligationsrenter:</p><ul><li><p>Den gennemsnitlige korte&nbsp;obligationsrente for realkreditobligationer i danske kroner</p></li><li><p>Den gennemsnitlige korte obligationsrente for realkreditobligationer i euro</p></li><li><p>Den gennemsnitlige lange obligationsrente for realkreditobligationer i danske kroner.</p></li></ul><p>Obligationsrenterne giver et samlet overblik over renteudviklingen på realkreditmarkedet. De beregnes på ugebasis og viser, hvad den gennemsnitlige, effektive obligationsrente har været i den&nbsp;pågældende uge. Med andre ord viser obligationsrenterne, hvad de investorer, der har købt nyudstedte realkreditobligationer i den pågældende&nbsp;uge, i gennemsnit får i effektiv rente.&nbsp;Obligationsrenten offentliggøres hver uge.</p><p>Bemærk at den effektive rente i perioder kan være beregnet for lavt. Det skyldes, at så længe der er en positiv nettoudstedelse i en obligationsserie indgår den i beregningen, selvom obligationen ikke har været handlet i den pågældende uge eller længere tid. Der anvendes blot senest handlede kurs. Det betyder, at det kan være en "gammel" og "for høj" kurs, der indgår i beregningen. Problemet opstår især når der er kort tid til udløb. På beregningstidspunktet vil der være sket en løbetidsforkortende effekt på kursen, men det fanges ikke i beregningen. Den "gamle" og "for høje" kurs medfører i disse tilfælde, at den effektive rente bliver for lav.</p><h3>Seneste opgørelse af obligationsrenten</h3><table style="height: 55.1719px; width: 93.5897%;"><colgroup><col style="min-width: 25px;"><col style="min-width: 25px;"><col style="min-width: 25px;"><col style="min-width: 25px;"></colgroup><tbody><tr style="height: 36.7969px;"><td colspan="1" rowspan="1" style="height: 36.7969px; width: 21.2598%;"><p>Obligationsrenten</p></td><td colspan="1" rowspan="1" style="height: 36.7969px; width: 23.5971%;"><p>Kort obligationsrente (DKK)</p></td><td colspan="1" rowspan="1" style="height: 36.7969px; width: 27.9841%;"><p>Lang obligationsrente (DKK)</p></td><td colspan="1" rowspan="1" style="height: 36.7969px; width: 27.1611%;"><p>Kort obligationsrente (EUR)</p></td></tr><tr style="height: 18.375px;"><td colspan="1" rowspan="1" style="height: 18.375px; width: 21.2598%;"><p>Uge 40</p></td><td colspan="1" rowspan="1" style="height: 18.375px; width: 23.5971%;"><p>3,11</p></td><td colspan="1" rowspan="1" style="height: 18.375px; width: 27.9841%;"><p>4,49</p></td><td colspan="1" rowspan="1" style="height: 18.375px; width: 27.1611%;"><p>2,08</p></td></tr></tbody></table><p>Den lange og de korte obligationsrenter (opgjort på ugebasis).</p><p>Senest opdateret <strong>uge 40 2026</strong></p><p><a data-router-slot="disabled" href="/media/1zblxbkt/obl-rente-w40-26.xlsx" title="OBL rente W40 26.xlsx"><strong><span class="heading--h3 heading--bold">Se&nbsp;data&nbsp;for&nbsp;obligationsrenterne&nbsp;1997-2026</span></strong></a></p><p>For dataserier længere tilbage end 1997 henviser vi til <a data-router-slot="disabled" href="https://www.nationalbanken.dk" target="_blank" rel="noopener" type="external">Danmarks Nationalbank</a>&nbsp;og&nbsp;<a data-router-slot="disabled" href="https://www.dst.dk" target="_blank" rel="noopener" type="external">Danmarks Statistik</a>.</p><p><span class="note">Note: Obligationsrenter i perioden uge 27 2018 til uge 24 2022 er i uge 25 2022 opdateret med reviderede tal.</span></p>
+                                </div>
+                        </div>
+                        <div class="col-12 col-md-4 page-header-sidebar">
+
+<!--Right Navigation/Content-->
+
+
+<!--Right pane content-->
+
+<div class="social-sharing">
+<span>Del & print</span>
+<ul class="share-buttons"><li><a class="facebook" href="https://www.facebook.com/sharer/sharer.php?u=http%3A%2F%2Ffinansdanmark.dk%2F&t=" title="Share on Facebook" target="_blank" onclick="window.open('https://www.facebook.com/sharer/sharer.php?u=' + encodeURIComponent(document.URL) + '&t=' + encodeURIComponent(document.URL)); return false;"></a></li><li><a class="twitter" href="https://twitter.com/intent/tweet?source=http%3A%2F%2Ffinansdanmark.dk%2F&text=:%20http%3A%2F%2Ffinansdanmark.dk%2F" target="_blank" title="Tweet" onclick="window.open('https://twitter.com/intent/tweet?text=' + encodeURIComponent(document.title) + ':%20'  + encodeURIComponent(document.URL)); return false;"></a></li><li><a class="linkedin" href="http://www.linkedin.com/shareArticle?mini=true&url=http%3A%2F%2Ffinansdanmark.dk%2F&title=&summary=&source=http%3A%2F%2Ffinansdanmark.dk%2F" target="_blank" title="Share on LinkedIn" onclick="window.open('http://www.linkedin.com/shareArticle?mini=true&url=' + encodeURIComponent(document.URL) + '&title=' +  encodeURIComponent(document.title)); return false;"></a></li><li><a class="email" href="mailto:?subject=&body=:%20http%3A%2F%2Ffinansdanmark.dk%2F" target="_blank" title="Send email" onclick="window.open('mailto:?subject=' + encodeURIComponent(document.title) + '&body=' +  encodeURIComponent(document.URL)); return false;"></a></li><li><a class="print" onclick="window.print()"></a></li></ul></div>
+
+<div class="macro link-list-macro  "
+     style="background-color:#ffffff">
+
+
+    <div class="link-list-macro__bottom darkText">
+
+            <h4 class="heading heading-h2">
+                <a class="macro-link"
+                   href="/tal-og-data/boligstatistik/"
+                   target="_self">
+                    Boligstatistik - forside
+                </a>
+            </h4>
+
+                <div>
+                    <a href="/tal-og-data/boligstatistik/boligmarkedsstatistikken/" target="_self">
+                        Boligmarkedsstatistikken
+                    </a>
+                </div>
+                <div>
+                    <a href="/tal-og-data/boligstatistik/udlaansstatistik/" target="_self">
+                        Udl&#xE5;nsstatistik
+                    </a>
+                </div>
+                <div>
+                    <a href="/tal-og-data/boligstatistik/boligudbudsstatistik/" target="_self">
+                        Boligudbudsstatistik
+                    </a>
+                </div>
+                <div>
+                    <a href="/tal-og-data/boligstatistik/laanetilbud/" target="_self">
+                        L&#xE5;netilbud
+                    </a>
+                </div>
+                <div>
+                    <a href="/tal-og-data/boligstatistik/definitioner-og-metode/" target="_self">
+                        Definitioner og metode
+                    </a>
+                </div>
+
+    </div>
+</div>
+                        </div>
+                    </div>
+            </div>
+        </div>
+    </div>
+
+    <!--Sections-->
+        <div class="section-page__sections container">
+            <div class="umb-block-list">
+
+
+<section class="section" >
+<div class='tableauPlaceholder' id='viz1531130823166' style='position: relative'><noscript><a href='#'><img alt='Obligationsrente ' src='https:&#47;&#47;public.tableau.com&#47;static&#47;images&#47;Ob&#47;Obligationsrenten&#47;Obligationsrentetilhjemmeside&#47;1_rss.png' style='border: none' /></a></noscript><object class='tableauViz'  style='display:none;'><param name='host_url' value='https%3A%2F%2Fpublic.tableau.com%2F' /> <param name='embed_code_version' value='3' /> <param name='site_root' value='' /><param name='name' value='Obligationsrenten&#47;Obligationsrentetilhjemmeside' /><param name='tabs' value='no' /><param name='toolbar' value='yes' /><param name='static_image' value='https:&#47;&#47;public.tableau.com&#47;static&#47;images&#47;Ob&#47;Obligationsrenten&#47;Obligationsrentetilhjemmeside&#47;1.png' /> <param name='animate_transition' value='yes' /><param name='display_static_image' value='yes' /><param name='display_spinner' value='yes' /><param name='display_overlay' value='yes' /><param name='display_count' value='yes' /><param name='filter' value='publish=yes' /></object></div>                <script type='text/javascript'>                    var divElement = document.getElementById('viz1531130823166');                    var vizElement = divElement.getElementsByTagName('object')[0];                    vizElement.style.width='100%';vizElement.style.height=(divElement.offsetWidth*0.75)+'px';                    var scriptElement = document.createElement('script');                    scriptElement.src = 'https://public.tableau.com/javascripts/api/viz_v1.js';                    vizElement.parentNode.insertBefore(scriptElement, vizElement);                </script></section>
+
+
+
+<section class="short-content section custom-animation-hide darkRed" data-component="custom-animation" >
+
+        <div class="container">
+
+        <div class="row">
+
+
+            <div class="col-12 short-content__content lightColor rte" style="background: #601122">
+                    <h3 class="short-headline" style="color: #7ba6a9">F&#xC5; OPDATERINGER P&#xC5; MAIL</h3>
+                        <h3 class="headline headline--small">For dig, der ikke vil g&#xE5; glip af nyheder fra Finans Danmark.</h3>
+                    <a href="/nyhedsbrevstilmelding/" class="btn">TILMELD NYHEDER</a>
+            </div>
+        </div>
+
+</a>
+    </div>
+
+</section>
+
+
+<section class="headline-section section custom-animation-hide" data-component="custom-animation" >
+    <div class="container darkColor"
+         style="background-color: #ffffff">
+
+        <div class="row">
+            <div class="col-12">
+                    <picture>
+                        <source srcset="/media/u3lf4bkl/temp-bookmark.jpg?width=45&amp;height=45&amp;v=1d8fe4addf0a400">
+                        <img src="/media/u3lf4bkl/temp-bookmark.jpg?width=45&amp;height=45&amp;v=1d8fe4addf0a400">
+                    </picture>
+            </div>
+
+            <div class="col-12">
+                    <h2 class="heading heading--h2"></h2>
+
+<p>Finans Danmark er erhvervs- og arbejdsgiverorganisation for penge- og realkreditinstitutter, kapitalforvaltere, børsmæglere, investeringsfonde, samt datacentraler, it- og fintechvirksomheder i den finansielle sektor.</p><p><a data-router-slot="disabled" data-anchor="#" href="https://finansdanmark.dk/om-os/" title="Læs mere om Finans Danmark og vores arbejde" type="external">Læs mere om Finans Danmark og vores arbejde</a></p>
+            </div>
+        </div>
+    </div>
+</section></div>
+
+        </div>
+
+</div>
+    </main>
+
+
+<footer class="footer">
+    <div class="container">
+        <div class="row">
+            <div class="col-12 footer__top">
+                    <img class="footer__logo" src="/media/mtqbk1ol/fd_rgb-2-1.svg" alt="">
+
+                    <p class="footer__heading">
+                        Finans Danmark er erhvervs- og arbejdsgiverorganisation for penge- og realkreditinstitutter, kapitalforvaltere, b&#xF8;rsm&#xE6;glere, investeringsfonde, samt datacentraler, it- og fintechvirksomheder i den finansielle sektor.
+                    </p>
+            </div>
+
+            <div class="col-12 footer__center">
+
+                <div class="footer__address">
+<p><strong>Finans Danmark</strong>&nbsp;<br>Amaliegade 7 <br>1256 København K <br>Tlf.: 3370 1000 <br><a data-router-slot="disabled" href="mailto:mail@finansdanmark.dk" type="external">mail@finansdanmark.dk</a></p>                </div>
+                <div class="footer__link-columns">
+                    <div class="footer__link-column">
+                                <h3 class="footer__link-heading">
+                                    Aktuelle emner
+                                </h3>
+                            <ul class="footer__link-list">
+                                <li class="footer__link-item">
+                                    <a class="footer__link" href="/aktuelle-emner/arbejdsmarked/">
+                                        Arbejdsmarked
+                                    </a>
+                                </li>
+                                <li class="footer__link-item">
+                                    <a class="footer__link" href="/aktuelle-emner/det-digitale-samfund/">
+                                        Det digitale samfund
+                                    </a>
+                                </li>
+                            </ul>
+                    </div>
+                    <div class="footer__link-column">
+                                <h3 class="footer__link-heading">
+                                    Fagomr&#xE5;der
+                                </h3>
+                            <ul class="footer__link-list">
+                                <li class="footer__link-item">
+                                    <a href="/analyser/">
+                                        Analyse
+                                    </a>
+                                </li>
+                                <li class="footer__link-item">
+                                    <a href="/aktuelle-emner/realkredit/">
+                                        Realkredit
+                                    </a>
+                                </li>
+                            </ul>
+                    </div>
+                    <div class="footer__link-column">
+                            <ul class="footer__link-list">
+                                <li class="footer__link-item">
+                                    <a class="footer__link" href="/om-os/">
+                                        Om os
+                                    </a>
+                                </li>
+                                <li class="footer__link-item">
+                                    <a class="footer__link" href="/presse/">
+                                        Presse
+                                    </a>
+                                </li>
+                            </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-12 footer__bottom">
+                <div class="footer__bottom-links">
+                    <ul>
+                            <li>
+                                <a class="footer__link" href="/nyhedsbrevstilmelding/#">
+                                    Nyhedsbrevstilmelding
+                                </a>
+                            </li>
+                            <li>
+                                <a class="footer__link" href="/cookiepolitik/">
+                                    Cookiepolitik
+                                </a>
+                            </li>
+                            <li>
+                                <a class="footer__link" href="/disclaimer/">
+                                    Disclaimer
+                                </a>
+                            </li>
+                            <li>
+                                <a class="footer__link" href="/om-os/saadan-behandler-vi-persondata/">
+                                    Privatlivspolitik
+                                </a>
+                            </li>
+                    </ul>
+                </div>
+                <div class="footer__social">
+                        <a class="footer__social-link" href="https://www.linkedin.com/company/finansdanmark" target="_blank" rel="noopener noreferrer" aria-label="LinkedIn">
+                            <span class="footer__social-icon footer__social-icon--linkedin" aria-hidden="true"></span>
+                        </a>
+                        <a class="footer__social-link" href="https://twitter.com/finansdanmark" target="_blank" rel="noopener noreferrer" aria-label="X">
+                            <span class="footer__social-icon footer__social-icon--x" aria-hidden="true"></span>
+                        </a>
+                        <a class="footer__social-link" href="https://www.instagram.com/finansdanmark/" target="_blank" rel="noopener noreferrer" aria-label="Instagram">
+                            <span class="footer__social-icon footer__social-icon--instagram" aria-hidden="true"></span>
+                        </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</footer>
+
+
+    <script src="/Frontend/Scripts/FinansDanmark.bundle.js" type="text/javascript"></script>
+</body>
+</html>
