@@ -140,7 +140,6 @@ making material changes.
 
 ### What NOT to do with docs
 
-- Do not add dates to filenames — use descriptive names.
 - Do not edit `danish-mortgage-concepts.md` to match engine behavior — it is a domain knowledge source, not an engine reference.
 - Do not create a new doc without YAML frontmatter.
 
