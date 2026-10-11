@@ -128,6 +128,12 @@ def parse_overview(tables: list[list[list[str]]]) -> dict[str, Any]:
                 overview["loan_type"] = "F5"
             elif "F1" in val:
                 overview["loan_type"] = "F1"
+            elif "CITA" in val.upper():
+                overview["loan_type"] = "CITA"
+            elif "CIBOR" in val.upper():
+                overview["loan_type"] = "CIBOR"
+            elif "DESTR" in val.upper():
+                overview["loan_type"] = "DESTR"
             elif "fast" in val.lower() or "obligationsl" in val.lower():
                 overview["loan_type"] = "FIXED"
         elif "løbetid" in key_norm:
@@ -151,9 +157,9 @@ def parse_overview(tables: list[list[list[str]]]) -> dict[str, Any]:
             overview["issue_costs_nominal"] = _parse_danish_number(val)
         elif "faktisk provenu" in key_norm:
             overview["faktisk_provenu"] = _parse_danish_number(val)
-        elif "åop" in key_norm and "skat" not in key_norm:
+        elif "åop" in key_norm and "før" in key_norm:
             overview["aop_before_tax"] = _parse_percent(val)
-        elif "åop" in key_norm and "skat" in key_norm:
+        elif "åop" in key_norm and "efter" in key_norm:
             overview["aop_after_tax"] = _parse_percent(val)
 
     return overview
