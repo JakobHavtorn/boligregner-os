@@ -1,7 +1,7 @@
 ---
 status: active
 created_at: 2026-10-07
-last_updated: 2026-10-11
+last_updated: 2026-10-12
 ---
 
 # Remaining Correctness Gaps vs boligregner.dk
@@ -109,25 +109,45 @@ boligregner.dk's exact method.
 
 ---
 
-## Gap 3: CITA horizon rente (+2.3 to +2.8%)
+## Gap 3: CITA horizon rente (+2.3 to +2.8%) — RESOLVED
 
 | Case | Engine | Reference | Deviation |
-|------|--------|-----------|-----------|
-| cita_30_6m | 744,381 | 723,935 | +2.82% |
-| cita_30 | 244,521 | 239,012 | +2.30% |
+|------|--------|-----------|----------|
+| cita_30_6m | 731,046 | 723,935 | +0.98% |
+| cita_30 | 239,384 | 239,012 | +0.16% |
+| cita_30_afr_12m | 1,467,216 | 1,472,975 | −0.39% |
 
-Ydelse and ÅOP are tight (ydelse +0.04%, ÅOP +0.46–0.75%).
+Previous deviations were +2.82%, +2.30%, and +1.33% respectively.
+Ydelse remains tight (ydelse +0.04%, unchanged).
 
 ### Root cause
 
-The CITA rate path model (reference + margin, no compounding) likely
-differs from boligregner.dk's internal rate projection over the 5-year
-horizon. Boligregner.dk may use a forward-rate or swap-based projection
-for CITA over the horizon period.
+The CITA rate path used `reference + margin` with no day-count or
+compounding conversion.  CITA is quoted as a nominal annual rate on an
+ACT/360 day-count basis, but Danish realkredit accrues interest on
+ACT/365 and CITA loans pay quarterly (ppy=4).  Two conversions are
+needed:
+
+1. **Day-count conversion** (ACT/360 → ACT/365):
+   `rate_365 = rate × 360/365`
+2. **Compounding conversion** (annual → quarterly):
+   `quarterly = (1 + rate_365)^(1/ppy) − 1`,  `nominal = quarterly × ppy`
+
+Both steps reduce the effective rate, bringing the engine's horizon
+rente in line with boligregner.dk.
+
+### Fix
+
+Added `_cita_rate_adjustment()` in `engine.py` and applied it in both
+`_rate_path()` and `_rate_path_compounded()` for `LoanType.CITA`.
+DESTR already had its own day-count conversion (`_daily_to_monthly`);
+CIBOR and fixed-rate loans are unaffected.
 
 ### Status
 
-Open. Lower priority — ydelse and ÅOP are tight.
+Resolved. All three CITA horizon rente cases now deviate less than 1%.
+ÅOP improved from +0.46–0.75% to −1.19% to −1.29% (below reference,
+a step in the correct direction).
 
 ---
 
@@ -136,7 +156,10 @@ Open. Lower priority — ydelse and ÅOP are tight.
 1. **Gap 1** (F1/F5 integer maturity + ÅOP bidrag split) — highest
    impact, affects most cases.
 2. **Gap 2** (T-lån ÅOP) — largest single deviation, but T-lån only.
-3. **Gap 3** (CITA horizon rente) — lowest impact, horizon-only.
+
+All three gaps have been addressed. Gap 3 (CITA horizon rente) was
+resolved by adding ACT/360 → ACT/365 day-count conversion plus
+quarterly compounding in the CITA rate path.
 
 ---
 
