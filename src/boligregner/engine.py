@@ -541,19 +541,41 @@ def _aap(
     interest_only_months: if > 0, the first N payments are interest-only.
     payment: if provided (T-lån), use this fixed payment for all periods.
     ppy: payments per year (12 monthly, 4 quarterly).
-    bidragssats: annual bidrag fee; charged per period on hovedstol.
+    bidragssats: annual bidrag fee. For T-lån (payment mode), bidrag is
+        charged on the declining post-payment balance. For other loan types,
+        bidrag is charged as a flat amount on the original hovedstol.
     """
     r0 = _periodic_rate(rate_path[0], ppy) if rate_path else _ZERO
     cfs: list[Decimal] = [net_disbursement]
-    bidrag_charge = (
-        bidragssats * hovedstol / Decimal(ppy)
-        if bidragssats > _ZERO
-        else _ZERO
-    )
 
-    if payment is not None:
-        cfs += [-(payment + bidrag_charge)] * n_months
+    if payment is not None and bidragssats > _ZERO:
+        # T-lån with bidrag: amortize to get declining balance, then
+        # charge bidrag on the outstanding balance each period.
+        # Use the plain amortization rate (rate_path[0] minus bidragssats)
+        # for balance tracking — bidrag is an admin fee, not interest,
+        # so it should not slow amortization in the balance model.
+        amort_rate = rate_path[0] - bidragssats if rate_path else _ZERO
+        amort_path = [amort_rate] * n_months
+        periodic_flows = list(
+            _amortize(
+                hovedstol,
+                amort_path,
+                n_months,
+                payment=payment,
+                ppy=ppy,
+            )
+        )
+        for interest, principal, post_balance in periodic_flows:
+            bidrag_q = bidragssats * post_balance / Decimal(ppy)
+            cfs.append(-(payment + bidrag_q))
+    elif payment is not None:
+        cfs += [-payment] * n_months
     else:
+        bidrag_charge = (
+            bidragssats * hovedstol / Decimal(ppy)
+            if bidragssats > _ZERO
+            else _ZERO
+        )
         periodic_flows = list(
             _amortize(
                 hovedstol,
@@ -635,6 +657,7 @@ def _compute_component(
             kontant,
             payment=spec.fixed_ydelse,
             ppy=ppy,
+            bidragssats=spec.bidragssats,
         )
     elif io_months > 0:
         amort_months = n - io_months
