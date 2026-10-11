@@ -67,9 +67,10 @@ class LoanSpec(BaseModel):
     loan_type: LoanType
     rate: Decimal = Field(
         ...,
-        description="Nominal annual rate as a fraction: 0.04 = 4%. "
-        "For obligationslån this is the coupon rate. "
-        "For CITA/CIBOR/DESTR this is auto-computed as reference_rate + margin.",
+        description="Nominal annual interest rate as a fraction: 0.04 = 4%. "
+        "For FIXED and F1/F3/F5/T loans this is the coupon/nominal rate. "
+        "For CITA/CIBOR/DESTR this is auto-computed as reference_rate + margin "
+        "and must not be set manually.",
     )
     price: Decimal = Field(
         default=Decimal(100),
@@ -100,24 +101,8 @@ class LoanSpec(BaseModel):
     bidragssats: Decimal = Field(
         default=Decimal(0),
         description="Annual administration fee (bidrag) as a fraction of hovedstol, "
-        "e.g. 0.0055 = 0.55%/year. Added to effective rate for ydelse and ÅOP.",
-    )
-    bidrag_model: str = Field(
-        default="split",
-        description="How bidragssats is applied: 'split' (default) charges bidrag "
-        "as a separate fixed charge on the original hovedstol (matching boligregner.dk); "
-        "'compounded' adds it to the effective rate for ydelse and ÅOP.",
-    )
-    bond_price_model: str = Field(
-        default="finite_option",
-        description="Bond pricing model for indfrielse: 'finite_option' (default, "
-        "finite PV capped at par + prepayment_premium), 'finite' (PV of remaining "
-        "cashflows), 'simple' (perpetuity).",
-    )
-    prepayment_premium: Decimal = Field(
-        default=Decimal("0.005"),
-        description="Maximum premium above par (100) when prepayment option is in-the-money. "
-        "Used only with bond_price_model='finite_option'. 0.005 = 100.50 max.",
+        "e.g. 0.0055 = 0.55%/year. Compounded into the effective rate for "
+        "ydelse and ÅOP.",
     )
     interest_only_years: int = Field(
         default=0,
@@ -140,13 +125,15 @@ class LoanSpec(BaseModel):
     )
     reference_rate: Decimal | None = Field(
         default=None,
-        description="Reference rate (CITA/CIBOR/DESTR) as annual fraction. "
-        "Required for CITA/CIBOR/DESTR; forbidden otherwise.",
+        description="Underlying market benchmark rate as an annual fraction, e.g. "
+        "CITA, CIBOR, or DESTR. Required for CITA/CIBOR/DESTR loans; "
+        "forbidden otherwise. The bank's margin is added on top.",
     )
     margin: Decimal | None = Field(
         default=None,
-        description="Margin above reference rate. Required for CITA/CIBOR/DESTR; "
-        "forbidden otherwise.",
+        description="The bank's spread above the reference rate, as an annual fraction. "
+        "Required for CITA/CIBOR/DESTR; forbidden otherwise. "
+        "The borrower's effective rate = reference_rate + margin.",
     )
     par_cap: bool = Field(
         default=False,
@@ -157,12 +144,12 @@ class LoanSpec(BaseModel):
     )
     coupon_rate: Decimal | None = Field(
         default=None,
-        description="Original coupon rate of an existing bond, as an annual fraction. "
-        "When set, the annuity payment uses this rate (the bond's fixed coupon), "
-        "while `rate` is the current market rate used for pricing/kurs and "
-        "rate-path scenarios. When None (default), `rate` is used for both — "
-        "preserving existing behavior. Used for modeling deep-discount bonds "
-        "where the coupon differs from the current market yield.",
+        description="Coupon rate of an existing bond, as an annual fraction. "
+        "When set, the annuity payment is computed at this rate (the bond's "
+        "contractual coupon) while `rate` remains the current market yield "
+        "used for pricing and rate-shock scenarios. When None (default), "
+        "`rate` is used for both. Used for deep-discount bonds where the "
+        "coupon differs from the current market yield.",
     )
 
     @field_validator("rate")

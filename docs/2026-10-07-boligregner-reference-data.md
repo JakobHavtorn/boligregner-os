@@ -1,96 +1,62 @@
-# boligregner.dk Reference Data (captured 2026-10-06)
+# boligregner.dk Reference Data
 
-## Browser session (single-component, no banklån) — Oct 6
+## Current reference cases (21 cases, Apr 2023 + Oct 2026 captures)
 
-- Provenu: 2.500.000, Start: 06-10-2026, Horizon: 5yr, Tax: 33.6%
-- No "Medtag ejendomsværdi og belåningsgrænser" → single realkredit component
+All reference data is captured from boligregner.dk browser HTML files saved
+in `tests/fixtures/`. The parser (`scripts/parse_boligregner.py`) reads saved
+HTML only — boligregner.dk returns different data to `urllib` vs a real
+browser.
 
-| Alt | Label | Hovedstol | Gns.kurs | Udst.omk. | Kontant | Ydl. f.s. | Ydl. e.s. | ÅOP f.s. |
-|-----|--------|-----------|----------|-----------|---------|-----------|-----------|----------|
-| 1 | 30 år F3 januar | 2.546.000 | 100,00 | 45.267 | 2.500.733 | 13.031 | 10.053 | 4,48% |
-| 2 | 30 år F5 januar | 2.547.000 | 100,00 | 46.818 | 2.500.182 | 13.324 | 10.200 | 4,67% |
-| 3 | 30 år 4% obligation | 2.719.000 | 93,66 | 45.906 | 2.500.808 | 14.589 | 11.011 | 5,57% |
+### Single-component, 2.5M DKK provenu (Oct 2026)
 
-Horizon (0% shock):
-| Alt | Rente | Afdrag | Ydelse | Restgæld | Gns.Kurs | Indfrielse | Periodeomk. |
-|-----|-------|--------|--------|----------|----------|------------|-------------|
-| 1 (F3) | 382.697 | 283.286 | 665.983 | 2.262.714 | 100,60 | 2.276.509 | 442.492 |
-| 2 (F5) | 393.498 | 284.504 | 678.002 | 2.262.496 | 100,76 | 2.279.698 | 457.700 |
-| 3 (4%) | 405.648 | 260.266 | 665.915 | 2.458.734 | 95,28 | 2.342.700 | 507.807 |
+| Case | Type | Rate | Price | Provenu | Maturity | Date |
+|------|------|------|-------|---------|----------|------|
+| f1_oct | f1 | 3.08% | 98.26 | 2,500,643 | 31y | 2026-10-10 |
+| fixed_4pct | fixed | 4.00% | 93.84 | 2,500,154 | 30y | 2026-10-10 |
+| f5_jan | f5 | 3.48% | 91.30 | 2,500,133 | 30y | 2026-10-10 |
 
-## Read-fetch session (with banklån, two-component) — Oct 5
+### Single-component, 6.5M DKK provenu (Oct 2026)
 
-- Provenu: 2.500.000, Start: 05-10-2026, Horizon: 5yr, Tax: 33.6%
-- Default with banklån (80% realkredit, 20% bank)
+| Case | Type | Rate | Price | Provenu | Maturity | Date |
+|------|------|------|-------|---------|----------|------|
+| f1_oct_6m | f1 | 3.08% | 98.26 | 6,500,770 | 31y | 2026-10-10 |
+| fixed_1pct_6m | fixed | 4.43% | 64.03 | 6,500,818 | 30y | 2026-10-10 |
+| cita_30_6m | cita | 2.69% | 100.13 | 6,500,495 | 30y | 2026-10-10 |
 
-| Alt | Label | Hovedstol | Gns.kurs | Udst.omk. | Kontant | Ydl. f.s. | Ydl. e.s. | ÅOP f.s. |
-|-----|--------|-----------|----------|-----------|---------|-----------|-----------|----------|
-| 1 | F3+bank | 2.546.000 | 100,00 | 45.673 | 2.500.327 | 14.442 | 10.803 | 5,52% |
-| 2 | F5+bank | 2.547.000 | 100,00 | 46.891 | 2.500.109 | 14.676 | 10.920 | 5,67% |
-| 3 | 4%+bank | 2.682.000 | 94,95 | 46.176 | 2.500.479 | 15.666 | 11.556 | 6,34% |
+### Apr 2023 historical cases
 
-## Exact loan parameters from detail pages (Oct 5)
+| Case | Type | Rate | Price | Provenu | Maturity | Date |
+|------|------|------|-------|---------|----------|------|
+| apr2023_f1_20/25/30 | f1 | 3.73% | 99.03 | 2,658,833 | 20/25/30y | 2023-04-22 |
+| apr2023_fast5_20–30 | fixed | 5.00% | 98.52–99.52 | 2,658,348–2,658,891 | 20–30y | 2023-04-22 |
+| apr2023_tlaan_21–30 | t | 3.71–3.72% | 99.05 | 4,371,947 | 30y | 2023-04-24 |
 
-### Alt 1: F3 januar + banklån
-- **Realkredit**: type=F3, rate=3.23%, bidrag=0.95%, optagelseskurs=95.63
-  - Hovedstol=2.000.000, obligationshovedstol=2.095.810
-  - Kursværdi=2.000.000
-  - Udst.omk.=37.023 (ekspeditionsgebyr=5.000, kurtage=4.000, fast tinglysning=1.825, procentuel tinglysning=26.198)
-  - Faktisk provenu (realkredit)=1.962.977
-  - ÅOP før skat (realkredit)=4.49%, ÅOP før skat (total)=5.52%
-- **Bank**: hovedstol=546.000, udst=8.650
-  - Faktisk provenu (bank)=537.350
-  - Bank rate ≈ 8.4% (derived from quarterly interest)
+## Correctness report
 
-### Alt 2: F5 januar + banklån
-- **Realkredit**: type=F5, rate=3.43%, bidrag=0.95%, optagelseskurs=91.43
-  - Hovedstol=2.000.000, obligationshovedstol=2.192.306
-  - Udst.omk.=38.229
-  - ÅOP før skat (realkredit)=4.68%, ÅOP før skat (total)=5.67%
+Run with:
+```bash
+uv run --extra dev python scripts/correctness_report.py
+```
 
-### Alt 3: 4% fast rente + banklån
-- **Realkredit**: type=FIXED, rate=4.00%, bidrag=0.70%, optagelseskurs=93.76
-  - Hovedstol=2.136.000, obligationshovedstol=2.136.000
-  - Udst.omk.=37.526 (ekspeditionsgebyr=5.000, kurtage=4.001, fast tinglysning=1.825, procentuel tinglysning=26.700)
-  - Faktisk provenu (realkredit)=1.963.129
-  - ÅOP før skat (realkredit)=5.57%, ÅOP før skat (total)=6.34%
+### Worst deviation by metric and loan type
 
-### Horizon (0% shock):
-| Alt | Rente | Afdrag | Ydelse | Restgæld | Gns.Kurs | Indfrielse | Periodeomk. |
-|-----|-------|--------|--------|----------|----------|------------|-------------|
-| 1 (F3+bank) | 416.855 | 235.834 | 652.689 | 2.310.166 | 100,52 | 2.322.131 | 474.492 |
-| 2 (F5+bank) | 428.066 | 230.728 | 658.795 | 2.316.272 | 100,64 | 2.331.194 | 489.880 |
-| 3 (4%+bank) | 468.628 | 229.630 | 698.259 | 2.452.370 | 96,33 | 2.362.430 | 560.210 |
+| Metric | F1 | Fixed | F5 | CITA | T-lån |
+|--------|-----|-------|-----|------|-------|
+| Hovedstol | 0.00% | −0.07% | 0.00% | +0.05% | 0.00% |
+| Ydelse | +1.35% | −0.07% | +0.36% | +0.04% | 0.00% |
+| ÅOP | −2.89% | −0.46% | −1.10% | +0.46% | −10.32% |
+| Hor. rente | −1.00% | +0.72% | +0.91% | +2.82% | +1.99% |
+| Hor. afdrag | +2.83% | +0.04% | +1.45% | −0.60% | −1.02% |
+| Hor. ydelse | +2.24% | +0.45% | +1.14% | +1.06% | +0.23% |
+| Hor. restgæld | −0.62% | −0.09% | −0.16% | +0.13% | +0.22% |
 
-### Horizon (-2% shock):
-| Alt | Rente | Afdrag | Ydelse | Restgæld | Gns.Kurs | Indfrielse | Periodeomk. |
-|-----|-------|--------|--------|----------|----------|------------|-------------|
-| 1 (F3+bank) | 311.352 | 285.730 | 597.082 | 2.260.270 | 100,53 | 2.272.254 | 369.009 |
-| 2 (F5+bank) | 374.329 | 251.663 | 625.992 | 2.295.337 | 100,67 | 2.310.617 | 436.501 |
-| 3 (4%+bank) | 434.002 | 239.448 | 673.450 | 2.442.552 | 100,50 | 2.454.828 | 627.799 |
+### Key findings
 
-### Horizon (+2% shock):
-| Alt | Rente | Afdrag | Ydelse | Restgæld | Gns.Kurs | Indfrielse | Periodeomk. |
-|-----|-------|--------|--------|----------|----------|------------|-------------|
-| 1 (F3+bank) | 524.946 | 195.830 | 720.776 | 2.350.170 | 100,50 | 2.361.963 | 582.411 |
-| 2 (F5+bank) | 482.630 | 214.385 | 697.015 | 2.332.615 | 100,60 | 2.346.618 | 543.524 |
-| 3 (4%+bank) | 503.753 | 222.266 | 726.018 | 2.459.734 | 86,08 | 2.117.419 | 342.958 |
-
-## Key findings
-
-### What matches exactly
-1. **Hovedstol derivation** for F3 and F5: `_hovedstol_for_provenu(provenu, price, issue_pct)` produces exactly 2.000.000
-2. **ÅOP for fixed-rate** (4% obligation): our effective annual rate = 5.57% matches reference 5.57%
-
-### What doesn't match (known modeling differences)
-1. **Payment frequency**: our engine uses monthly; reference uses quarterly (Danish realkredit pays quarterly)
-2. **Flexlån ÅOP**: our engine amortizes the discount over 30 years; reference amortizes over the rate period (3yr for F3, 5yr for F5)
-3. **Issue costs**: our model uses a single `issue_costs_pct`; reference has itemized costs (ekspeditionsgebyr, kurtage, tinglysningsafgift)
-4. **Bond structure**: our engine uses simple annuity; reference uses Danish realkredit bond structure with multiple series
-5. **Indfrielseskurs**: our engine uses a simple price model; reference uses OAS-based bond pricing
-
-### Effective rates derived from reference
-- F3: eff_rate = 3.23% + 0.95% = 4.18%
-- F5: eff_rate = 3.43% + 0.95% = 4.38%
-- 4% fixed: eff_rate = 4.00% + 0.70% = 4.70%
-- Bank (variabelt): rate ≈ 8.4% (derived from quarterly interest on bank hovedstol)
+- **Fixed loans: best fit.** All metrics ≤0.72%. Deep-discount (price 64.03)
+  excellent: ydelse −0.02%, ÅOP −0.17%, restgæld −0.01%.
+- **F1 loans: systematic ydelse overshoot** (+0.76–1.35% on apr2023, −0.05%
+  on f1_oct). ÅOP consistently negative. Root cause: integer-only maturity
+  rounding (F1 has 31y = 124 quarters from 360 months).
+- **T-lån: ydelse exact, ÅOP broken.** Ydelse matches exactly (fixed input).
+  ÅOP −9 to −10% — the IRR of `fixed_ydelse` cashflows against
+  `net_disbursement` excludes bidrag from the cashflow stream.
