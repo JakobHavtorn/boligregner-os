@@ -105,6 +105,33 @@ Rules:
 - Squash-merge commits get the PR title as their message
 
 
+## Documentation
+
+The `docs/` directory contains the following markdown documents. All have YAML
+frontmatter (`status`, `created_at`, `last_updated`) — update `last_updated` when
+making material changes.
+
+| File | Status | Purpose |
+|------|--------|---------|
+| `danish-mortgage-concepts.md` | reference | Domain knowledge about the Danish mortgage system. **Not an engine reference** — describes concepts the engine may not implement. |
+| `engine-coverage.md` | active | Maps concepts from the guide to what the engine implements (✅) and does not (❌). |
+| `market-data-sources.md` | research | Open-access data sources for live rates, bond prices, and bidragssatser. |
+| `market-data-plan.md` | planning | Design plan for live market data integration. Not yet implemented. |
+| `correctness-gaps.md` | active | Remaining deviations from boligregner.dk reference cases. |
+
+### When to update docs
+
+- **Add or change a `LoanType` or loan feature**: update `engine-coverage.md` and `AGENTS.md`. If the concept is in the guide, verify the guide still describes the domain accurately.
+- **Change reference data or correctness tolerances**: update `correctness-gaps.md`. Reference cases themselves live in `tests/test_engine.py` as `REFERENCE_CASES` dicts.
+- **Add or change a market data source**: update `market-data-sources.md` and `market-data-plan.md`.
+- **Rename or restructure `docs/`**: update cross-references in `README.md`, `AGENTS.md`, and other docs that link by filename.
+
+### What NOT to do with docs
+
+- Do not add dates to filenames — use descriptive names.
+- Do not edit `danish-mortgage-concepts.md` to match engine behavior — it is a domain knowledge source, not an engine reference.
+- Do not create a new doc without YAML frontmatter.
+
 ## Running the server
 
 ```bash

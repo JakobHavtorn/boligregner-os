@@ -1,3 +1,9 @@
+---
+status: research
+created_at: 2026-10-05
+last_updated: 2026-10-11
+---
+
 # Market Data Sources for boligregner-os
 
 Research conducted 2026-10-04. All sources verified with live data pulls.

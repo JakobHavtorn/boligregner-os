@@ -1,6 +1,12 @@
+---
+status: reference
+created_at: 2026-10-11
+last_updated: 2026-10-11
+---
+
 # Danish Mortgage Concepts Guide
 
-A distilled reference for the concepts the calculator models. All monetary examples are illustrative.
+A distilled reference for Danish mortgage concepts. All monetary examples are illustrative.
 
 ## Choosing a mortgage
 
@@ -32,7 +38,7 @@ The interaction between rate path, loan type, and redemption price is explored i
 
 ## Loan types
 
-The calculator covers these loan types for private homeowners:
+Danish mortgage institutes offer these loan types for private homeowners:
 
 - **Fixed-rate bonds and cash loans** (fastforrentede obligations- og kontantlån)
 - **Variable-rate loans**: F1, F3, F5, F10 (rentetilpasningslån)
@@ -211,15 +217,15 @@ Introduced in 2013: up to 60% of property value (bottom loan) financed with SDO 
 
 ### Administration rate (bidragssats)
 
-Administration rates depend on the loan-to-value bracket, with surcharges for variable-rate and interest-only loans. They vary across institutes and customers. The calculator uses standard rates for fixed, variable, and variable-with-interest-only, but in practice always enter the rate you are offered.
+Administration rates depend on the loan-to-value bracket, with surcharges for variable-rate and interest-only loans. They vary across institutes and customers. In practice, always enter the rate you are offered.
 
 ### Rate-cut fee (kursskæring ved refinansiering)
 
-For variable-rate loans, a fee applied at each refinancing. Unlike the administration rate, it does not appear in the start payment but affects total cost over the period. The calculator uses 0.2% as the standard rate-cut. To compensate for a different rate, divide the rate-cut by the number of years between refinancings and add the result to the administration rate. Example: 0.2% rate-cut = 0.2% hidden administration increase for F1 (annual), 0.1% for F2 (biennial), etc.
+For variable-rate loans, a fee applied at each refinancing. Unlike the administration rate, it does not appear in the start payment but affects total cost over the period. The standard rate-cut is 0.2%. To compensate for a different rate, divide the rate-cut by the number of years between refinancings and add the result to the administration rate. Example: 0.2% rate-cut = 0.2% hidden administration increase for F1 (annual), 0.1% for F2 (biennial), etc.
 
 ### Bank loan rate
 
-When property value and loan-to-value limits are included, the calculator allocates up to 80% of property value to mortgage loans and covers the remainder with a bank loan. The bank loan rate varies by customer; enter the rate you are offered. The rate is assumed to rise and fall with the general rate level in horizon calculations.
+When property value and loan-to-value limits are included, up to 80% of property value is allocated to mortgage loans and the remainder is covered with a bank loan. The bank loan rate varies by customer; enter the rate you are offered. The rate is assumed to rise and fall with the general rate level in horizon calculations.
 
 Priority loans are bank loans offered within the 80% lending interval as an alternative to mortgage loans. The offered rate can likewise be entered.
 
