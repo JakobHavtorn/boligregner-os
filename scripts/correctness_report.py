@@ -276,7 +276,7 @@ def _print_summary_table(rows: list[SummaryRow]) -> None:
 
 
 def main() -> None:
-    print("boligregner-os correctness report")
+    print("dk-mortgage-calculator correctness report")
     print(f"Cases: {len(REFERENCE_CASES)}")
     print()
 

@@ -1,4 +1,4 @@
-"""FastAPI HTTP server for boligregner-os.
+"""FastAPI HTTP server for dk-mortgage-calculator.
 
 Exposes the calculation engine over HTTP and serves a single-page
 HTML results renderer (matching boligregner.dk's URL structure).
@@ -16,7 +16,7 @@ from .engine import PRESETS, amortization_schedule, calculate
 from .models import AmortizationSchedule, CalculatorInput, CalculatorResult
 
 app = FastAPI(
-    title="boligregner-os",
+    title="dk-mortgage-calculator",
     description="Open-source Danish realkredit mortgage calculator",
     version="0.1.0",
 )

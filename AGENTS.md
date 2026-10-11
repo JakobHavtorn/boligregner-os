@@ -4,7 +4,7 @@ Guide for AI agents working on this repository.
 
 ## Project overview
 
-boligregner-os is an open-source Danish realkredit (mortgage) calculator. It compares financing alternatives (F3/F5 flexlån, fixed-rate obligations, T-lån, afdragsfrihed) with 5-year horizon analysis under configurable rate-shock scenarios.
+dk-mortgage-calculator is an open-source Danish realkredit (mortgage) calculator. It compares financing alternatives (F3/F5 flexlån, fixed-rate obligations, T-lån, afdragsfrihed) with 5-year horizon analysis under configurable rate-shock scenarios.
 
 ## Architecture
 

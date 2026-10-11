@@ -1,4 +1,4 @@
-# boligregner-os
+# dk-mortgage-calculator
 
 An open-source Danish realkredit mortgage calculator with financing-alternative comparison and 5-year horizon analysis. An independent reimplementation of Danish mortgage calculation logic, not affiliated with or endorsed by any commercial provider.
 
@@ -38,7 +38,7 @@ The calculation engine (`engine.py`) is a **deep module**: one function, two typ
 ## Installation
 ```bash
 git clone <repo-url>
-cd boligregner-os
+cd dk-mortgage-calculator
 make install
 ```
 
