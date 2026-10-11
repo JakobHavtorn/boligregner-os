@@ -121,38 +121,3 @@ All bidrag is tax-deductible: `rente_total += (comp_interest + bidrag_total)
 Hardcoded split mode: annuity at nominal rate, bidrag charged separately,
 bidrag tax-deductible. ÅOP uses compounded rate path for IRR. Matches
 boligregner.dk's behavior.
-
----
-
-## Known model-level gaps (structural, not numeric)
-
-These gaps come from comparing the engine's model to boligregner.dk's
-documented calculation assumptions. They are structural differences in
-method, not deviations from reference data.
-
-### Capital gains tax on cash loans
-
-boligregner.dk taxes the gain when a cash loan (F1/F3/F5/T/CITA/CIBOR/DESTR)
-is redeemed below issue price (typically after a rate rise). The tax is
-added to the redemption amount. The engine does not add this tax.
-
-### OAS-based bond pricing vs closed-form model
-
-boligregner.dk uses Scanrate's OAS (option-adjusted spread) model with
-daily-updated market prices for redemption price estimation. The engine
-uses a closed-form bond pricing model (`_bond_price`,
-`_bond_price_with_option`) capped at par + premium. This is the root cause
-of small horizon redemption differences on FIXED loans.
-
-### Locking effects (indlåsningseffekter)
-
-When few bonds of a given type are issued, investors may buy them all and
-charge a premium at redemption. boligregner.dk notes this happens in
-practice but assumes fair pricing. The engine also assumes fair pricing.
-
-### Property value projection at horizon
-
-boligregner.dk projects property value at the horizon date (start price
-× assumed change) for equity (friværdi) calculation. The engine does not
-project property value — `ejendomsværdi` is used only for initial LTV
-split, not for horizon equity.
