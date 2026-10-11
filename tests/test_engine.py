@@ -504,9 +504,7 @@ class TestCitaCiborDestr:
         assert all(r == expected for r in path)
         path_shocked = _rate_path(spec, Decimal("0.02"), 12)
         assert len(path_shocked) == 12
-        expected_shocked = (
-            (Decimal("0.0320") + Decimal("0.02")) + Decimal("0.0025")
-        )
+        expected_shocked = (Decimal("0.0320") + Decimal("0.02")) + Decimal("0.0025")
         assert all(r == expected_shocked for r in path_shocked)
 
     def test_cibor_shock_applies_to_reference_not_margin(self):
@@ -524,14 +522,10 @@ class TestCitaCiborDestr:
             margin=Decimal("0.0025"),
         )
         path = _rate_path(spec, Decimal("0.02"), 6)
-        expected = (
-            (Decimal("0.0320") + Decimal("0.02")) + Decimal("0.0025")
-        )
+        expected = (Decimal("0.0320") + Decimal("0.02")) + Decimal("0.0025")
         assert path[0] == expected
         path_neg = _rate_path(spec, Decimal("-0.02"), 6)
-        expected_neg = (
-            (Decimal("0.0320") - Decimal("0.02")) + Decimal("0.0025")
-        )
+        expected_neg = (Decimal("0.0320") - Decimal("0.02")) + Decimal("0.0025")
         assert path_neg[0] == expected_neg
 
     def test_cibor_payment_changes_at_reset(self):
@@ -2417,6 +2411,692 @@ REFERENCE_CASES: list[dict] = [
             "hovedstol": None,
             "ydelse": Decimal("0.001"),
             "aap": Decimal("0.01"),
+        },
+    },
+    # ── fixed_5pct_15yr_afr ──
+    #
+    # IO cases: ydelse and afdrag omitted because the engine amortizes
+    # issue costs into IO-period payments, unlike boligregner.dk.
+    {
+        "id": "fixed_5pct_15yr_afr",
+        "input": CalculatorInput(
+            desired_provenu=Decimal(3500342),
+            start_date=date(2026, 10, 11),
+            horizon_years=5,
+            tax_rate=Decimal("0.336"),
+            alternatives=[
+                FinancingAlternative(
+                    label="FIXED",
+                    components=[
+                        LoanSpec(
+                            component=LoanComponent.REALKREDIT,
+                            loan_type=LoanType.FIXED,
+                            rate=Decimal("0.05"),
+                            price=Decimal("99.82"),
+                            maturity_years=15,
+                            issue_costs_nominal=Decimal(58555),
+                            bidragssats=Decimal("0.0095"),
+                            interest_only_years=10,
+                            provenu_share=Decimal(1),
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        "component_ppys": [4],
+        "aap_ppy": 4,
+        "expected": {
+            "hovedstol": Decimal(3569000),
+            "aap": Decimal("0.0632"),
+            "horizon_0pct": {
+                "rente": Decimal(704254),
+                "ydelse": Decimal(704254),
+                "restgaeld": Decimal(3569000),
+            },
+            "horizon_+2pct": {
+                "rente_total": Decimal(704254),
+                "ydelse_total": Decimal(704254),
+                "restgaeld": Decimal(3569000),
+            },
+            "horizon_-2pct": {
+                "rente_total": Decimal(704254),
+                "ydelse_total": Decimal(704254),
+                "restgaeld": Decimal(3569000),
+            },
+        },
+        "tol": {
+            "hovedstol": Decimal("0.001"),
+            "aap": Decimal("0.005"),
+            "horizon_rente": Decimal("0.02"),
+            "horizon_ydelse": Decimal("0.02"),
+            "horizon_restgaeld": Decimal("0.01"),
+            "horizon_rente_total_shocked": Decimal("0.02"),
+            "horizon_ydelse_total_shocked": Decimal("0.02"),
+            "horizon_restgaeld_shocked": Decimal("0.01"),
+        },
+    },
+    # ── fixed_5pct_20yr_afr ──
+    {
+        "id": "fixed_5pct_20yr_afr",
+        "input": CalculatorInput(
+            desired_provenu=Decimal(3500342),
+            start_date=date(2026, 10, 11),
+            horizon_years=5,
+            tax_rate=Decimal("0.336"),
+            alternatives=[
+                FinancingAlternative(
+                    label="FIXED",
+                    components=[
+                        LoanSpec(
+                            component=LoanComponent.REALKREDIT,
+                            loan_type=LoanType.FIXED,
+                            rate=Decimal("0.05"),
+                            price=Decimal("99.82"),
+                            maturity_years=20,
+                            issue_costs_nominal=Decimal(58555),
+                            bidragssats=Decimal("0.0095"),
+                            interest_only_years=10,
+                            provenu_share=Decimal(1),
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        "component_ppys": [4],
+        "aap_ppy": 4,
+        "expected": {
+            "hovedstol": Decimal(3569000),
+            "aap": Decimal("0.0629"),
+            "horizon_0pct": {
+                "rente": Decimal(704254),
+                "ydelse": Decimal(704254),
+                "restgaeld": Decimal(3569000),
+            },
+            "horizon_+2pct": {
+                "rente_total": Decimal(704254),
+                "ydelse_total": Decimal(704254),
+                "restgaeld": Decimal(3569000),
+            },
+            "horizon_-2pct": {
+                "rente_total": Decimal(704254),
+                "ydelse_total": Decimal(704254),
+                "restgaeld": Decimal(3569000),
+            },
+        },
+        "tol": {
+            "hovedstol": Decimal("0.001"),
+            "aap": Decimal("0.005"),
+            "horizon_rente": Decimal("0.02"),
+            "horizon_ydelse": Decimal("0.02"),
+            "horizon_restgaeld": Decimal("0.01"),
+            "horizon_rente_total_shocked": Decimal("0.02"),
+            "horizon_ydelse_total_shocked": Decimal("0.02"),
+            "horizon_restgaeld_shocked": Decimal("0.01"),
+        },
+    },
+    # ── fixed_5pct_30yr_afr ──
+    {
+        "id": "fixed_5pct_30yr_afr",
+        "input": CalculatorInput(
+            desired_provenu=Decimal(12000480),
+            start_date=date(2026, 10, 11),
+            horizon_years=5,
+            tax_rate=Decimal("0.336"),
+            alternatives=[
+                FinancingAlternative(
+                    label="FIXED",
+                    components=[
+                        LoanSpec(
+                            component=LoanComponent.REALKREDIT,
+                            loan_type=LoanType.FIXED,
+                            rate=Decimal("0.05"),
+                            price=Decimal("99.82"),
+                            maturity_years=30,
+                            issue_costs_nominal=Decimal(183931),
+                            bidragssats=Decimal("0.0095"),
+                            interest_only_years=10,
+                            provenu_share=Decimal(1),
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        "component_ppys": [4],
+        "aap_ppy": 4,
+        "expected": {
+            "hovedstol": Decimal(12219000),
+            "aap": Decimal("0.0624"),
+            "horizon_0pct": {
+                "rente": Decimal(2411118),
+                "ydelse": Decimal(2411118),
+                "restgaeld": Decimal(12219000),
+            },
+            "horizon_+2pct": {
+                "rente_total": Decimal(2411118),
+                "ydelse_total": Decimal(2411118),
+                "restgaeld": Decimal(12219000),
+            },
+            "horizon_-2pct": {
+                "rente_total": Decimal(2411118),
+                "ydelse_total": Decimal(2411118),
+                "restgaeld": Decimal(12219000),
+            },
+        },
+        "tol": {
+            "hovedstol": Decimal("0.001"),
+            "aap": Decimal("0.005"),
+            "horizon_rente": Decimal("0.02"),
+            "horizon_ydelse": Decimal("0.02"),
+            "horizon_restgaeld": Decimal("0.01"),
+            "horizon_rente_total_shocked": Decimal("0.02"),
+            "horizon_ydelse_total_shocked": Decimal("0.02"),
+            "horizon_restgaeld_shocked": Decimal("0.01"),
+        },
+    },
+    # ── fixed_5pct_premium ──
+    {
+        "id": "fixed_5pct_premium",
+        "input": CalculatorInput(
+            desired_provenu=Decimal(2500848),
+            start_date=date(2026, 10, 11),
+            horizon_years=5,
+            tax_rate=Decimal("0.336"),
+            alternatives=[
+                FinancingAlternative(
+                    label="FIXED",
+                    components=[
+                        LoanSpec(
+                            component=LoanComponent.REALKREDIT,
+                            loan_type=LoanType.FIXED,
+                            rate=Decimal("0.05"),
+                            price=Decimal("100.39"),
+                            maturity_years=30,
+                            issue_costs_nominal=Decimal(43626),
+                            bidragssats=Decimal("0.007"),
+                            provenu_share=Decimal(1),
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        "component_ppys": [4],
+        "aap_ppy": 4,
+        "expected": {
+            "hovedstol": Decimal(2537000),
+            "ydelse": Decimal(15123),
+            "aap": Decimal("0.0597"),
+            "horizon_0pct": {
+                "rente": Decimal(461727),
+                "afdrag": Decimal(207748),
+                "ydelse": Decimal(669475),
+                "restgaeld": Decimal(2329252),
+            },
+            "horizon_+2pct": {
+                "rente_total": Decimal(461727),
+                "afdrag_total": Decimal(207748),
+                "ydelse_total": Decimal(669475),
+                "restgaeld": Decimal(2329252),
+            },
+            "horizon_-2pct": {
+                "rente_total": Decimal(461727),
+                "afdrag_total": Decimal(207748),
+                "ydelse_total": Decimal(669475),
+                "restgaeld": Decimal(2329252),
+            },
+        },
+        "tol": {
+            "hovedstol": Decimal("0.001"),
+            "ydelse": Decimal("0.02"),
+            "aap": Decimal("0.005"),
+            "horizon_rente": Decimal("0.02"),
+            "horizon_afdrag": Decimal("0.02"),
+            "horizon_ydelse": Decimal("0.02"),
+            "horizon_restgaeld": Decimal("0.01"),
+            "horizon_rente_total_shocked": Decimal("0.02"),
+            "horizon_afdrag_total_shocked": Decimal("0.02"),
+            "horizon_ydelse_total_shocked": Decimal("0.02"),
+            "horizon_restgaeld_shocked": Decimal("0.01"),
+        },
+    },
+    # ── cita_30 ──
+    {
+        "id": "cita_30",
+        "input": CalculatorInput(
+            desired_provenu=Decimal(2500085),
+            start_date=date(2026, 10, 11),
+            horizon_years=5,
+            tax_rate=Decimal("0.336"),
+            alternatives=[
+                FinancingAlternative(
+                    label="CITA",
+                    components=[
+                        LoanSpec(
+                            component=LoanComponent.REALKREDIT,
+                            loan_type=LoanType.CITA,
+                            rate=Decimal("0.0269"),
+                            reference_rate=Decimal("0.0269"),
+                            margin=Decimal("0"),
+                            price=Decimal("100.13"),
+                            maturity_years=30,
+                            issue_costs_nominal=Decimal(43700),
+                            bidragssats=Decimal("0.0035"),
+                            provenu_share=Decimal(1),
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        "component_ppys": [4],
+        "aap_ppy": 4,
+        "expected": {
+            "hovedstol": Decimal(2543000),
+            "ydelse": Decimal(11058),
+            "aap": Decimal("0.0319"),
+            "horizon_0pct": {
+                "rente": Decimal(239012),
+                "afdrag": Decimal(297271),
+                "ydelse": Decimal(536283),
+                "restgaeld": Decimal(2245729),
+            },
+            "horizon_+2pct": {
+                "rente_total": Decimal(395819),
+                "afdrag_total": Decimal(224177),
+                "ydelse_total": Decimal(619996),
+                "restgaeld": Decimal(2318823),
+            },
+            "horizon_-2pct": {
+                "rente_total": Decimal(87164),
+                "afdrag_total": Decimal(385359),
+                "ydelse_total": Decimal(472523),
+                "restgaeld": Decimal(2157641),
+            },
+        },
+        "tol": {
+            "hovedstol": Decimal("0.001"),
+            "ydelse": Decimal("0.02"),
+            "aap": Decimal("0.005"),
+            "horizon_rente": Decimal("0.05"),
+            "horizon_afdrag": Decimal("0.02"),
+            "horizon_ydelse": Decimal("0.02"),
+            "horizon_restgaeld": Decimal("0.01"),
+            "horizon_rente_total_shocked": Decimal("0.20"),
+            "horizon_afdrag_total_shocked": Decimal("0.10"),
+            "horizon_ydelse_total_shocked": Decimal("0.05"),
+            "horizon_restgaeld_shocked": Decimal("0.02"),
+        },
+    },
+    # ── cita_30_afr_12m ──
+    {
+        "id": "cita_30_afr_12m",
+        "input": CalculatorInput(
+            desired_provenu=Decimal(12000319),
+            start_date=date(2026, 10, 11),
+            horizon_years=5,
+            tax_rate=Decimal("0.336"),
+            alternatives=[
+                FinancingAlternative(
+                    label="CITA",
+                    components=[
+                        LoanSpec(
+                            component=LoanComponent.REALKREDIT,
+                            loan_type=LoanType.CITA,
+                            rate=Decimal("0.0269"),
+                            reference_rate=Decimal("0.0269"),
+                            margin=Decimal("0"),
+                            price=Decimal("100.13"),
+                            maturity_years=30,
+                            issue_costs_nominal=Decimal(183443),
+                            bidragssats=Decimal("0.01"),
+                            interest_only_years=10,
+                            provenu_share=Decimal(1),
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        "component_ppys": [4],
+        "aap_ppy": 4,
+        "expected": {
+            "hovedstol": Decimal(12180000),
+            "aap": Decimal("0.0383"),
+            "horizon_0pct": {
+                "rente": Decimal(1472975),
+                "ydelse": Decimal(1472975),
+                "restgaeld": Decimal(12180000),
+            },
+            "horizon_+2pct": {
+                "rente_total": Decimal(2240706),
+                "ydelse_total": Decimal(2240706),
+                "restgaeld": Decimal(12180000),
+            },
+            "horizon_-2pct": {
+                "rente_total": Decimal(709080),
+                "ydelse_total": Decimal(709080),
+                "restgaeld": Decimal(12180000),
+            },
+        },
+        "tol": {
+            "hovedstol": Decimal("0.001"),
+            "aap": Decimal("0.005"),
+            "horizon_rente": Decimal("0.05"),
+            "horizon_ydelse": Decimal("0.02"),
+            "horizon_restgaeld": Decimal("0.01"),
+            "horizon_rente_total_shocked": Decimal("0.20"),
+            "horizon_ydelse_total_shocked": Decimal("0.05"),
+            "horizon_restgaeld_shocked": Decimal("0.02"),
+        },
+    },
+    # ── f1_oct_afr_12m ──
+    {
+        "id": "f1_oct_afr_12m",
+        "input": CalculatorInput(
+            desired_provenu=Decimal(12000450),
+            start_date=date(2026, 10, 11),
+            horizon_years=5,
+            tax_rate=Decimal("0.336"),
+            alternatives=[
+                FinancingAlternative(
+                    label="F1",
+                    components=[
+                        LoanSpec(
+                            component=LoanComponent.REALKREDIT,
+                            loan_type=LoanType.F1,
+                            rate=Decimal("0.0306"),
+                            price=Decimal("98.26"),
+                            maturity_years=31,
+                            issue_costs_nominal=Decimal(186550),
+                            bidragssats=Decimal("0.006"),
+                            interest_only_years=10,
+                            provenu_share=Decimal(1),
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        "component_ppys": [4],
+        "aap_ppy": 4,
+        "expected": {
+            "hovedstol": Decimal(12187000),
+            "aap": Decimal("0.0393"),
+            "horizon_0pct": {
+                "rente": Decimal(1514409),
+                "ydelse": Decimal(1514409),
+                "restgaeld": Decimal(12187000),
+            },
+            "horizon_+2pct": {
+                "rente_total": Decimal(2194168),
+                "ydelse_total": Decimal(2194168),
+                "restgaeld": Decimal(12187000),
+            },
+            "horizon_-2pct": {
+                "rente_total": Decimal(848166),
+                "ydelse_total": Decimal(848166),
+                "restgaeld": Decimal(12187000),
+            },
+        },
+        "tol": {
+            "hovedstol": Decimal("0.001"),
+            "aap": Decimal("0.005"),
+            "horizon_rente": Decimal("0.03"),
+            "horizon_ydelse": Decimal("0.03"),
+            "horizon_restgaeld": Decimal("0.01"),
+            "horizon_rente_total_shocked": Decimal("0.25"),
+            "horizon_ydelse_total_shocked": Decimal("0.25"),
+            "horizon_restgaeld_shocked": Decimal("0.02"),
+        },
+    },
+    # ── f1_oct_bidrag_0038 ──
+    {
+        "id": "f1_oct_bidrag_0038",
+        "input": CalculatorInput(
+            desired_provenu=Decimal(2500643),
+            start_date=date(2026, 10, 11),
+            horizon_years=5,
+            tax_rate=Decimal("0.336"),
+            alternatives=[
+                FinancingAlternative(
+                    label="F1",
+                    components=[
+                        LoanSpec(
+                            component=LoanComponent.REALKREDIT,
+                            loan_type=LoanType.F1,
+                            rate=Decimal("0.0308"),
+                            price=Decimal("98.26"),
+                            maturity_years=31,
+                            issue_costs_nominal=Decimal(44357),
+                            bidragssats=Decimal("0.0038"),
+                            provenu_share=Decimal(1),
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        "component_ppys": [4],
+        "aap_ppy": 4,
+        "expected": {
+            "hovedstol": Decimal(2545000),
+            "ydelse": Decimal(11456),
+            "aap": Decimal("0.0377"),
+            "horizon_0pct": {
+                "rente": Decimal(285449),
+                "afdrag": Decimal(261976),
+                "ydelse": Decimal(547425),
+                "restgaeld": Decimal(2283024),
+            },
+            "horizon_+2pct": {
+                "rente_total": Decimal(423872),
+                "afdrag_total": Decimal(201768),
+                "ydelse_total": Decimal(625640),
+                "restgaeld": Decimal(2343232),
+            },
+            "horizon_-2pct": {
+                "rente_total": Decimal(151996),
+                "afdrag_total": Decimal(336167),
+                "ydelse_total": Decimal(488163),
+                "restgaeld": Decimal(2208833),
+            },
+        },
+        "tol": {
+            "hovedstol": Decimal("0.001"),
+            "ydelse": Decimal("0.02"),
+            "aap": Decimal("0.005"),
+            "horizon_rente": Decimal("0.02"),
+            "horizon_afdrag": Decimal("0.02"),
+            "horizon_ydelse": Decimal("0.02"),
+            "horizon_restgaeld": Decimal("0.01"),
+            "horizon_rente_total_shocked": Decimal("0.25"),
+            "horizon_afdrag_total_shocked": Decimal("0.10"),
+            "horizon_ydelse_total_shocked": Decimal("0.05"),
+            "horizon_restgaeld_shocked": Decimal("0.02"),
+        },
+    },
+    # ── f1_oct_bidrag_0060 ──
+    {
+        "id": "f1_oct_bidrag_0060",
+        "input": CalculatorInput(
+            desired_provenu=Decimal(2500643),
+            start_date=date(2026, 10, 11),
+            horizon_years=5,
+            tax_rate=Decimal("0.336"),
+            alternatives=[
+                FinancingAlternative(
+                    label="F1",
+                    components=[
+                        LoanSpec(
+                            component=LoanComponent.REALKREDIT,
+                            loan_type=LoanType.F1,
+                            rate=Decimal("0.0308"),
+                            price=Decimal("98.26"),
+                            maturity_years=31,
+                            issue_costs_nominal=Decimal(44357),
+                            bidragssats=Decimal("0.006"),
+                            provenu_share=Decimal(1),
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        "component_ppys": [4],
+        "aap_ppy": 4,
+        "expected": {
+            "hovedstol": Decimal(2545000),
+            "ydelse": Decimal(11923),
+            "aap": Decimal("0.04"),
+            "horizon_0pct": {
+                "rente": Decimal(303132),
+                "afdrag": Decimal(261976),
+                "ydelse": Decimal(565108),
+                "restgaeld": Decimal(2283024),
+            },
+            "horizon_+2pct": {
+                "rente_total": Decimal(441724),
+                "afdrag_total": Decimal(201768),
+                "ydelse_total": Decimal(643492),
+                "restgaeld": Decimal(2343232),
+            },
+            "horizon_-2pct": {
+                "rente_total": Decimal(169467),
+                "afdrag_total": Decimal(336167),
+                "ydelse_total": Decimal(505634),
+                "restgaeld": Decimal(2208833),
+            },
+        },
+        "tol": {
+            "hovedstol": Decimal("0.001"),
+            "ydelse": Decimal("0.02"),
+            "aap": Decimal("0.005"),
+            "horizon_rente": Decimal("0.02"),
+            "horizon_afdrag": Decimal("0.02"),
+            "horizon_ydelse": Decimal("0.02"),
+            "horizon_restgaeld": Decimal("0.01"),
+            "horizon_rente_total_shocked": Decimal("0.25"),
+            "horizon_afdrag_total_shocked": Decimal("0.10"),
+            "horizon_ydelse_total_shocked": Decimal("0.05"),
+            "horizon_restgaeld_shocked": Decimal("0.02"),
+        },
+    },
+    # ── f3_oct_with_afdrag ──
+    {
+        "id": "f3_oct_with_afdrag",
+        "input": CalculatorInput(
+            desired_provenu=Decimal(2500175),
+            start_date=date(2026, 10, 11),
+            horizon_years=5,
+            tax_rate=Decimal("0.336"),
+            alternatives=[
+                FinancingAlternative(
+                    label="F3",
+                    components=[
+                        LoanSpec(
+                            component=LoanComponent.REALKREDIT,
+                            loan_type=LoanType.F3,
+                            rate=Decimal("0.0331"),
+                            price=Decimal("94.06"),
+                            maturity_years=31,
+                            issue_costs_nominal=Decimal(45825),
+                            bidragssats=Decimal("0.0045"),
+                            provenu_share=Decimal(1),
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        "component_ppys": [4],
+        "aap_ppy": 4,
+        "expected": {
+            "hovedstol": Decimal(2546000),
+            "ydelse": Decimal(11938),
+            "aap": Decimal("0.0398"),
+            "horizon_0pct": {
+                "rente": Decimal(303296),
+                "afdrag": Decimal(256331),
+                "ydelse": Decimal(559627),
+                "restgaeld": Decimal(2289669),
+            },
+            "horizon_+2pct": {
+                "rente_total": Decimal(370512),
+                "afdrag_total": Decimal(226034),
+                "ydelse_total": Decimal(596546),
+                "restgaeld": Decimal(2319966),
+            },
+            "horizon_-2pct": {
+                "rente_total": Decimal(237771),
+                "afdrag_total": Decimal(293898),
+                "ydelse_total": Decimal(531669),
+                "restgaeld": Decimal(2252102),
+            },
+        },
+        "tol": {
+            "hovedstol": Decimal("0.001"),
+            "ydelse": Decimal("0.02"),
+            "aap": Decimal("0.005"),
+            "horizon_rente": Decimal("0.02"),
+            "horizon_afdrag": Decimal("0.02"),
+            "horizon_ydelse": Decimal("0.02"),
+            "horizon_restgaeld": Decimal("0.01"),
+            "horizon_rente_total_shocked": Decimal("0.45"),
+            "horizon_afdrag_total_shocked": Decimal("0.20"),
+            "horizon_ydelse_total_shocked": Decimal("0.11"),
+            "horizon_restgaeld_shocked": Decimal("0.03"),
+        },
+    },
+    # ── f3_oct_afr ──
+    {
+        "id": "f3_oct_afr",
+        "input": CalculatorInput(
+            desired_provenu=Decimal(2500135),
+            start_date=date(2026, 10, 11),
+            horizon_years=5,
+            tax_rate=Decimal("0.336"),
+            alternatives=[
+                FinancingAlternative(
+                    label="F3",
+                    components=[
+                        LoanSpec(
+                            component=LoanComponent.REALKREDIT,
+                            loan_type=LoanType.F3,
+                            rate=Decimal("0.0329"),
+                            price=Decimal("93.95"),
+                            maturity_years=31,
+                            issue_costs_nominal=Decimal(45865),
+                            bidragssats=Decimal("0.0065"),
+                            interest_only_years=10,
+                            provenu_share=Decimal(1),
+                        ),
+                    ],
+                ),
+            ],
+        ),
+        "component_ppys": [4],
+        "aap_ppy": 4,
+        "expected": {
+            "hovedstol": Decimal(2546000),
+            "aap": Decimal("0.0413"),
+            "horizon_0pct": {
+                "rente": Decimal(332819),
+                "ydelse": Decimal(332819),
+                "restgaeld": Decimal(2546000),
+            },
+            "horizon_+2pct": {
+                "rente_total": Decimal(404276),
+                "ydelse_total": Decimal(404276),
+                "restgaeld": Decimal(2546000),
+            },
+            "horizon_-2pct": {
+                "rente_total": Decimal(262777),
+                "ydelse_total": Decimal(262777),
+                "restgaeld": Decimal(2546000),
+            },
+        },
+        "tol": {
+            "hovedstol": Decimal("0.001"),
+            "aap": Decimal("0.005"),
+            "horizon_rente": Decimal("0.02"),
+            "horizon_ydelse": Decimal("0.02"),
+            "horizon_restgaeld": Decimal("0.01"),
+            "horizon_rente_total_shocked": Decimal("0.40"),
+            "horizon_ydelse_total_shocked": Decimal("0.40"),
+            "horizon_restgaeld_shocked": Decimal("0.02"),
         },
     },
 ]
