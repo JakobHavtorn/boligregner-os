@@ -7,7 +7,7 @@ last_updated: 2026-10-11
 # Engine Coverage
 
 Maps concepts from the [Danish Mortgage Concepts Guide](danish-mortgage-concepts.md) to
-what the boligregner-os engine actually implements. The guide describes the Danish
+what the dk-mortgage-calculator engine actually implements. The guide describes the Danish
 mortgage system; this document tracks the engine's scope.
 
 ## Loan types

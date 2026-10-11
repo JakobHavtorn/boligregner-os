@@ -34,8 +34,8 @@ from .models import (
 
 # The server instance.  Importable as ``from boligregner.mcp_server import mcp``.
 mcp = MCPServer(
-    name="boligregner-os",
-    title="Boligregner OS",
+    name="dk-mortgage-calculator",
+    title="dk-mortgage-calculator",
     description=(
         "Danish realkredit mortgage calculator: compare financing alternatives "
         "with 5-year horizon (periodeomkostning) analysis."

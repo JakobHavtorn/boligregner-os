@@ -3,7 +3,7 @@ requires = ["uv_build>=0.4"]
 build-backend = "uv_build"
 
 [project]
-name = "boligregner-os"
+name = "dk-mortgage-calculator"
 version = "0.1.0"
 description = "Open-source Danish realkredit mortgage calculator: financing-alternative comparison with 5-year horizon analysis"
 readme = "README.md"

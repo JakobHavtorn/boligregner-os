@@ -1,4 +1,4 @@
-"""HTTP CLI entry point for boligregner-os.
+"""HTTP CLI entry point for dk-mortgage-calculator.
 
 Launches the FastAPI app via uvicorn.
 """
@@ -9,7 +9,7 @@ import argparse
 
 
 def main() -> None:
-    """Run the boligregner-os HTTP server."""
+    """Run the dk-mortgage-calculator HTTP server."""
     parser = argparse.ArgumentParser(
         prog="boligregner",
         description="Open-source Danish realkredit mortgage calculator server.",

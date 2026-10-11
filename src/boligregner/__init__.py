@@ -1,4 +1,4 @@
-"""Boligregner OS — open-source Danish realkredit mortgage calculator."""
+"""dk-mortgage-calculator — open-source Danish realkredit mortgage calculator."""
 
 from .engine import PRESETS, amortization_schedule, calculate
 from .models import (

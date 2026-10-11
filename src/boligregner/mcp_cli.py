@@ -20,7 +20,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         prog="boligregner-mcp",
         description=(
-            "Run the boligregner-os MCP server, exposing the "
+            "Run the dk-mortgage-calculator MCP server, exposing the "
             "calculate_mortgage tool to AI agents."
         ),
     )
