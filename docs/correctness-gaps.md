@@ -131,24 +131,12 @@ Open. Lower priority — ydelse and ÅOP are tight.
 
 ---
 
-## Gap 4: F5 ydelse (+0.36%, ÅOP −1.10%)
-
-Same root cause as Gap 1 (integer-only maturity). F5 has 30y = 120
-quarters; boligregner.dk may use a slightly different term.
-
-### Status
-
-Open. Same fix as Gap 1.
-
----
-
 ## Priority
 
 1. **Gap 1** (F1/F5 integer maturity + ÅOP bidrag split) — highest
    impact, affects most cases.
 2. **Gap 2** (T-lån ÅOP) — largest single deviation, but T-lån only.
 3. **Gap 3** (CITA horizon rente) — lowest impact, horizon-only.
-4. **Gap 4** (F5 ydelse) — same fix as Gap 1.
 
 ---
 
