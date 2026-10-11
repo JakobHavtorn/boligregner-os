@@ -1,6 +1,6 @@
 # Remaining Correctness Gaps vs boligregner.dk
 
-## Current state (PR #25, post-rebase onto #24)
+## Current state (main, post-PR #25)
 
 21 reference cases, 219 tests passing. Correctness report:
 `uv run --extra dev python scripts/correctness_report.py`
@@ -49,8 +49,8 @@ includes bidragssats) is only used as the IRR initial guess, not in the
 actual cashflows. Boligregner.dk apparently includes bidrag in their ÅOP
 calculation for T-lån.
 
-This gap is pre-existing in #24 (verified: identical values on origin/main).
-The models refactor (#25) does not introduce or change this gap.
+This gap was pre-existing (verified: identical values on origin/main before #24).
+The models refactor (#25, merged) does not introduce or change this gap.
 
 ### Status
 

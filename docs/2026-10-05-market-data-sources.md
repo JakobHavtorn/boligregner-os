@@ -4,9 +4,11 @@ Research conducted 2026-10-04. All sources verified with live data pulls.
 
 ## Summary
 
-The calculator currently hardcodes interest rates, bidragssatser, bond prices, issue costs, and the
-bank rate in `engine.py` PRESETS. This document identifies open-access sources that can replace
-those hardcoded values.
+The calculator currently hardcodes interest rates, bidragssatser, bond prices, issue costs, and reference
+rates in `engine.py` PRESETS. This document identifies open-access sources that can replace
+those hardcoded values. The current default preset contains three realkredit-only alternatives
+(DESTR, F1, and 4% FIXED); two-component alternatives with a bank loan can be built via
+`_make_alt`.
 
 **TL;DR — five sources cover all needs:**
 
@@ -508,18 +510,18 @@ stays hardcoded — it is institute-specific and no public API publishes borrowe
 
 | Value | Code location | Current hardcoded | Best source | Per-LTV? |
 |---|---|---|---|---|
-| Bidragssats default | `engine.py:55` | 0.006 (0.6%) | Mybanker.dk (all 4 institutes) | ✅ Yes |
-| F3 realkredit rate | `engine.py:111` | 0.035 (3.5%) | RD.dk renteudvikling (2.39% Apr 2026) | No |
-| F5 realkredit rate | `engine.py:121` | 0.042 (4.2%) | RD.dk renteudvikling (2.66% Apr 2026) | No |
-| FIXED realkredit rate | `engine.py:131` | 0.04 (4.0%) | Nordea "500.000" page (coupon 4.00%) or Finans Danmark (4.49% proxy) | No |
-| FIXED bond price | `engine.py:132` | 94.52 | Nordea "500.000" page (95.45 for 4% obligation Oct 2026) | No |
-| T-lån realkredit rate | `engine.py:141` | 0.038 (3.8%) | Not sourced — T-lån is an F-loan variant (fixed ydelse, variable duration). Uses underlying flexlån rate (typically F5). `rate` is user/config input. | No |
-| Bank rate | `engine.py:113,123,133,143,154,165,177` | 0.045 (4.5%) | ECB MIR API (4.03%) | No |
-| Issue costs | `engine.py:115,125,135,145,156,167,179` | 0.0171–0.0182 | No API — institute websites only | No |
-| F1 realkredit rate | (used as bank) | — | RD.dk renteudvikling (2.27% Apr 2026) | No |
-| CIBOR 3M reference | `engine.py:168` | 0.0320 (3.20%) | Jyske Bank referencerenter (2.27% Jun 2026) | No |
-| CITA 3M reference | (not in presets) | — | Jyske Bank referencerenter (1.87% Jul 2026) | No |
-| DESTR reference | `engine.py:180` | 0.0315 (3.15%) | DST Statbank DNRENTD DESNAA (2.03% Sep 2026) | No |
+| Bidragssats default | `engine.py:58,113` (`_make_alt`, `_make_realkredit_only_alt` default param) | 0.006 (0.6%) | Mybanker.dk (all 4 institutes) | ✅ Yes |
+| DESTR rate | `engine.py:158` | 0.0340 (3.40% = reference + margin) | DST Statbank DNRENTD DESNAA (2.03% Sep 2026) + hardcoded margin 0.0025 | No |
+| DESTR reference_rate | `engine.py:161` | 0.0315 (3.15%) | DST Statbank DNRENTD DESNAA (2.03% Sep 2026) | No |
+| F1 realkredit rate | `engine.py:168` | 0.036 (3.6%) | RD.dk renteudvikling (2.27% Apr 2026) | No |
+| FIXED realkredit rate | `engine.py:176` | 0.04 (4.0%) | Nordea "500.000" page (coupon 4.00%) or Finans Danmark (4.49% proxy) | No |
+| FIXED bond price | `engine.py:177` | 94.52 | Nordea "500.000" page (95.45 for 4% obligation Oct 2026) | No |
+| Issue costs | `engine.py:160,170,178` | 0.0171–0.0177 | No API — institute websites only | No |
+
+The default preset is realkredit-only (DESTR, F1, FIXED) with no bank loan. F3, F5, and T-lån
+are not in the default preset but are supported by the engine and used in reference test
+cases. When a two-component alternative is built via `_make_alt`, the bank rate is a
+parameter (not hardcoded in the preset dict).
 
 ## What cannot be sourced from any free API
 
@@ -530,11 +532,11 @@ stays hardcoded — it is institute-specific and no public API publishes borrowe
 
 | Value | Code location | Current default | Reason |
 |---|---|---|---|
-| Tax rate | `engine.py:105`, `models.py:186` | 0.336 (33.6%) | User-specific, not market data |
-| Bank share | `engine.py:114` | 0.20 (80/20 split) | User choice, not market data |
-| Rate shocks | `models.py:190` | [-2%, 0, +2%] | Analysis parameter, not market data |
-| T-lån fixed_ydelse | `engine.py:146` | 9900 | Loan-specific, not market data |
-| Maturity years | `engine.py:70` | 30 | Loan choice, not market data |
+| Tax rate | `engine.py:152`, `models.py:243` | 0.336 (33.6%) | User-specific, not market data |
+| Bank share | `_make_alt` parameter | 0.20 (80/20 split) | User choice, not market data |
+| Rate shocks | `models.py:246` | [-2%, 0, +2%] | Analysis parameter, not market data |
+| T-lån fixed_ydelse | `models.py:121` (LoanSpec field) | None (user must set) | Loan-specific, not market data |
+| Maturity years | `engine.py:74` | 30 | Loan choice, not market data |
 
 ---
 

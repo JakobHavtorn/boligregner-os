@@ -145,6 +145,10 @@ uv run pytest tests/ -v
 | `F1` | Rentetilpasningslån with 1-year rate adjustment |
 | `F3` | Rentetilpasningslån with 3-year rate adjustment |
 | `F5` | Rentetilpasningslån with 5-year rate adjustment |
+| `T` | T-lån: fixed monthly payment, variable maturity |
+| `CITA` | CITA-referencerente (short-period variable rate) |
+| `CIBOR` | CIBOR-referencerente (being phased out, replaced by DESTR) |
+| `DESTR` | DESTR (compounded overnight rate, replacing CIBOR) |
 
 ## Key concepts
 
@@ -157,6 +161,12 @@ uv run pytest tests/ -v
 - **Periodeomkostning**: Total cost of borrowing over the horizon period (ydelse + indfrielse − provenu), after tax.
 - **Indfrielse**: Redemption payoff at the horizon date.
 - **Rentefradrag**: Tax deduction on interest payments (default 33.6% marginal tax rate).
+- **Friværdi**: Equity — property value minus remaining debt.
+- **Konvertering**: Replacing an existing fixed-rate loan with a new one at a different coupon rate.
+- **Omlægning**: Refinancing — replacing an existing loan with new alternatives.
+- **Kursskæring**: Rate-cut fee applied at each refinancing of variable-rate loans.
+
+See `docs/danish-mortgage-concepts.md` for a detailed guide to these concepts.
 
 ## License
 
