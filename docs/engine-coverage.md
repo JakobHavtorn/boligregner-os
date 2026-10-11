@@ -55,6 +55,17 @@ mortgage system; this document tracks the engine's scope.
 | Issue costs (pct or nominal) | `issue_costs_pct` or `issue_costs_nominal` | ✅ Implemented |
 | Custom redemption price | `redemption_price` on `LoanSpec` | ✅ Implemented |
 
+## Calculation assumptions
+
+Some assumptions that boligregner.dk hardcodes are parameterized in this engine:
+
+| Assumption | boligregner.dk | Engine |
+|---|---|---|
+| Horizon duration | Fixed 5 years | `horizon_years` on `CalculatorInput` (default 5) |
+| Rate shock scenarios | −1%, 0%, +2% | `rate_shocks` on `CalculatorInput` (default −2%, 0%, +2%) |
+| Tax rate | Fixed 33.6% | `tax_rate` on `CalculatorInput` (default 0.336) |
+| Redemption price model | Scanrate OAS model | Pull-to-par `_bond_price_with_option()` capped at par + premium |
+
 ## Not implemented
 
 | Guide concept | Notes |
@@ -69,6 +80,11 @@ mortgage system; this document tracks the engine's scope.
 | **Daily bond prices** | The engine uses a static `price` on `LoanSpec`. No live market data fetching. See `docs/market-data-plan.md`. |
 | **Two-layer financing** (tolagsbelåning) | Historical (2013–2014). RO bonds are no longer used. The engine supports multi-component loans but does not model the SDO/RO split specifically. |
 | **Friværdi** (equity) | The guide computes equity as property value − remaining debt. The engine reports `restgæld` (remaining debt) but does not take property value as input for equity calculation (only for LTV split). |
+| **Capital gains tax on cash loans** | boligregner.dk taxes the gain when a cash loan is redeemed below issue price (typically after a rate rise). The engine does not add this tax to the redemption amount. |
+| **OAS-based bond pricing** | boligregner.dk uses Scanrate's OAS model with daily-updated market prices. The engine uses a closed-form bond pricing model (`_bond_price`, `_bond_price_with_option`). |
+| **Locking effects** (indlåsningseffekter) | When few bonds of a type are issued, investors may buy them all and charge a premium at redemption. The engine assumes fair pricing. |
+| **Property value at horizon** | boligregner.dk projects property value at the horizon date (start price × assumed change). The engine does not project property value. |
+| **Differencerente** | At par-100 redemption, a difference rate is paid. The engine's `_bond_price_with_option` caps at par + premium but does not model the difference rate explicitly. |
 
 ## See also
 

@@ -8,6 +8,51 @@ last_updated: 2026-10-11
 
 A distilled reference for Danish mortgage concepts. All monetary examples are illustrative.
 
+## Calculation assumptions
+
+### Horizon period
+
+Calculations use a 5-year horizon: all loans are assumed redeemed at the horizon date. The last date in the period is called the *horizon date*. The calculation prorates interest and principal to account for the horizon date not falling on a payment date.
+
+Five years is a compromise. With a longer horizon, payments weigh heavier relative to the redemption amount (especially for amortizing loans). With a shorter horizon and an interest-only loan, the payment is negligible relative to the redemption amount. Five years matches the average Danish homeowner's 4–6 year refinancing cycle.
+
+### Rate shock scenarios
+
+Three calculations are performed: unchanged rate, a 1 percentage point fall, and a 2 percentage point rise. The rate change is assumed to occur immediately after the calculation date. Short and long rates are assumed to move by the same number of percentage points — a simplification. In practice, short rates (driving F1 loans) and long rates (driving fixed-rate bonds) often move by different amounts.
+
+Technically, the swap rate structure is shifted up and down. A rate change of x percent does not necessarily mean the effective loan rate changes by x percent — the effect varies by loan type depending on conversion risk, rate caps, maturity, and amortization profile.
+
+### Redemption prices
+
+Even if the future rate level is known, the future redemption prices of individual bonds must still be estimated. Bonds used for variable-rate loans are relatively simple. Convertible bonds and loans with rate caps require more advanced methods.
+
+Redemption prices are model estimates based on an option-adjusted spread (OAS) held at today's level regardless of rate shock. The estimates assume "fair" pricing. In practice, if few bonds of a given type are issued, investors may buy them all and charge a premium at redemption — so-called **locking effects** (indlåsningseffekter). These have become more frequent as the number of loan products has increased.
+
+For convertible bonds where the estimated market price exceeds 100, the borrower can redeem at par (100). The redemption calculation uses the *pari-straks* method: choosing the cheaper of market price or par 100. At par 100, a difference rate (differencerente) is paid, so it can sometimes pay to redeem at market prices slightly above 100.
+
+For cash loans, capital gains tax applies if the redemption price is below the issue price — typically the case after a rate rise. The tax on this gain is added to the redemption amount.
+
+### Costs
+
+Loan costs vary between mortgage institutes and between customers. Average market rates are used for administration (bidrag), stamp duty, tax rate, and fees.
+
+- **Tax rate**: a fixed 33.6% is used. The actual tax rate has been phased down, but offsetting rules mean the reduction does not fully apply.
+- **Interest and bidrag are tax-deductible**: paying 10,000 kr in interest and bidrag gives a tax reduction of ~33%, so the after-tax cost is ~6,700 kr.
+- **Stamp duty at redemption**: only the difference between new and old principal is taxed.
+
+### Key metrics
+
+- **ÅOP** (annual percentage rate): total costs (interest, bidrag, and establishment costs) as an annualized percentage of loan proceeds. Uses official assumptions: loan held to maturity, rate unchanged. When comparing two loans of the same type, the lower ÅOP is better. This does not hold across different loan types, because ÅOP ignores differences in rate and redemption conditions.
+- **Ydelse efter skat** (payment after tax): principal + interest + bidrag, with interest and bidrag multiplied by (1 − tax rate).
+- **Indfrielsesbeløb** (redemption amount): bond balance × redemption price / 100, plus redemption costs (but not new loan establishment costs). For cash loans, capital gains tax is added.
+- **Ejendomsværdi** (property value at horizon): start price × assumed change. No correction for selling costs.
+- **Friværdi** (equity): property value at horizon − redemption amount. High equity means the loan is a small fraction of property value.
+- **Periodeomkostning** (period cost): total cost of holding the loan over the period. For new loans: after-tax payments + redemption amount − actual proceeds at issuance. Interpretable as the extra cost of borrowing rather than buying cash. For existing loans: after-tax payments + redemption at horizon − redemption at period start. Shows what it costs to keep the loan for another five years rather than redeeming it now.
+
+### Limitations
+
+The calculations show how a loan behaves in three hypothetical rate paths. The actual rate development will be different. Redemption prices for fixed-rate bonds are estimates — what you actually pay depends on market conditions at redemption. Even if the assumptions do not hold, the calculations help focus on the key factors affecting a loan.
+
 ## Choosing a mortgage
 
 No single loan is universally best. The loan with the lowest initial payment may be expensive to redeem; the one that performs best under rising rates may be worst when rates fall. The decision requires a full "ingredient list" — total cost over a horizon, redemption value, and equity — not just the advertised monthly payment.
