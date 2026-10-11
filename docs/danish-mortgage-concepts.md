@@ -18,21 +18,17 @@ Example: a 2,000,000 kr loan. Over five years you pay 360,000 kr in principal, i
 
 The loan with the lowest start payment is not always the cheapest. Amortization (principal repayment) is savings, not a cost — it reduces the remaining debt and therefore future interest and administration charges.
 
-### Interpretation by loan type
+### The three-way comparison
 
-**Variable-rate loans (F1)** are cheapest when rates are unchanged or falling:
-- F1 loans refinance annually; the payment rises with rates and falls when rates drop.
-- Redemption price stays near par (100).
+The source example compares three loans on 2,000,000 kr: a fixed-rate with amortization (7,926 kr/mo after tax), a variable F1 with amortization (6,624 kr/mo), and a variable F1 interest-only (1,494 kr/mo). The interest-only loan has the lowest start payment — 6,432 kr/month less than the fixed-rate loan — but it is not always the cheapest over five years.
 
-**Fixed-rate loans** are cheapest when rates rise:
-- Higher initial payment, but the payment is constant for the life of the loan.
-- If rates fall, the bond redeems at par (100).
-- If rates rise, the bond can be redeemed below par, yielding a gain.
+Key principles from the source material:
+- Amortization is savings, not a cost — it directly reduces remaining debt and therefore future interest and administration charges.
+- When rates fall, all loans redeem at par (100). The loan with the highest principal costs the most to redeem.
+- When rates rise, fixed-rate bonds can be redeemed below par, yielding a gain. Variable-rate loans redeem near par (100).
+- Interest-only loans carry a higher administration rate (bidragssats) and get no reduction in interest, administration, or debt.
 
-**Interest-only F1 is always more expensive than F1 with amortization**, regardless of the rate path:
-- Amortization directly reduces debt — it is savings, not cost.
-- Ongoing amortization saves interest and administration.
-- Mortgage institutions charge a higher administration rate (bidragssats) on interest-only loans.
+The interaction between rate path, loan type, and redemption price is explored in detail on the kurs 95, conversion, and refinancing pages below.
 
 ## Loan types
 
@@ -142,11 +138,12 @@ Conversion replaces an existing fixed-rate bond loan with a new one at a differe
 
 Existing: 27-year 6% interest-only, 1,000,000 kr remaining, redeeming at 100.
 
-| New loan | Kurs | Principal (kr) | Proceeds (kr) | Cash (kr) | ÅOP after tax | Payment/mo after tax (kr) |
-|----------|------|----------------|---------------|-----------|---------------|---------------------------|
-| 30-yr 5% IO | 99.91 | 1,039,000 | 1,028,970 | 806 | 3.84% | 3,220 |
-| 30-yr 4% w/ amort. | 94.47 | 1,100,000 | 1,029,054 | 891 | 3.62% | 4,394 |
-| 30-yr 4% IO | 92.95 | 1,118,000 | 1,028,817 | 654 | 3.66% | 2,858 |
+| Loan | Kurs | Principal (kr) | ÅOP after tax | Payment/mo after tax (kr) |
+|------|------|----------------|---------------|---------------------------|
+| Existing 27-yr 6% IO | 100 | 1,000,000 | 4.18% | 3,652 |
+| 30-yr 5% IO (new) | 99.91 | 1,039,000 | 3.84% | 3,220 |
+| 30-yr 4% w/ amort. (new) | 94.47 | 1,100,000 | 3.62% | 4,394 |
+| 30-yr 4% IO (new) | 92.95 | 1,118,000 | 3.66% | 2,858 |
 
 Period cost for the existing loan = payments over the next five years + redemption in five years − redemption today (after tax). This is the extra cost of keeping the old loan rather than redeeming it for cash.
 
