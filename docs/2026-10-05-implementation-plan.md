@@ -19,7 +19,7 @@ unchanged — the data layer populates `LoanSpec` fields before calculate is cal
 classDiagram
     direction TB
 
-    class server_py {
+    class http_server_py {
         +api_market_rates loan_type
         +api_bidragssatser
         +api_bond_prices
@@ -63,7 +63,7 @@ classDiagram
         +rate_shocks list~Decimal~
     }
 
-    server_py --> market_data_py : endpoints call public accessors
+    http_server_py --> market_data_py : endpoints call public accessors
     mcp_server_py --> market_data_py : get_market_rates tool
     market_data_py --> engine_py : build_preset_from_market produces CalculatorInput
     market_data_py ..> MarketRates : reads/writes
