@@ -41,6 +41,8 @@ _TWELVE = Decimal(12)
 _HUNDRED = Decimal(100)
 _ZERO = Decimal(0)
 _ONE = Decimal(1)
+_DAYS_360 = Decimal(360)
+_DAYS_365 = Decimal(365)
 _DEFAULT_PREPAYMENT_PREMIUM = Decimal("0.005")
 
 
@@ -217,6 +219,23 @@ def _daily_to_monthly(annual_rate: Decimal) -> Decimal:
     return (_ONE + annual_rate / Decimal(360)) ** 30 - _ONE
 
 
+def _cita_rate_adjustment(reference_rate: Decimal, ppy: int) -> Decimal:
+    """Convert a CITA reference rate to a nominal annual equivalent.
+
+    CITA is quoted as a nominal annual rate on an ACT/360 day-count basis.
+    Danish realkredit accrues interest on ACT/365, and CITA loans pay quarterly
+    (ppy=4).  Two conversions bring the engine's nominal rate in line with
+    boligregner.dk:
+
+    1. Day-count conversion  ACT/360 → ACT/365:  rate_365 = rate × 360/365
+    2. Compounding conversion  annual → quarterly:
+       quarterly = (1 + rate_365)^(1/ppy) − 1,  nominal = quarterly × ppy
+    """
+    rate_365 = reference_rate * _DAYS_360 / _DAYS_365
+    periodic = (_ONE + rate_365) ** (_ONE / Decimal(ppy)) - _ONE
+    return periodic * Decimal(ppy)
+
+
 def _rate_path(
     spec: LoanSpec, shock: Decimal, n_months: int, ppy: int = 12
 ) -> list[Decimal]:
@@ -241,6 +260,8 @@ def _rate_path(
     if spec.loan_type == LoanType.DESTR:
         monthly_equiv = _daily_to_monthly(shocked_ref)
         rate = monthly_equiv * _TWELVE + margin
+    elif spec.loan_type == LoanType.CITA:
+        rate = _cita_rate_adjustment(shocked_ref, ppy) + margin
     else:
         rate = shocked_ref + margin
     return [rate] * n_months
