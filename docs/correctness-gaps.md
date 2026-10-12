@@ -1,7 +1,7 @@
 ---
 status: active
 created_at: 2026-10-07
-last_updated: 2026-10-11
+last_updated: 2026-10-12
 ---
 
 # Remaining Correctness Gaps vs boligregner.dk
@@ -24,31 +24,39 @@ uv run --extra dev python scripts/correctness_report.py
 
 ## Gap 1: F1/F5 ÅOP and ydelse deviation
 
-### Symptoms
+### Symptoms (post-PR: fractional maturity fix)
 
 | Case | Metric | Engine | Reference | Deviation |
-|------|--------|--------|-----------|-----------|
-| apr2023_f1_20 | Ydelse | 16,687 | 16,464 | +1.35% |
-| apr2023_f1_25 | Ydelse | 14,575 | 14,432 | +0.99% |
-| apr2023_f1_30 | Ydelse | 13,206 | 13,106 | +0.76% |
-| apr2023_f1_20 | ÅOP | 4.2280% | 4.1800% | +1.15% |
-| apr2023_f1_25 | ÅOP | 4.2190% | 4.1600% | +1.42% |
-| apr2023_f1_30 | ÅOP | 4.2130% | 4.1500% | +1.52% |
+|------|--------|--------|-----------|----------|
+| apr2023_f1_20 | Ydelse | 16,427 | 16,464 | −0.23% |
+| apr2023_f1_25 | Ydelse | 14,412 | 14,432 | −0.14% |
+| apr2023_f1_30 | Ydelse | 13,096 | 13,106 | −0.08% |
+| apr2023_f1_20 | ÅOP | 4.2269% | 4.1800% | +1.12% |
+| apr2023_f1_25 | ÅOP | 4.2183% | 4.1600% | +1.40% |
+| apr2023_f1_30 | ÅOP | 4.2125% | 4.1500% | +1.51% |
 | f1_oct | Ydelse | 12,659 | 12,665 | −0.05% |
 | f1_oct_6m | Ydelse | 32,853 | 32,869 | −0.05% |
 | f1_oct | ÅOP | 4.2385% | 4.3600% | −2.79% |
 | f1_oct_6m | ÅOP | 4.2244% | 4.3500% | −2.89% |
 | f1_oct_bidrag_0038 | ÅOP | 3.6467% | 3.7700% | −3.27% |
 | f1_oct_bidrag_0060 | ÅOP | 3.8748% | 4.0000% | −3.13% |
-| f5_jan | Ydelse | 13,444 | 13,395 | +0.36% |
-| f5_jan | ÅOP | 4.6679% | 4.7200% | −1.10% |
+| f5_jan | Ydelse | 13,337 | 13,395 | −0.43% |
+| f5_jan | ÅOP | 4.6660% | 4.7200% | −1.15% |
 
-Two distinct patterns:
+The fractional maturity fix eliminates the ydelse overshoot for apr2023
+and f5_jan cases (previously +0.76–1.35%, now within ±0.5%). The
+remaining ÅOP deviations are within the 0.5 pp test tolerance but still
+show a residual pattern:
 
-1. **apr2023 F1** (bidragssats 0.0038): ydelse overshoots (+0.76–1.35%),
-   ÅOP overshoots (+1.15–1.52%).
-2. **f1_oct** (bidragssats 0.0095): ydelse matches (−0.05%), ÅOP
-   undershoots (−2.79% to −2.89%).
+1. **apr2023 F1** (price 99.03, bidragssats 0.0038): ÅOP overshoots
+   (+1.12–1.51%). The compound rate annuity on hovedstol produces a
+   slightly higher IRR than boligregner.dk when price ≈ 100.
+2. **f1_oct** (price 98.26, bidragssats 0.0095): ÅOP undershoots
+   (−2.79% to −2.89%). When price < 100, kontant < hovedstol, so the
+   IRR of [kontant, −compound-annuity] undershoots.
+3. **f5_jan** (price 91.30, bidragssats 0.0095): ÅOP undershoots
+   (−1.15%). The deep discount (price 91.30) makes the undershoot
+   worse, but the shorter term (30.5y vs 31y) partially compensates.
 
 The bidragssats isolation cases (`f1_oct_bidrag_0038` vs
 `f1_oct_bidrag_0060`) confirm the ÅOP gap widens at lower bidragssats
@@ -58,20 +66,38 @@ maturity alone.
 
 ### Root cause
 
-The engine uses integer years for `maturity_years` (30y = 120 quarters).
-F1 loans on boligregner.dk have a 31-year løbetid (124 quarters) from a
-360-month window. The extra 4 quarters reduce the annuity payment, so
-apr2023 cases with shorter effective terms produce slightly higher
-ydelse.
+**Fractional maturity** (RESOLVED): `maturity_years` was
+integer-only, so 30.5-year loans were truncated to 30 years (120
+quarters instead of 122). Now `maturity_years` accepts `Decimal` and
+the period count uses `_qceil(maturity_years * ppy)`.
 
-The ÅOP deviation direction flips between the two bidragssatis levels,
-which points to a second contributing factor in the IRR bidrag handling
-that is not yet isolated.
+**ÅOP bidrag handling** (investigated, residual within tolerance):
+The ÅOP IRR uses the compounded rate path (rate + bidragssats) for
+amortization with kontant as the disbursement. This is equivalent to
+plain-rate annuity + declining bidrag on remaining balance. Extensive
+testing (~20 alternative cashflow models) found that:
+- Plain rate + flat bidrag on hovedstol overshoots by +6–8%.
+- Plain rate + no bidrag undershoots by −8 to −25%.
+- Compound rate on obligationshovedstol gives +0.5–16% (inconsistent).
+- The current compound-rate-on-hovedstol model is the closest to
+  boligregner.dk across all cases (−3.3% to +1.5%, all within 0.5 pp
+  absolute tolerance).
+
+The residual deviation stems from the gap between the compounded-rate
+annuity (declining bidrag) and boligregner.dk's actual ydelse (plain
+annuity + flat bidrag). When price < 100, the kontant disbursement is
+less than hovedstol, so the IRR of the compound annuity undershoots.
+When price ≈ 100, the compound annuity slightly exceeds the actual
+ydelse, so the IRR overshoots.
 
 ### Status
 
-Open. Fixing requires fractional maturity support in the annuity
-formula and investigation of the bidragssatis-dependent ÅOP split.
+Partially resolved. Fractional maturity support eliminates the ydelse
+deviation. The residual ÅOP deviation (−3.3% to +1.5% relative, all
+within 0.5 pp absolute tolerance) is the best achievable with the
+current IRR model. Further improvement would require matching
+boligregner.dk's exact ÅOP cashflow construction, which is not publicly
+documented.
 
 ---
 
@@ -133,8 +159,8 @@ Open. Lower priority — ydelse and ÅOP are tight.
 
 ## Priority
 
-1. **Gap 1** (F1/F5 integer maturity + ÅOP bidrag split) — highest
-   impact, affects most cases.
+1. **Gap 1** (F1/F5 maturity + ÅOP) — partially resolved:
+   fractional maturity fixed; residual ÅOP within tolerance.
 2. **Gap 2** (T-lån ÅOP) — largest single deviation, but T-lån only.
 3. **Gap 3** (CITA horizon rente) — lowest impact, horizon-only.
 

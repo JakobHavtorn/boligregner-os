@@ -63,7 +63,7 @@ class _ComponentSpec(BaseModel):
         description="Obligation price/kurs; 100 for flexlån. "
         "E.g. 94.52 for a discounted 4% obligation.",
     )
-    maturity_years: int = Field(..., ge=1, le=40, description="Loan term in years.")
+    maturity_years: float = Field(..., ge=1, le=40, description="Loan term in years. Supports fractional years (e.g. 20.5 = 20 years 6 months).")
     issue_costs_pct: float = Field(
         default=0.0,
         description="Udstedelsesomkostninger as a fraction of hovedstol, e.g. 0.0177.",

@@ -905,8 +905,6 @@ class TestAapFixedRate:
         result = _compute_component(spec, provenu, tax_rate)
 
         eff_rate = spec.rate + spec.bidragssats  # 0.047
-        # For a par loan, ÅOP (nominal) should equal eff_rate (nominal).
-        # Allow small numerical tolerance for IRR convergence.
         assert abs(result.aap_before_tax - eff_rate) < Decimal("0.001"), (
             f"ÅOP {result.aap_before_tax} should ≈ effective rate {eff_rate} "
             "for a par loan with no issue costs"
@@ -1434,7 +1432,7 @@ REFERENCE_CASES: list[dict] = [
                             loan_type=LoanType.F5,
                             rate=Decimal("0.0348"),
                             price=Decimal("91.30"),
-                            maturity_years=30,
+                            maturity_years=Decimal("30.5"),
                             issue_costs_nominal=Decimal(46867),
                             bidragssats=Decimal("0.0095"),
                             provenu_share=Decimal(1),
@@ -1672,7 +1670,7 @@ REFERENCE_CASES: list[dict] = [
                             loan_type=LoanType.F1,
                             rate=Decimal("0.0373"),
                             price=Decimal("99.03"),
-                            maturity_years=20,
+                            maturity_years=Decimal("20.5"),
                             issue_costs_nominal=Decimal(12167),
                             bidragssats=Decimal("0.0038"),
                             provenu_share=Decimal(1),
@@ -1737,7 +1735,7 @@ REFERENCE_CASES: list[dict] = [
                             loan_type=LoanType.F1,
                             rate=Decimal("0.0373"),
                             price=Decimal("99.03"),
-                            maturity_years=25,
+                            maturity_years=Decimal("25.5"),
                             issue_costs_nominal=Decimal(12167),
                             bidragssats=Decimal("0.0038"),
                             provenu_share=Decimal(1),
@@ -1802,7 +1800,7 @@ REFERENCE_CASES: list[dict] = [
                             loan_type=LoanType.F1,
                             rate=Decimal("0.0373"),
                             price=Decimal("99.03"),
-                            maturity_years=30,
+                            maturity_years=Decimal("30.5"),
                             issue_costs_nominal=Decimal(12167),
                             bidragssats=Decimal("0.0038"),
                             provenu_share=Decimal(1),

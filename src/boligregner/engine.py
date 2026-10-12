@@ -612,7 +612,7 @@ def _compute_component(
     annuity_rate = _amortization_rate(spec)
     bidrag_charge = spec.bidragssats * hovedstol / Decimal(ppy)
     r = _periodic_rate(annuity_rate, ppy)
-    n = spec.maturity_years * ppy
+    n = int(_qceil(spec.maturity_years * Decimal(ppy)))
     io_months = spec.interest_only_years * ppy
 
     rate_path = _rate_path(spec, _ZERO, n, ppy)
@@ -805,7 +805,7 @@ def _horizon_scenarios(
         for spec, comp in components:
             ppy = spec.payments_per_year
             horizon_n = horizon_years * ppy
-            n = spec.maturity_years * ppy
+            n = int(_qceil(spec.maturity_years * Decimal(ppy)))
             io_months = spec.interest_only_years * ppy
             path = _rate_path(spec, shock, n, ppy)
 
@@ -979,7 +979,7 @@ def _monthly_payment_after_tax(
         annuity_rate = spec.rate
         bidrag_charge = spec.bidragssats * comp.hovedstol / Decimal(ppy)
         r = _periodic_rate(annuity_rate, ppy)
-        n = spec.maturity_years * ppy
+        n = int(_qceil(spec.maturity_years * Decimal(ppy)))
         io_months = spec.interest_only_years * ppy
         if spec.loan_type == LoanType.T and spec.fixed_ydelse is not None:
             ydelse = spec.fixed_ydelse + bidrag_charge
@@ -1193,7 +1193,7 @@ def amortization_schedule(
         share = ltv_shares[i] if ltv_shares is not None else spec.provenu_share
         comp_provenu = input.desired_provenu * share
         comp = _compute_component(spec, comp_provenu, input.tax_rate)
-        n = spec.maturity_years * ppy
+        n = int(_qceil(spec.maturity_years * Decimal(ppy)))
         io_months = spec.interest_only_years * ppy
 
         # Build rate path for the full term (no shock)
@@ -1231,10 +1231,10 @@ def amortization_schedule(
         comp_monthly.append((monthly, ppy, bidrag_charge))
 
     # n_years: max of nominal maturity and actual T-lån term (ceil to years)
-    n_years = max(
+    n_years = int(max(
         max(spec.maturity_years for spec in alt.components),
         max((len(m) + p - 1) // p for m, p, _ in comp_monthly),
-    )
+    ))
 
     years: list[AmortizationYear] = []
     for year in range(1, n_years + 1):
