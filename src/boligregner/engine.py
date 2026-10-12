@@ -280,8 +280,6 @@ def _rate_path_compounded(
     if spec.loan_type == LoanType.DESTR:
         monthly_equiv = _daily_to_monthly(ref)
         rate = monthly_equiv * _TWELVE + margin + spec.bidragssats
-    elif spec.loan_type == LoanType.CITA:
-        rate = _cita_rate_adjustment(ref, ppy) + margin + spec.bidragssats
     else:
         rate = ref + margin + spec.bidragssats
     return [rate] * n_months

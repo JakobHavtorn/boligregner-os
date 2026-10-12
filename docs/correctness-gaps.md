@@ -138,16 +138,19 @@ rente in line with boligregner.dk.
 
 ### Fix
 
-Added `_cita_rate_adjustment()` in `engine.py` and applied it in both
-`_rate_path()` and `_rate_path_compounded()` for `LoanType.CITA`.
+Added `_cita_rate_adjustment()` in `engine.py` and applied it only in
+`_rate_path()` (the horizon rate path) for `LoanType.CITA`.
+The adjustment is deliberately **not** applied in
+`_rate_path_compounded()` (the ÅOP rate path): pre-fix CITA ÅOP was
+already within tolerance (+0.46–0.75%), so applying the day-count
+conversion there would regress it.
 DESTR already had its own day-count conversion (`_daily_to_monthly`);
 CIBOR and fixed-rate loans are unaffected.
 
 ### Status
 
 Resolved. All three CITA horizon rente cases now deviate less than 1%.
-ÅOP improved from +0.46–0.75% to −1.19% to −1.29% (below reference,
-a step in the correct direction).
+CITA ÅOP remains within its pre-fix range (+0.46–0.75%), unchanged.
 
 ---
 
