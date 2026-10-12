@@ -101,38 +101,6 @@ documented.
 
 ---
 
-## Gap 2: T-lån ÅOP (−9 to −10%)
-
-| Case | Engine ÅOP | Reference ÅOP | Deviation |
-|------|-----------|---------------|-----------|
-| apr2023_tlaan_21 | 4.0329% | 4.4400% | −0.407pp (−9.17%) |
-| apr2023_tlaan_22 | 3.9906% | 4.4200% | −0.429pp (−9.71%) |
-| apr2023_tlaan_23 | 3.9747% | 4.4100% | −0.435pp (−9.87%) |
-| apr2023_tlaan_24 | 3.9458% | 4.4000% | −0.454pp (−10.32%) |
-| apr2023_tlaan_25 | 3.9839% | 4.4000% | −0.416pp (−9.46%) |
-| apr2023_tlaan_30 | 3.9260% | 4.3600% | −0.434pp (−9.95%) |
-
-Ydelse matches exactly (0.00%) — it is a fixed input. Horizon metrics
-are tight (rente +1.99%, ydelse +0.23%).
-
-### Root cause
-
-T-lån ÅOP uses IRR of `fixed_ydelse` cashflows against
-`net_disbursement`. The cashflow stream excludes bidrag — the
-compounded rate path (which includes bidragssats) is only used as the
-IRR initial guess, not in the actual cashflows. Boligregner.dk
-apparently includes bidrag in their ÅOP calculation for T-lån.
-
-This gap was pre-existing (verified: identical values on origin/main
-before #24). The models refactor (#25, merged) does not introduce or
-change this gap.
-
-### Status
-
-Open. Fix requires adding bidrag to the T-lån ÅOP cashflow stream, but
-this would change the ÅOP values and needs verification against
-boligregner.dk's exact method.
-
 ---
 
 ## Gap 3: CITA horizon rente (+2.3 to +2.8%)
@@ -161,8 +129,7 @@ Open. Lower priority — ydelse and ÅOP are tight.
 
 1. **Gap 1** (F1/F5 maturity + ÅOP) — partially resolved:
    fractional maturity fixed; residual ÅOP within tolerance.
-2. **Gap 2** (T-lån ÅOP) — largest single deviation, but T-lån only.
-3. **Gap 3** (CITA horizon rente) — lowest impact, horizon-only.
+2. **Gap 3** (CITA horizon rente) — lowest impact, horizon-only.
 
 ---
 
@@ -192,3 +159,25 @@ bidrag_total) * (1 - tax_rate)` for all loan types.
 Hardcoded split mode: annuity at nominal rate, bidrag charged
 separately, bidrag tax-deductible. ÅOP uses compounded rate path for
 IRR. Matches boligregner.dk's behavior.
+
+### T-lån ÅOP bidrag (RESOLVED in #36)
+
+T-lån ÅOP previously excluded bidrag from the IRR cashflow stream,
+undershooting by −9 to −10%. The fix amortizes the loan using the
+nominal amortization rate (excluding bidragssats) to obtain a
+declining balance, then charges bidrag on the post-payment outstanding
+balance each period. This matches boligregner.dk's method of computing
+bidrag on a declining balance rather than a flat charge on the
+original hovedstol.
+
+| Case | Before | After | Reference |
+|------|--------|-------|----------|
+| apr2023_tlaan_21 | 4.0329% (−9.17%) | 4.5226% (+1.86%) | 4.4400% |
+| apr2023_tlaan_22 | 3.9906% (−9.71%) | 4.4828% (+1.42%) | 4.4200% |
+| apr2023_tlaan_23 | 3.9747% (−9.87%) | 4.4679% (+1.31%) | 4.4100% |
+| apr2023_tlaan_24 | 3.9458% (−10.32%) | 4.4403% (+0.92%) | 4.4000% |
+| apr2023_tlaan_25 | 3.9839% (−9.46%) | 4.4754% (+1.71%) | 4.4000% |
+| apr2023_tlaan_30 | 3.9260% (−9.95%) | 4.4215% (+1.41%) | 4.3600% |
+
+All T-lån ÅOP deviations reduced from −9/−10% to within +2% of
+reference. Ydelse remains exact (0.00%). All 295 tests pass.

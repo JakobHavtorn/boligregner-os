@@ -2144,8 +2144,8 @@ REFERENCE_CASES: list[dict] = [
     },
     # ── Samlet F1 T-lån, 21 år ──────────────────────────────────────
     # T-lån: fixed monthly ydelse, variable duration.  PDF monthly ydelse
-    # converted to quarterly excluding bidrag.  ÅOP tolerance 1pp (engine
-    # IRR understates effective cost for T-lån).
+    # converted to quarterly excluding bidrag.  ÅOP tolerance 1pp (bidrag
+    # on declining balance approximates boligregner.dk's method).
     {
         "id": "apr2023_tlaan_21",
         "input": CalculatorInput(
@@ -2177,7 +2177,7 @@ REFERENCE_CASES: list[dict] = [
         "expected": {
             "hovedstol": Decimal(4453000),  # exact
             "ydelse": Decimal(27643),  # monthly-equiv, exact
-            "aap": Decimal("0.0444"),  # effective annual (engine ~0.0403)
+            "aap": Decimal("0.0444"),  # effective annual (engine ~0.0452)
             "horizon_0pct": {
                 "rente": Decimal(564768),
                 "afdrag": Decimal(799207),
@@ -2200,7 +2200,7 @@ REFERENCE_CASES: list[dict] = [
         "tol": {
             "hovedstol": None,  # exact
             "ydelse": Decimal("0.001"),  # exact match
-            "aap": Decimal("0.01"),  # ~0.4 pp off (engine limitation)
+            "aap": Decimal("0.01"),  # ~0.08 pp off (bidrag on declining balance)
             "horizon_rente": Decimal("0.09"),
             "horizon_afdrag": Decimal("0.05"),
             "horizon_ydelse": Decimal("0.05"),
