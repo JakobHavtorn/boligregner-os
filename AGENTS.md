@@ -40,7 +40,7 @@ Classification is handled by `_is_kontantlaan(spec)` in `engine.py`.
 - `FIXED` — Fixed-rate obligation (fast rente). Rate shocks affect bond redemption price, not amortization.
 - `F3` / `F5` / `F1` — Rentetilpasningslån (flexlån) with 3/5/1-year rate adjustment. Rate shocks affect amortization rate, redemption at par.
 - `T` — T-lån: fixed monthly ydelse (`fixed_ydelse`), variable duration. `_solve_for_n()` computes duration from the fixed payment. Rate shocks change duration, not payment. Negative amortization when payment < interest (balance grows).
-- `CITA` — CITA-referencerente: short-period variable rate loan. Rate = `reference_rate` + `margin` + bidragssats. Rate shocks apply to the reference rate, not the margin. Uses a constant-rate-per-scenario model (same as flexlån).
+- `CITA` — CITA-referencerente: short-period variable rate loan. Rate = `reference_rate` + `margin` + bidragssats. Rate shocks apply to the reference rate, not the margin. Uses a constant-rate-per-scenario model (same as flexlån for ÅOP). The horizon rate path applies an additional ACT/360→ACT/365 day-count conversion plus quarterly compounding via `_cita_rate_adjustment()` (PR #37); the ÅOP path is intentionally unchanged.
 - `CIBOR` — CIBOR-referencerente: same structure as CITA, being phased out in favor of DESTR.
 - `DESTR` — Compounded overnight rate replacing CIBOR. Same rate model as CITA but uses daily compounding converted to monthly equivalent via `_daily_to_monthly()`.
 
