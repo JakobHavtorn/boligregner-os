@@ -1,7 +1,7 @@
 ---
 status: active
 created_at: 2026-10-07
-last_updated: 2026-10-12
+last_updated: 2026-10-14
 ---
 
 # Remaining Correctness Gaps vs boligregner.dk
@@ -10,9 +10,11 @@ This document is the single source of truth for measured numeric
 deviations between the engine and boligregner.dk reference data.
 GitHub issue #26 has been closed in favour of this document.
 
-## Current state (main, post-PR #31)
+## Current state (main, post-PR #37)
 
 32 reference cases, 500 tests collected (295 passed, 205 skipped).
+All three identified gaps have been addressed. No actionable gaps
+remain — all deviations are within the 0.5 pp absolute test tolerance.
 
 Run the report:
 
