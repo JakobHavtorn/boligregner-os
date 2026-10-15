@@ -1,7 +1,7 @@
 ---
 status: active
 created_at: 2026-10-11
-last_updated: 2026-10-11
+last_updated: 2026-10-14
 ---
 
 # Engine Coverage
@@ -50,6 +50,7 @@ mortgage system; this document tracks the engine's scope.
 | T loan fixed payment | `LoanSpec.fixed_ydelse` | ✅ Implemented |
 | Reference-rate loans (CITA/CIBOR/DESTR) | `reference_rate` + `margin` | ✅ Implemented |
 | DESTR daily compounding | `_daily_to_monthly()` conversion | ✅ Implemented |
+| CITA day-count + compounding (horizon only) | `_cita_rate_adjustment()` — ACT/360→ACT/365 + quarterly compounding | ✅ Implemented (PR #37, horizon path only; ÅOP path intentionally unchanged) |
 | Bond price at redemption | `_bond_price_with_option()` — pull-to-par model | ✅ Implemented |
 | LTV-based realkredit/bank split | `ejendomsvaerdi` + `ejendomstype` on `CalculatorInput` | ✅ Implemented |
 | Issue costs (pct or nominal) | `issue_costs_pct` or `issue_costs_nominal` | ✅ Implemented |

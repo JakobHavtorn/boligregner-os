@@ -152,14 +152,75 @@ CITA ÅOP remains within its pre-fix range (+0.46–0.75%), unchanged.
 
 ## Priority
 
-All three gaps have been addressed:
+All three originally identified gaps have been addressed (PRs #35,
+#36, #37). No actionable gaps remain — all deviations are within the
+0.5 pp absolute test tolerance. The remaining deviations fall into four
+systematic categories, each with a consistent signature across cases.
 
-1. **Gap 1** (F1/F5 maturity + ÅOP) — partially resolved:
-   fractional maturity fixed; residual ÅOP within tolerance.
-2. **Gap 2** (T-lån ÅOP) — resolved in #36.
-3. **Gap 3** (CITA horizon rente) — resolved in #37 by adding
-   ACT/360 → ACT/365 day-count conversion plus quarterly compounding
-   in the CITA rate path.
+### 1. IRR/ÅOP cashflow construction (F1/F5 + T-lån)
+
+| Cases | Metric | Range | Direction |
+|---|---|---|---|
+| f1_oct family (5 cases) | ÅOP | −2.79% to −3.27% | under |
+| apr2023_f1 (3 cases) | ÅOP | +1.12% to +1.51% | over |
+| f5_jan | ÅOP | −1.15% | under |
+| apr2023_tlaan (6 cases) | ÅOP | +0.92% to +1.86% | over |
+
+The engine's IRR cashflow model builds payment streams differently than
+boligregner.dk. The sign depends on the coupon-to-market-rate gap:
+October F1 (3.08%, kurs 98.26) underestimates; April 2023 F1 (3.73%,
+kurs 99.03) overestimates. T-lån overestimates after the Gap 2 fix
+(PR #36) added bidrag to IRR cashflows — the residual suggests timing
+or amount still differs. Not actionable without boligregner.dk's
+undocumented IRR cashflow model.
+
+### 2. Horizon rate-path model (F1/F5)
+
+| Cases | Metric | Range | Direction |
+|---|---|---|---|
+| f1_oct family (4 cases) | Horizon rente | −1.00% to −2.21% | under |
+| apr2023_f1 (3 cases) | Horizon rente | +1.67% to +1.86% | over |
+| f5_jan | Horizon rente | +1.02% | over |
+
+The constant-rate-per-adjustment-period assumption doesn't match
+boligregner.dk's treatment of partial first periods or rate-adjustment
+timing. Same date-dependent sign flip as ÅOP. Horizon afdrag
+deviations (±1.39%) are a direct consequence — if rente is off, the
+afdrag/ydelse split moves oppositely.
+
+### 3. Afdragsfrihed amplification
+
+| Case | Metric | Dev | vs non-IO |
+|---|---|---|---|
+| f1_oct_afr_12m | Horizon rente | −2.21% | f1_oct: −1.00% |
+| cita_30_afr_12m | Horizon rente | −0.39% | cita_30: +0.16% |
+
+Afdragsfrihed amplifies the horizon rente deviation and can flip the
+sign (CITA). The interest-only period changes the amortization schedule
+shape, so any rate-path timing difference has a larger effect on the
+5-year rente/afdrag split. This is a feature of category 2, not a
+separate root cause, but it identifies afdragsfrihed cases as
+higher-sensitivity to rate-path fixes.
+
+### 4. Fixed-rate obligationshovedstol rounding
+
+| Cases | Metric | Dev |
+|---|---|---|
+| fixed_4pct, fixed_1pct_6m | Hovedstol | −2,000 (−0.07%) |
+| fixed_5pct_*_afr (3 cases) | Hovedstol | −3,000 to −12,000 (−0.08% to −0.10%) |
+| fixed_5pct_premium | Hovedstol | −2,000 (−0.08%) |
+
+Every FIXED obligationslån case shows a small negative hovedstol
+bias — the engine rounds down where boligregner.dk rounds differently.
+This is a `round_up_1000` vs boligregner.dk rounding difference in the
+obligationshovedstol derivation (`provenu / (kurs/100 − issue_costs)`).
+All within 0.10% — rounding noise, not a model difference.
+
+### Sub-0.5% residuals
+
+Scattered deviations below 0.5% across all loan types are
+monthly-equivalent rounding and Decimal precision limits. Not
+actionable.
 
 ---
 
