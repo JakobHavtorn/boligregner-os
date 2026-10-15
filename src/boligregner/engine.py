@@ -641,9 +641,7 @@ def _compute_component(
         # Kontantlån: kursværdi = hovedstol (at par)
         kursvaerdi = hovedstol
     else:
-        # Obligationslån: kursværdi = unrounded hovedstol × kurs / 100
-        # boligregner.dk computes kursværdi from the unrounded hovedstol,
-        # not the rounded-to-1000 hovedstol, so kursværdi = provenu + udstedelse exactly.
+        # Obligationslån: kursværdi = hovedstol × kurs / 100 (= provenu + udstedelse)
         kursvaerdi = raw_hovedstol * spec.price / _HUNDRED
     if spec.issue_costs_nominal is not None and spec.issue_costs_nominal > _ZERO:
         udstedelse = spec.issue_costs_nominal
