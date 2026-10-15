@@ -458,18 +458,12 @@ def _hovedstol_for_provenu(
         provenu = hovedstol * P/100 − nominal
         → hovedstol = (provenu + nominal) / (P/100)
 
-    No rounding is applied — the full-precision value is returned for use in
-    all downstream calculations.  Display-layer rounding (templates) handles
-    presentation.
+    Returns the full-precision hovedstol for use in all downstream
+    calculations (annuity, bidrag, ÅOP, horizon).  Display-layer
+    rounding (templates) handles presentation.
     """
     if kontantlaan:
         # Kontantlån: amortize at par (price=100), derive obligationshovedstol separately.
-        #
-        # Hovedstol is NOT rounded to nearest 1000 here — rounding is a display
-        # concern only.  All downstream calculations (annuity, bidrag, ÅOP, horizon)
-        # must use the full-precision value so that ydelse, rente and restgæld
-        # stay consistent with the unrounded hovedstol that boligregner.dk uses
-        # internally.
         if issue_costs_nominal is not None and issue_costs_nominal > _ZERO:
             raw_hoved = desired_provenu + issue_costs_nominal
         else:
@@ -491,10 +485,6 @@ def _hovedstol_for_provenu(
         return hovedstol, obligationshovedstol, raw_hoved
 
     # Obligationslån: hovedstol = obligationshovedstol (bond face value).
-    #
-    # No rounding to nearest 1000 — the raw value flows through to all
-    # downstream calculations and the response model.  Display-layer
-    # rounding (templates) handles presentation.
     if issue_costs_nominal is not None and issue_costs_nominal > _ZERO:
         price_factor = price / _HUNDRED
         if price_factor <= _ZERO:

@@ -80,10 +80,10 @@ class TestHovedstol:
             issue_costs_nominal=Decimal(46844),
             kontantlaan=True,
         )
-        assert h == Decimal(2500000) + Decimal(46844)  # raw, no rounding
+        assert h == Decimal(2500000) + Decimal(46844)
         # obligationshovedstol at kurs 91.36 is larger
         assert oblig > h
-        assert abs(oblig - Decimal(2788000)) < Decimal(5000)  # wider tol for raw value
+        assert abs(oblig - Decimal(2788000)) < Decimal(5000)
 
 
 class TestIRR:
