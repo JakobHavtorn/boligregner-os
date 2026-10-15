@@ -439,15 +439,15 @@ def _hovedstol_for_provenu(
     issue_costs_nominal: Decimal | None = None,
     *,
     kontantlaan: bool = False,
-) -> tuple[Decimal, Decimal]:
+) -> tuple[Decimal, Decimal, Decimal]:
     """Given a desired net cash (provenu), derive (hovedstol, obligationshovedstol).
 
     For kontantlån (kontantlaan=True): hovedstol is derived at par (price=100).
-        hovedstol = round_up_1000(provenu + udst.omk)
-        obligationshovedstol = round_up_1000((provenu + udst.omk) / (kurs/100))
+        hovedstol = provenu + udst.omk
+        obligationshovedstol = (provenu + udst.omk) / (kurs/100)
 
     For obligationslån (kontantlaan=False): hovedstol = obligationshovedstol.
-        hovedstol = obligationshovedstol = round_up_1000((provenu + udst.omk) / (kurs/100))
+        hovedstol = obligationshovedstol = (provenu + udst.omk) / (kurs/100)
 
     Percentage mode (issue_costs_pct set, nominal None):
         provenu = hovedstol * P/100 − hovedstol * c
@@ -458,7 +458,9 @@ def _hovedstol_for_provenu(
         provenu = hovedstol * P/100 − nominal
         → hovedstol = (provenu + nominal) / (P/100)
 
-    Round up to nearest thousand (boligregner rounds to whole thousands).
+    Returns the full-precision hovedstol for use in all downstream
+    calculations (annuity, bidrag, ÅOP, horizon).  Display-layer
+    rounding (templates) handles presentation.
     """
     if kontantlaan:
         # Kontantlån: amortize at par (price=100), derive obligationshovedstol separately.
@@ -472,13 +474,12 @@ def _hovedstol_for_provenu(
                     "cannot derive kontantlån hovedstol"
                 )
             raw_hoved = desired_provenu / net_factor
-        hovedstol = _qceil(raw_hoved / Decimal(1000)) * Decimal(1000)
+        hovedstol = raw_hoved
 
         # Obligationshovedstol: bond face value at the actual issue price.
         price_factor = price / _HUNDRED
         if price_factor > _ZERO:
-            raw_oblig = raw_hoved / price_factor
-            obligationshovedstol = _qceil(raw_oblig / Decimal(1000)) * Decimal(1000)
+            obligationshovedstol = raw_hoved / price_factor
         else:
             obligationshovedstol = hovedstol  # at par when price=0 (shouldn't happen)
         return hovedstol, obligationshovedstol, raw_hoved
@@ -499,8 +500,7 @@ def _hovedstol_for_provenu(
                 "cannot derive hovedstol"
             )
         raw = desired_provenu / net_factor
-    hovedstol = _qceil(raw / Decimal(1000)) * Decimal(1000)
-    return hovedstol, hovedstol, raw
+    return raw, raw, raw
 
 
 def _qceil(x: Decimal) -> Decimal:
